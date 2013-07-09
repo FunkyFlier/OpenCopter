@@ -54,6 +54,7 @@ boolean detected = false;
 boolean newRC = false;
 boolean frameStart = true;
 boolean frameValid = false;
+boolean failSafe = false;
 
 uint8_t spekBuffer[14];
 
