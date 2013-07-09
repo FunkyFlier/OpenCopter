@@ -78,10 +78,10 @@ ISR(PCINT2_vect){
         timeDifference = currentTime - changeTime[i];//if so then calculate the pulse width
         if (900 < timeDifference && timeDifference < 2200){//check to see if it is a valid length
           rcCommands.standardRCBuffer[i] = (constrain((timeDifference - offset),1080,1920) - 1080) * 1.19 + 1000;
-          if (k != 2){ //fail safe - in loss of signal all channels stop except for the throttle
+          if (i != 2){ //fail safe - in loss of signal all channels stop except for the throttle
             newRC = true;
           }
-          if (k == 2 && ((timeDifference ) < 1025)){//fail safe for futaba / DSMx
+          if (i == 2 && ((timeDifference ) < 1025)){//fail safe for futaba / DSMx
             failSafe = true;
           }
         }
@@ -92,8 +92,6 @@ ISR(PCINT2_vect){
     }
   }
 }
-
-
 void FeedLine(){
   switch(rcType){
 
@@ -227,15 +225,18 @@ void DSMXParser(){
 void DetectRC(){
   readState = 0;
   SBus();
-
+  readState = 0;
   if (detected == true){
     FrameCheck();
+    readState = 0;
     return;
   }
   readState = 0;
   Spektrum();
+  readState = 0;
   if (detected == true){
     FrameCheck();
+    readState = 0;
     return;
   }
   else{
@@ -250,7 +251,6 @@ void DetectRC(){
     delay(100);//wait for a few frames
     Center();
   } 
-
 
 
 }
@@ -280,13 +280,16 @@ void SBus(){
 
   Serial1.begin(100000);
   timer = millis();
+  while(Serial1.available() > 0){
+    Serial1.read();
+  }
   while (Serial1.available() == 0){
     if (millis() - timer > 1000){
       return;
     }
   }
 
-  delay(100);
+  delay(10);
   if (Serial1.available() > 24){
     while(Serial1.available() > 0){
       inByte = Serial1.read();
@@ -313,8 +316,6 @@ void SBus(){
       }
     }
   }  
-
-
 }
 
 void Spektrum(){
@@ -334,5 +335,16 @@ void Spektrum(){
   detected = true;
 
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
