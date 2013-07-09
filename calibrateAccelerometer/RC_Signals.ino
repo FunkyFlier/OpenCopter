@@ -1,63 +1,3 @@
-void ProcessChannels(){
-  //this function processes the signals from the transmitter
-  if (rcCommands.values.gear < 1500){
-    //normal mode
-    MapVar(&rcCommands.values.aileron,&rollSetPoint,1000,2000,-60,60);
-    MapVar(&rcCommands.values.elevator,&pitchSetPoint,1000,2000,-60,60);
-    MapVar(&rcCommands.values.rudder,&rateSetPointZ,1000,2000,-300,300);
-    //dead zone
-    if (rollSetPoint < 2 && rollSetPoint > -2){
-      rollSetPoint = 0;
-    }
-    if (pitchSetPoint < 2 && pitchSetPoint > -2){
-      pitchSetPoint = 0;
-    }
-  }
-  else{
-    //stunt mode
-    //the aircraft will flip very quickly at the maximum extents of the right stick
-    MapVar(&rcCommands.values.aileron,&rateSetPointX,1000,2000,-300,300);
-    MapVar(&rcCommands.values.elevator,&rateSetPointY,1000,2000,-300,300);
-    MapVar(&rcCommands.values.rudder,&rateSetPointZ,1000,2000,-300,300);
-    //increased rate for flips
-    if (rcCommands.values.aileron > 1950){
-      rateSetPointX = 600.0;
-    }
-    if (rcCommands.values.aileron < 1050){
-      rateSetPointX = -600.0;
-    }
-    if (rcCommands.values.elevator > 1950){
-      rateSetPointY = 600.0;
-    }
-    if (rcCommands.values.elevator < 1050){
-      rateSetPointY = -600.0;
-    }
-    //dead zone
-    if (rateSetPointY < 2 && rateSetPointY > -2){
-      rateSetPointY= 0; 
-    }  
-    if (rateSetPointX < 2 && rateSetPointX > -2){
-      rateSetPointX = 0; 
-    }      
-  }
-  //dead zone
-  if (rateSetPointZ < 2 && rateSetPointZ > -2){
-    rateSetPointZ = 0;
-  }
-  //throttle check
-  //do not integrate unless throttle is near take off
-  //this prevents integral windup and possibly flipping the aircraft on take off
-  if (rcCommands.values.throttle > LIFTOFF){
-    integrate = true;
-  }    
-  //this limits the maximum throttle command
-  //the purpose of this is so that at maximum throttle the craft will still be controllable
-  if (rcCommands.values.throttle > 1900){
-    rcCommands.values.throttle = 1900;
-  }
-
-}
-
 void Center(){
 
   while (newRC == false){
@@ -70,6 +10,7 @@ void Center(){
 ISR(PCINT2_vect){
   currentPinState = PINK;
   changeMask = currentPinState ^ lastPinState;
+  //sei();
   lastPinState = currentPinState;
   currentTime = micros();
   for(uint8_t i=0;i<8;i++){
@@ -77,13 +18,9 @@ ISR(PCINT2_vect){
       if(!(currentPinState & 1<<i)){//is the pin in question logic low?
         timeDifference = currentTime - changeTime[i];//if so then calculate the pulse width
         if (900 < timeDifference && timeDifference < 2200){//check to see if it is a valid length
+          //rcCommands.standardRCBuffer[i] = timeDifference;
           rcCommands.standardRCBuffer[i] = (constrain((timeDifference - offset),1080,1920) - 1080) * 1.19 + 1000;
-          if (k != 2){ //fail safe - in loss of signal all channels stop except for the throttle
-            newRC = true;
-          }
-          if (k == 2 && ((timeDifference ) < 1025)){//fail safe for futaba / DSMx
-            failSafe = true;
-          }
+          newRC = true;
         }
       }
       else{//the pin is logic high implying that this is the start of the pulse
@@ -92,7 +29,6 @@ ISR(PCINT2_vect){
     }
   }
 }
-
 
 void FeedLine(){
   switch(rcType){
@@ -150,12 +86,6 @@ void SBusParser(){
     rcCommands.values.aux2  = (rcCommands.values.aux2  - 352) * 0.7446 + 1000;
     rcCommands.values.aux3  = constrain(((sBusData[10]>>5|sBusData[11]<<3) & 0x07FF),352,1695);
     rcCommands.values.aux3  = (rcCommands.values.aux3  - 352) * 0.7446 + 1000;
-    if (sBusData[23] & (1<<2)) {
-      failSafe = true;
-    }
-    if (sBusData[23] & (1<<3)) {
-      failSafe = true;
-    }
   }
 
 }
@@ -334,5 +264,4 @@ void Spektrum(){
   detected = true;
 
 }
-
 

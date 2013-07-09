@@ -6,8 +6,9 @@ void LevelAngles(){
     timer = micros();
     GetGyro();
     GetAcc();
-    GetMag();
+    GetMag();//uncomment these lines if the full AHRS is going to be used
     imu.AHRSupdate();
+    //imu.IMUupdate();
     delay(5);
   }
   imu.GetEuler();
@@ -26,22 +27,26 @@ void PollPressure(void){
     case 0://read ut
       StartUT();
       pressureState = 1;
+      baroTimer = millis();
       break;
     case 1://wait for ready signal
-      if (digitalRead(READY_PIN) == 1){
+      if (millis() - baroReadyTimer > 5){
         pressureState = 2;
         ut = ReadUT();
       }
+
       break;
     case 2://read up
       StartUP();
       pressureState = 3;
+      baroTimer = millis();
       break;
     case 3://wait for ready signal
-      if (digitalRead(READY_PIN) == 1){
+      if (millis() - baroReadyTimer > CONV_TIME){
         pressureState = 4;
         up = ReadUP();
       }
+
       break;
     case 4://
       temperature = Temperature(ut);
@@ -94,10 +99,7 @@ short Temperature(unsigned int ut){
 }
 
 void StartUT(void){
-  /*Wire.beginTransmission(BMP085_ADDRESS);
-   Wire.write(0xF4);
-   Wire.write(0x2E);
-   Wire.endTransmission();*/
+
   I2c.write(BMP085_ADDRESS,0xF4,0x2E);
 }
 
@@ -209,7 +211,7 @@ void AccInit(){
 
   AccSSLow();
   SPI.transfer(WRITE | SINGLE | BW_RATE);
-  SPI.transfer(0x0C);//400hz
+  SPI.transfer(0x0D);//800hz
   AccSSHigh();
 
   AccSSLow();
@@ -288,9 +290,9 @@ void GetMag(){
   mag.buffer[3] = I2c.receive();//Y
   mag.buffer[2] = I2c.receive();
 
-  floatMagX = ((float)mag.v.x - compassXMin) * inverseXRange - 1.0;
-  floatMagY = -1.0 * (((float)mag.v.y - compassYMin) * inverseYRange - 1.0);
-  floatMagZ = -1.0 * (((float)mag.v.z - compassZMin) * inverseZRange - 1.0);
+  floatMagX = ((float)mag.v.x - MAG_OFFSET_X) * MAG_SCALE_X;
+  floatMagY = -1.0 * (((float)mag.v.y - MAG_OFFSET_Y) * MAG_SCALE_Y);
+  floatMagZ = -1.0 * (((float)mag.v.z - MAG_OFFSET_Z) * MAG_SCALE_Z);
 
 }
 
@@ -321,40 +323,27 @@ void GetAcc(){
   }
   AccSSHigh();  
 
-  //the filter expects gravity to be in NED coordinates
-  //switching the sign will fix this
-  //the raw values are not negated because the accelerometer values are used for the altimeter
-  //one must be careful to make sure that all of the sensors are in the North, East, Down convention
-  rawX = acc.v.x;
-  Smoothing(&rawX,&smoothAccX);//this is a very simple low pass digital filter
-  rawY = acc.v.y * -1.0;
-  Smoothing(&rawY,&smoothAccY);//it helps significiantlly with vibrations. 
-  rawZ = acc.v.z * -1.0;
-  Smoothing(&rawZ,&smoothAccZ);//if the applicaion is not prone to vibrations this can skipped and the raw value simply recast as a float
-  accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-  accToFilterY = -1.0 * smoothAccY;
-  accToFilterZ = -1.0 * smoothAccZ;
-
-  if (smoothAccX > 0){
-    scaledAccX = smoothAccX * ACC_SC_X_POS;
-  }
-  else{
-    scaledAccX = smoothAccX * ACC_SC_X_NEG;
-  }
-  if (smoothAccY > 0){
-    scaledAccY = smoothAccY * ACC_SC_Y_POS;
-  }
-  else{
-    scaledAccY = smoothAccY * ACC_SC_Y_NEG;
-  }
-  if (smoothAccZ > 0){
-    scaledAccZ = smoothAccZ * ACC_SC_Z_POS;
-  }
-  else{
-    scaledAccZ = smoothAccZ * ACC_SC_Z_NEG;
-  }  
+  acc.v.y *= -1;
+  acc.v.z *= -1;
+  //the data goes through the low pass filter 
+  Smoothing(&acc.v.x,&smoothAccX);//this is a very simple low pass digital filter
+  Smoothing(&acc.v.y,&smoothAccY);//it helps significiantlly with vibrations. 
+  Smoothing(&acc.v.z,&smoothAccZ);
+  //the offset and scaling factor to meters per second is applied
+  //the values are generate by the accelerometer calibration sketch
+  //notice the sign negation. The axes must be in North East Down convention
+  //however gravity is measured as negative in that convention by the accelerometer
+  //the complimentary filter expects gravity to be positive in the North East Down convention
+  accToFilterX = -1.0 * ((smoothAccX - ACC_OFFSET_X) * ACC_SCALE_X);//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+  accToFilterY = -1.0 * ((smoothAccY - ACC_OFFSET_Y) * ACC_SCALE_Y);
+  accToFilterZ = -1.0 * ((smoothAccZ - ACC_OFFSET_Z) * ACC_SCALE_Z);
+  
+  scaledAccX = smoothAccX;
+  scaledAccY = smoothAccY;
+  scaledAccZ = smoothAccZ;
 
 }
+
 
 
 

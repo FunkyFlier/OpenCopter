@@ -24,11 +24,47 @@
  This example code will only work on the MEGA
  To use on a different arduino change the slave select defines or use digitalWrite 
  */
+#include <Streaming.h>
 #include <I2C.h>
 #include <SPI.h>
 #include "openIMUL.h"
 #include "MPIDL.h"//the L is for local incase there is already a library by that name
 #include "UBLOXL.h"
+
+//accelerometer calibration values
+//this is where the values from the accelerometer calibration sketch belong
+#define ACC_OFFSET_X 12.6558103
+
+#define ACC_OFFSET_Y -2.7716317
+
+#define ACC_OFFSET_Z -2.9793844
+
+#define ACC_SCALE_X 0.0379364
+
+#define ACC_SCALE_Y 0.0375618
+
+#define ACC_SCALE_Z 0.0396514
+
+
+
+//magnetometer calibration values
+//this is where the values from the accelerometer calibration sketch belong
+
+
+#define MAG_OFFSET_X 9.0968866
+
+#define MAG_OFFSET_Y 74.7673721
+
+#define MAG_OFFSET_Z -12.0234041
+
+#define MAG_SCALE_X 0.0030584
+
+#define MAG_SCALE_Y 0.0031391
+
+#define MAG_SCALE_Z 0.0035792
+
+
+
 
 //LED defines
 #define RED 38
@@ -54,21 +90,7 @@
 #define POWER_CTL 0x2D
 #define DATA_FORMAT 0x31
 #define DATAX0 0x32
-//use calibrate_acc to find these values
-//take the max and min from each axis
-//then use these formulas
-//ACC_SC_etc_NEG = 9.8 / axis min
-//ACC_SC_etc_POS = 9.8 / axis max
-//gravity is sensed differently in each direction
-//that is why datasheets list a range of LSB/g
-//the values from the datasheets can be used but it will hurt the performance of the filter
-//these calibration values will change over time due to factors like tempature
-#define ACC_SC_X_NEG 0.038735177f
-#define ACC_SC_X_POS 0.036981132f
-#define ACC_SC_Y_NEG 0.037984496f
-#define ACC_SC_Y_POS 0.036981132f
-#define ACC_SC_Z_NEG 0.041525423f
-#define ACC_SC_Z_POS 0.037262357f
+
 
 //mag defines ST LSM303DLHC - will possibly work with the HMC5883L
 #define MAG_ADDRESS 0x1E
@@ -93,6 +115,7 @@
 #define OSS 0x00
 #define READY_PIN 47
 #define POLL_RATE 0
+#define CONV_TIME 5
 
 //RC defines
 #define DSM2 0
@@ -193,19 +216,15 @@ int baroCount;
 float baroSum;
 long pressureInitial; 
 float rawAltitude;
+unsigned long baroReadyTimer;
 
-//RC vars
-uint8_t rcType,readState,inByte;
+//RC signal variables
+uint8_t rcType,readState,inByte,byteCount,channelNumber;
+uint32_t frameTime;
 boolean detected = false;
 boolean newRC = false;
-
-
-const uint8_t syncArray1[14] = {
-  1,0,3,2,5,4,7,6,9,8,11,10,13,12};
-const uint8_t syncArray2[14] = {
-  1,0,3,2,7,6,5,4,11,10,13,12,9,8};
-
 int bufferIndex=0;
+uint8_t spekBuffer[14];
 
 typedef union{
   struct{
@@ -246,51 +265,18 @@ int16_t offsetX,offsetY,offsetZ;
 float radianGyroX,radianGyroY,radianGyroZ;
 float degreeGyroX,degreeGyroY,degreeGyroZ;
 float floatMagX,floatMagY,floatMagZ;//needs to be a float so the vector can be normalized
-int16_t rawX,rawY,rawZ;
 float scaledAccX,scaledAccY,scaledAccZ;
 float smoothAccX,smoothAccY,smoothAccZ;
 float accToFilterX,accToFilterY,accToFilterZ;
-float dt,g_dt;
-
-//radio vars
-byte inGainBuffer[7];
-byte radioInByte;
-uint8_t inGainBufferIndex = 0;
-uint8_t gainBufferIndex = 0;
-long transmitTimer;
+float dt;
 
 //control related vars
 boolean integrate = false;
-boolean startHold = true;
-boolean startLoiter = true;
 float zero = 0.0;//so that the MPID library can be used
 float motorCommand1,motorCommand2,motorCommand3,motorCommand4;
 
-typedef union {
-  struct{
-    long timestamp;
-    int32_t latInit;
-    int32_t lonInit;
-    int32_t lat;
-    int32_t lon;
-    float dist;
-    float pitchError;
-    float rollError;
-    float heading;
-    float bodyHeading;
-    float yawAngle;
-    float pitchSetPoint;
-    float rollSetPoint;
-    uint8_t GPSfix;
-  }
-  v;
-  byte buffer[53];
-}
-transmissionUnion_t;
-
-transmissionUnion_t t;//contains all the control vars to be monitored
-
-
+float pitchSetPoint;
+float rollSetPoint;
 float pitchAngle;
 float rollAngle;
 float yawSetPoint;
@@ -304,27 +290,6 @@ float altitudeSetPoint;
 float throttleAdjustment;    
 
 
-typedef union{
-  struct{
-
-    float kp_loiter;
-    float ki_loiter;
-    float kd_loiter;
-    float n_loiter;
-
-
-  }
-  v;
-  byte buffer[16];
-}
-gainUnion_t;
-
-gainUnion_t g;//contains the gains
-
-float kp_alt_p = 10;
-float ki_alt_p = 1.75;
-float kd_alt_p = 15;
-float nAlt_p = 15;
 
 
 float kp_r_p = 0.64409;
@@ -337,7 +302,7 @@ float ki_r_r = 0.041982;
 float kd_r_r = 0.01423;
 float nRoll = 19.5924;
 
-float kp_r_y = 6.9389;
+float kp_r_y = 3.5;
 float ki_r_y = 0.22747;
 float kd_r_y = -0.42597;
 float nYaw = 4.4174;
@@ -352,10 +317,7 @@ float ki_a_r = 0.2005;
 float kd_a_r = 0.11256;
 float nRollA = 47.9596;
 
-float kp_a_y = 3.0564;
-float ki_a_y = 0.099342;
-float kd_a_y = 0.51023;
-float nYawA = 36.9853;
+
 
 
 int flightState = 3;
@@ -365,24 +327,31 @@ uint8_t loopCount;
 uint16_t i;//index for buffering in the data
 uint16_t j;
 uint8_t k;//index for RC signals
-uint32_t timer,printTimer;
+uint32_t timer,printTimer,_800HzTimer;
 //this is how you use the AHRS and Altimeter
-openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&scaledAccX,&scaledAccY,&scaledAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawAltitude,&dt);
+//openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&scaledAccX,&scaledAccY,&scaledAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawAltitude,&dt);
+//this is how you use the AHRS
+openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&floatMagX,&floatMagY,&floatMagZ,&dt);
+//this is how to use just the IMU for pitch and roll measurment 
+//openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&dt);
 
-MPID PitchAngle(&t.v.pitchSetPoint,&imu.pitch,&rateSetPointY,&integrate,&kp_a_p,&ki_a_p,&kd_a_p,&nPitchA,&dt,200,300);
-MPID RollAngle(&t.v.rollSetPoint,&imu.roll,&rateSetPointX,&integrate,&kp_a_r,&ki_a_r,&kd_a_r,&nRollA,&dt,200,300);
-MYAW YawAngle(&yawSetPoint,&imu.yaw,&rateSetPointZ,&integrate,&kp_a_y,&ki_a_y,&kd_a_y,&nYawA,&dt,200,300);
+MPID PitchAngle(&pitchSetPoint,&imu.pitch,&rateSetPointY,&integrate,&kp_a_p,&ki_a_p,&kd_a_p,&nPitchA,&dt,200,300);
+MPID RollAngle(&rollSetPoint,&imu.roll,&rateSetPointX,&integrate,&kp_a_r,&ki_a_r,&kd_a_r,&nRollA,&dt,200,300);
+//MYAW YawAngle(&yawSetPoint,&imu.yaw,&rateSetPointZ,&integrate,&kp_a_y,&ki_a_y,&kd_a_y,&nYawA,&dt,200,300);
 
 MPID PitchRate(&rateSetPointY,&degreeGyroY,&adjustmentY,&integrate,&kp_r_p,&ki_r_p,&kd_r_p,&nPitch,&dt,200,200);
 MPID RollRate(&rateSetPointX,&degreeGyroX,&adjustmentX,&integrate,&kp_r_r,&ki_r_r,&kd_r_r,&nRoll,&dt,200,200);
 MPID YawRate(&rateSetPointZ,&degreeGyroZ,&adjustmentZ,&integrate,&kp_r_y,&ki_r_y,&kd_r_y,&nYaw,&dt,200,200);
 
-MPID AltHoldPosition(&altitudeSetPoint,&imu.altitude,&throttleAdjustment,&integrate,&kp_alt_p,&ki_alt_p,&kd_alt_p,&nAlt_p,&dt,200,200);
+//MPID AltHoldPosition(&altitudeSetPoint,&imu.altitude,&throttleAdjustment,&integrate,&kp_alt_p,&ki_alt_p,&kd_alt_p,&nAlt_p,&dt,200,200);
 
-MPID LoiterRollPosition(&zero,&t.v.rollError,&t.v.rollSetPoint,&integrate,&g.v.kp_loiter,&g.v.ki_loiter,&g.v.kd_loiter,&g.v.n_loiter,&g_dt,15,20);
-MPID LoiterPitchlPosition(&zero,&t.v.pitchError,&t.v.pitchSetPoint,&integrate,&g.v.kp_loiter,&g.v.ki_loiter,&g.v.kd_loiter,&g.v.n_loiter,&g_dt,15,20);
+//MPID LoiterRollPosition(&zero,&rollError,&rollSetPoint,&integrate,&g.v.kp_loiter,&g.v.ki_loiter,&g.v.kd_loiter,&g.v.n_loiter,&g_dt,15,20);
+//MPID LoiterPitchlPosition(&zero,&pitchError,&pitchSetPoint,&integrate,&g.v.kp_loiter,&g.v.ki_loiter,&g.v.kd_loiter,&g.v.n_loiter,&g_dt,15,20);
 
+//saftey related variables
 boolean failSafe = false;
+boolean hold = true;
+boolean toggle;
 long failSafeTimer;
 
 UBLOX gps;
@@ -399,50 +368,7 @@ void setup(){
   radio.begin(115200);
   MotorInit();
   DetectRC();
-  if (rcType == RC){
-    DDRK = 0;//PORTK as input
-    PORTK |= 0xFF;//turn on pull ups
-    PCMSK2 |= 0xFF;//set interrupt mask for all of PORTK
-    PCICR = 1<<2;//enable the pin change interrupt for K
-    delay(100);//wait for a few frames to come in if the aileron channel has not been recieved when the Center() function is called the system does 
-    ot work
-      Center();
-  }  
-
-  //arming procedure - use rudder to arm
-  newRC = false;
-  timer = millis();
-  while (newRC == false){
-    if (rcType == RC){
-      delay(100);
-    }
-    if (rcType != RC){
-      FeedLine();
-    }
-    if (millis() - timer > 1000){//in case it has incorrectly detected serial RC
-      rcType = RC;
-      DDRB &= 0xE0;
-      PORTB |= 0x1F;//turn on pull ups
-      PCMSK0 |= 0x1F;//set interrupt mask for all of PORTK
-      PCICR |= 1<<0;//enable the pin change interrupt for K
-      Center();
-      timer = millis();
-    }
-  }
-
-  while (rcCommands.values.rudder < 1850){
-    if (rcType == RC){
-      delay(100);
-    }
-    if (rcType != RC){
-      FeedLine();
-    }
-  } 
-  newRC = false;
-
-
-  digitalWrite(RED,LOW);
-
+  Arm();//move the rudder to the right to begin calibration
   I2c.begin();
   I2c.setSpeed(1);
   SPI.begin();
@@ -458,115 +384,54 @@ void setup(){
   GyroInit();
   AccInit();
   MagInit();
-  
-  LevelAngles();
-
-  PitchAngle.reset();
-  RollAngle.reset();
-  YawAngle.reset();
-
-  PitchRate.reset();
-  RollRate.reset();
-  YawRate.reset();
-
-  AltHoldPosition.reset();
-
-  LoiterRollPosition.reset();
-  LoiterPitchlPosition.reset();
-
-  g.v.kp_loiter = 6.5;
-  g.v.ki_loiter = 0.1;
-  g.v.kd_loiter = 0;
-  g.v.n_loiter = 0;
 
 
   gps.init();
 
-  while (rcCommands.values.throttle > 1020){
-    if (rcType != RC){
-      FeedLine();
-    }
-    digitalWrite(GREEN,HIGH);
-    delay(500);
-    digitalWrite(GREEN,LOW);
-    delay(500);
-  }
+  LevelAngles();
+  Reset();
+  SafetyCheck();
   digitalWrite(YELLOW,LOW);
+  digitalWrite(RED,HIGH);
   digitalWrite(GREEN,HIGH);
-
-  loopCount = 0;
-  DebugOutput();
-  printTimer = millis();
   failSafeTimer = millis();
   timer = micros();
+  _800HzTimer = micros();
 }
 
 void loop(){
   PollPressure();
   if (newBaro == true){
     newBaro = false;
-    GetAltitude(&pressure,&pressureInitial,&rawAltitude);
-    imu.BaroKalUpdate();
   }  
   gps.Monitor();
   if (gps.newData == true){
     gps.newData = false;
-    t.v.GPSfix = gps.data.vars.gpsFix;
-    if (rcCommands.values.aux1 < 1100){
-
-      g_dt = (millis() - prevGPSTime) / 1000.0;
-      prevGPSTime = millis();
-      if (startLoiter == true){
-        startLoiter = false;
-        t.v.latInit = gps.data.vars.lat;
-        t.v.lonInit = gps.data.vars.lon;
-        LoiterRollPosition.reset();
-        LoiterPitchlPosition.reset();
-      }
-      else{
-        Loiter();
-      }
-    }
-    else{
-      startLoiter = true;
-    }
 
   }  
-  if (micros() - timer >= 5000){//attempt to run at 200 hz  
-    //DebugHigh();
+  if (micros() - _800HzTimer >= 1250){
+    _800HzTimer = micros();
+    GetAcc();
+  }
+  if (micros() - timer > 10000){//~400 hz  
     dt = ((micros() - timer) / 1000000.0);
     timer = micros();
     GetGyro();
-    GetAcc();
-    if (loopCount == 6){
-      GetMag();
-      imu.AHRSupdate();
-      loopCount = 0;
+    //GetAcc();
+    GetMag();
+    imu.AHRSupdate();
+    if (rcCommands.values.gear < 1500){
+      //the gear channel toggles stunt mode
+      //stunt mode is much more difficult to fly in than normal mode
+      imu.GetEuler();
+      Angle();
+      digitalWrite(YELLOW,LOW);
     }
     else{
-      imu.IMUupdate();
-      loopCount++;
+      digitalWrite(YELLOW,HIGH);
     }
-    imu.AccKalUpdate();
-    imu.GetEuler();
-    if (rcCommands.values.aux1 < 1600){
-      if(startHold == true){
-        flightState = HH_OFF;
-        AltHoldPosition.reset();
-        startHold = false;
-        altitudeSetPoint = imu.altitude;
-      }
-      AltitudeHold();
-      HeadingHold();
-    }
-    else{
-      startHold = true;
-      throttleAdjustment = 0;
-    }
-    Angle();
     Rate();
     MotorHandler();
-    //DebugLow();
   }
 
   if (rcType != RC){
@@ -576,6 +441,13 @@ void loop(){
     newRC = false;
     failSafeTimer = millis();
     ProcessChannels();
+    Serial.print(millis());
+    Serial.print(",");
+    Serial.print(imu.pitch);
+    Serial.print(",");
+    Serial.print(imu.roll);
+    Serial.print(",");
+    Serial.println(imu.yaw);
     //imu.GetEuler();
     //for debugging purposes
     /*if (rcCommands.values.gear > 1600){
@@ -626,16 +498,7 @@ void loop(){
     }
   }
 
-  if (rcCommands.values.gear < 1100){
-    Gains();
-  }
-  else{
-    if (rcCommands.values.gear < 1600){
-    }
-    else{
-      Transmit();
-    }
-  }
+
 
 }
 
@@ -654,6 +517,10 @@ void MapVar (int16_t *x, float *y, float in_min, float in_max, float out_min, fl
 void MapVar (uint16_t *x, float *y, float in_min, float in_max, float out_min, float out_max){
   *y = (*x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
+
+
+
 
 
 
