@@ -23,10 +23,14 @@ void SafetyCheck(){
     if (rcType != RC){
       FeedLine();
     }
+    
     if (millis() - timer > 500){
       digitalWrite(GREEN,toggle);
       toggle = ~toggle;
       timer = millis();
+    }
+    if (newRC == true){
+      newRC = false;
     }
   }
 }
@@ -53,6 +57,7 @@ void Arm(){
       timer = millis();
     }
   }
+  newRC = false;
 
   while (rcCommands.values.rudder < 1850){
     if (rcType == RC){
@@ -61,13 +66,12 @@ void Arm(){
     if (rcType != RC){
       FeedLine();
     }
+    if (newRC == true){
+      newRC = false;
+    }
   } 
-  newRC = false;
-
 
   digitalWrite(RED,LOW);
 
 }
-
-
 

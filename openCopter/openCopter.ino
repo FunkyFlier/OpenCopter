@@ -24,7 +24,6 @@
  This example code will only work on the MEGA
  To use on a different arduino change the slave select defines or use digitalWrite 
  */
-#include <Streaming.h>
 #include <I2C.h>
 #include <SPI.h>
 #include "openIMUL.h"
@@ -33,35 +32,29 @@
 
 //accelerometer calibration values
 //this is where the values from the accelerometer calibration sketch belong
-#define ACC_OFFSET_X 12.6558103
-
-#define ACC_OFFSET_Y -2.7716317
-
-#define ACC_OFFSET_Z -2.9793844
-
-#define ACC_SCALE_X 0.0379364
-
-#define ACC_SCALE_Y 0.0375618
-
-#define ACC_SCALE_Z 0.0396514
+#define ACC_OFFSET_X 8.5450668
+#define ACC_OFFSET_Y -2.5933372
+#define ACC_OFFSET_Z -19.0836372
+#define ACC_SCALE_X 0.0377940
+#define ACC_SCALE_Y 0.0383343
+#define ACC_SCALE_Z 0.0397068
+    
 
 
 
 //magnetometer calibration values
-//this is where the values from the accelerometer calibration sketch belong
-
-
-#define MAG_OFFSET_X 9.0968866
-
-#define MAG_OFFSET_Y 74.7673721
-
-#define MAG_OFFSET_Z -12.0234041
-
-#define MAG_SCALE_X 0.0030584
-
-#define MAG_SCALE_Y 0.0031391
-
-#define MAG_SCALE_Z 0.0035792
+#define MAG_OFFSET_X 11.859508f
+#define MAG_OFFSET_Y 75.875509f
+#define MAG_OFFSET_Z -8.438637f
+#define W_INV_00 0.998463f
+#define W_INV_01 -0.007377f
+#define W_INV_02 -0.012491f
+#define W_INV_10 -0.007377f
+#define W_INV_11 1.004186f
+#define W_INV_12 -0.002138f
+#define W_INV_20 -0.012491f
+#define W_INV_21 -0.002138f
+#define W_INV_22 1.145655f
 
 
 
@@ -98,16 +91,7 @@
 #define LSM303_CRB_REG 0x01
 #define LSM303_MR_REG 0x02
 #define LSM303_OUT_X_H 0x03
-//use calibrate_mag to find these values
-#define compassXMax 289.0f
-#define compassXMin -368.0f
-#define compassYMax 246.0f
-#define compassYMin -550.0f
-#define compassZMax 642.0f
-#define compassZMin -245.0f
-#define inverseXRange (float)(2.0 / (compassXMax - compassXMin))
-#define inverseYRange (float)(2.0 / (compassYMax - compassYMin))
-#define inverseZRange (float)(2.0 / (compassZMax - compassZMin))
+
 
 //barometer defines
 //the code for the BMP085 uses the data ready interrupt so the program isn't blocked 
@@ -264,6 +248,7 @@ int16_t offsetX,offsetY,offsetZ;
 //IMU related vars
 float radianGyroX,radianGyroY,radianGyroZ;
 float degreeGyroX,degreeGyroY,degreeGyroZ;
+float shiftedMagX,shiftedMagY,shiftedMagZ;
 float floatMagX,floatMagY,floatMagZ;//needs to be a float so the vector can be normalized
 float scaledAccX,scaledAccY,scaledAccZ;
 float smoothAccX,smoothAccY,smoothAccZ;
@@ -413,13 +398,13 @@ void loop(){
     _800HzTimer = micros();
     GetAcc();
   }
-  if (micros() - timer > 10000){//~400 hz  
+  if (micros() - timer > 2500){//~400 hz  
     dt = ((micros() - timer) / 1000000.0);
     timer = micros();
     GetGyro();
-    //GetAcc();
-    GetMag();
-    imu.AHRSupdate();
+    //GetMag();//uncomment if using the full AHRS
+    //imu.AHRSupdate();
+    imu.IMUupdate();
     if (rcCommands.values.gear < 1500){
       //the gear channel toggles stunt mode
       //stunt mode is much more difficult to fly in than normal mode
@@ -441,13 +426,13 @@ void loop(){
     newRC = false;
     failSafeTimer = millis();
     ProcessChannels();
-    Serial.print(millis());
+    /*Serial.print(millis());
     Serial.print(",");
     Serial.print(imu.pitch);
     Serial.print(",");
     Serial.print(imu.roll);
     Serial.print(",");
-    Serial.println(imu.yaw);
+    Serial.println(imu.yaw);*/
     //imu.GetEuler();
     //for debugging purposes
     /*if (rcCommands.values.gear > 1600){

@@ -31,11 +31,11 @@ void MotorHandler(){
     Motor3WriteMicros(1000);
     Motor4WriteMicros(1000); 
 
-    if (rcCommands.values.rudder > 1700){
+    if (rcCommands.values.rudder > 1800){
       digitalWrite(RED,HIGH);
       hold = true;
     }
-    if (rcCommands.values.rudder < 1300){
+    if (rcCommands.values.rudder < 1200){
       digitalWrite(RED,LOW);
       hold = false;
     }

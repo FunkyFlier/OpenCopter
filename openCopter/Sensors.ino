@@ -289,10 +289,20 @@ void GetMag(){
   mag.buffer[4] = I2c.receive();
   mag.buffer[3] = I2c.receive();//Y
   mag.buffer[2] = I2c.receive();
-
-  floatMagX = ((float)mag.v.x - MAG_OFFSET_X) * MAG_SCALE_X;
+  
+  mag.v.y *= -1;
+  mag.v.z *= -1;
+  shiftedMagX  = mag.v.x - MAG_OFFSET_X;
+  shiftedMagY  = mag.v.y - MAG_OFFSET_Y;
+  shiftedMagZ  = mag.v.z - MAG_OFFSET_Z;
+  
+  floatMagX = W_INV_00 * shiftedMagX + W_INV_01 * shiftedMagY + W_INV_02 * shiftedMagZ;
+  floatMagY = W_INV_10 * shiftedMagX + W_INV_11 * shiftedMagY + W_INV_12 * shiftedMagZ;
+  floatMagZ = W_INV_20 * shiftedMagX + W_INV_21 * shiftedMagY + W_INV_22 * shiftedMagZ;
+  /*floatMagX = ((float)mag.v.x - MAG_OFFSET_X) * MAG_SCALE_X;
   floatMagY = -1.0 * (((float)mag.v.y - MAG_OFFSET_Y) * MAG_SCALE_Y);
-  floatMagZ = -1.0 * (((float)mag.v.z - MAG_OFFSET_Z) * MAG_SCALE_Z);
+  floatMagZ = -1.0 * (((float)mag.v.z - MAG_OFFSET_Z) * MAG_SCALE_Z);*/
+  
 
 }
 
