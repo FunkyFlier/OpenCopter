@@ -25,6 +25,9 @@
  To use on a different arduino change the slave select defines or use digitalWrite 
  */
 #include <I2C.h>
+/*
+http://dsscircuits.com/articles/arduino-i2c-master-library.html
+ */
 #include <SPI.h>
 #include "openIMUL.h"
 #include "MPIDL.h"//the L is for local incase there is already a library by that name
