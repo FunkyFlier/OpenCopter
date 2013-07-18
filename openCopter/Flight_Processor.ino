@@ -20,6 +20,7 @@ void Reset(){
 void SafetyCheck(){
   timer = millis();
   while (rcCommands.values.throttle > 1020){
+    
     if (rcType != RC){
       FeedLine();
     }
@@ -59,7 +60,7 @@ void Arm(){
   }
   newRC = false;
 
-  while (rcCommands.values.rudder < 1850){
+  while (rcCommands.values.rudder < 1750){
     if (rcType == RC){
       delay(100);//wait for a few frames
     }

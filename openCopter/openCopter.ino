@@ -35,12 +35,13 @@ http://dsscircuits.com/articles/arduino-i2c-master-library.html
 
 //accelerometer calibration values
 //this is where the values from the accelerometer calibration sketch belong
-#define ACC_OFFSET_X 8.5450668
-#define ACC_OFFSET_Y -2.5933372
-#define ACC_OFFSET_Z -19.0836372
-#define ACC_SCALE_X 0.0377940
-#define ACC_SCALE_Y 0.0383343
-#define ACC_SCALE_Z 0.0397068
+#define ACC_OFFSET_X 14.1367654
+#define ACC_OFFSET_Y 0.9727644
+#define ACC_OFFSET_Z -8.5952434
+#define ACC_SCALE_X 0.0384910
+#define ACC_SCALE_Y 0.0381284
+#define ACC_SCALE_Z 0.0393013
+
     
 
 
@@ -388,6 +389,7 @@ void setup(){
 }
 
 void loop(){
+  Serial.println(rcCommands.values.elevator);
   PollPressure();
   if (newBaro == true){
     newBaro = false;
