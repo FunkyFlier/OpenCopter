@@ -393,7 +393,6 @@ void setup(){
 }
 
 void loop(){
-  Serial.println(rcCommands.values.elevator);
   PollPressure();
   if (newBaro == true){
     newBaro = false;
