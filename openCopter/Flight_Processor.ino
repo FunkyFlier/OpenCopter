@@ -60,7 +60,7 @@ void Arm(){
 
 
 
-void RotatePitchRoll(float *currentBearing, float *initialBearing, float *pitchIn, float *rollIn, float *pitchOut, float *rollOut){//change to take arguments
+void Rotate2D(float *currentBearing, float *initialBearing, float *pitchIn, float *rollIn, float *pitchOut, float *rollOut){//change to take arguments
   static float headingFreeDifference = *currentBearing - *initialBearing;
   static float sinHeadingFreeDiff = sin(ToRad(headingFreeDifference));
   static float cosHeadingFreeDiff = cos(ToRad(headingFreeDifference));
@@ -95,7 +95,7 @@ void Loiter(){
   LoiterXRate.calculate();
   setPointX *= -1.0;
   LoiterYRate.calculate();
-  RotatePitchRoll(&imu.yaw,&zero,&setPointX,&setPointY,&pitchSetPoint,&rollSetPoint);
+  Rotate2D(&imu.yaw,&zero,&setPointX,&setPointY,&pitchSetPoint,&rollSetPoint);
 }
 
 void GPSStable(){
@@ -103,7 +103,7 @@ void GPSStable(){
     Loiter();
   }
   else{
-    RotatePitchRoll(&imu.yaw,&headingFreeInitial,&pitchSetPointTX,&rollSetPointTX,&pitchSetPoint,&rollSetPoint);
+    Rotate2D(&imu.yaw,&headingFreeInitial,&pitchSetPointTX,&rollSetPointTX,&pitchSetPoint,&rollSetPoint);
     SetXYLoiterPosition();
   }
 
@@ -127,120 +127,103 @@ void GPSStable(){
 void WayPointControl(){
   switch (wayPointState){
   case WP_HOLD:
-    //Serial<<"wp hold\r\n";
-    //AltitudeHold();
     GPSStable();
     if (startFlight == true && inputWayPointNumber > 0){
       startFlight = false;
       wayPointState = WP_TRAVEL;
+      CrossTrack.reset();
       currentWayPointNumber = 0;
       targetAltitude = (wayPoints[0].coord.alt * 0.001) - altitudeDifference;
-      //gps.Heading(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&currentBearing);
-      //change to the correct dist heading function call
-      //previousBearing = currentBearing;
+      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
+      distToWayPoint *= -1;
       rollSetPoint = 0;
+      GPSTimer = millis();
     }
     break;
   case WP_TRAVEL:
-    //Serial<<"wp travel\r\n";
-    //AltitudeHold();
+    AltHold();
     if (GPSPID == true){
       GPSPID = false;
-      //gps.Distance(&d.v.lattitude,&d.v.longitude,&wayPoints[currentWayPointNumber].v.lat,&wayPoints[currentWayPointNumber].v.lon,&distToWayPoint);
+      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
       distToWayPoint *= -1;
-      speed2D_MPS = d.v.groundSpeed * 0.001;
-      //previousBearing = currentBearing;
-      //gps.Heading(&d.v.lattitude,&d.v.longitude,&wayPoints[currentWayPointNumber].v.lat,&wayPoints[currentWayPointNumber].v.lon,&currentBearing);
-      //yawSetPoint = currentBearing;
-      //GPSdt = (millis() - GPSTimer) * 0.001;
-      //GPSTimer = millis();
+      GPSDT = (millis() - GPSTimer) * 0.001;
+      GPSTimer = millis();
       WayPointPosition.calculate();
-      WayPointRate.calculate();
-      pitchSetPoint *= -1;
-      if (distToWayPoint >= -1 /*|| fabs(previousBearing - currentBearing) > 90*/){
+      if (distToWayPoint >= -1 ){
         currentWayPointNumber++;
         targetAltitude = (wayPoints[currentWayPointNumber].coord.alt * 0.001) - altitudeDifference;
       }
-      /*if (rcCommands.values.aileron > 1650){
-       currentWayPointNumber++;
-       }*/
-
     }
+    Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
+    WayPointRate.calculate();
+    pitchSetPoint *= -1;
+    CrossTrack.calculate();
     if (currentWayPointNumber == inputWayPointNumber){
       wayPointState = WP_END;
-      targetAltitude = imu.ZEst;
-      latTarget = gps.data.vars.lat;
-      lonTarget = gps.data.vars.lon;
+      SetXYLoiterPosition();
       SendEndOfWPCheck();
       endOfWPTimer = millis();
     }
     break;
   case WP_END:
-    //Serial<<"wp end\r\n";s
     GPSStable();
-    //AltitudeHold();
     if (endOfWPCheck == true){
       wayPointState = WP_HOLD;
       break;
     }
     if (RTBFlag == true){
       wayPointState = WP_RTB;
-      //remove extra altitude for autoland
-      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference;
+      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
       break;
     }
     if (millis() - endOfWPTimer > 5000){
       wayPointState = WP_FAIL_RTB;
       RTBFailSafe = true;
-      //remove more for autoland
-      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference;
+      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
     }
     break;
   case WP_RTB:
-    ///Serial<<"wp rtb\r\n";
-    //AltitudeHold();
+    AltHold();
     if (GPSPID == true){
       GPSPID = false;
-      //gps.Distance(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&distToWayPoint);
+      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&homeBase.coord.lat,&homeBase.coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
       distToWayPoint *= -1;
-      speed2D_MPS = d.v.groundSpeed * 0.001;
-      //gps.Heading(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&currentBearing);
-      //yawSetPoint = currentBearing;
-      //GPSdt = (millis() - GPSTimer) * 0.001;
-      //GPSTimer = millis();
+      GPSDT = (millis() - GPSTimer) * 0.001;
+      GPSTimer = millis();
       WayPointPosition.calculate();
-      WayPointRate.calculate();
-      pitchSetPoint *= -1;
       if (distToWayPoint >= -1){
-        targetAltitude = imu.ZEst;
-        latTarget = gps.data.vars.lat;
-        lonTarget = gps.data.vars.lon;
+        targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
+        SetXYLoiterPosition();
         wayPointState = WP_HOLD;
       }
     }
+    Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
+    WayPointRate.calculate();
+    pitchSetPoint *= -1;
+    CrossTrack.calculate();
+
+
 
     break;
   case WP_FAIL_RTB:
-    //Serial<<"wp rtb fs\r\n";
-    //AltitudeHold();
+    AltHold();
     if (GPSPID == true){
       GPSPID = false;
-      //gps.Distance(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&distToWayPoint);
+      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&homeBase.coord.lat,&homeBase.coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
       distToWayPoint *= -1;
-      speed2D_MPS = d.v.groundSpeed * 0.001;
-      //gps.Heading(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&currentBearing);
-      //yawSetPoint = currentBearing;
-      //GPSdt = (millis() - GPSTimer) * 0.001;
-      //GPSTimer = millis();
+      GPSDT = (millis() - GPSTimer) * 0.001;
+      GPSTimer = millis();
       WayPointPosition.calculate();
-      WayPointRate.calculate();
-      pitchSetPoint *= -1;
       if (distToWayPoint >= -1){
-        d.v.flightMode = STABLE;
+        d.v.flightMode = CARE_FREE;
         enterState = true;
-
       }
     }
+    Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
+    WayPointRate.calculate();
+    pitchSetPoint *= -1;
+    CrossTrack.calculate();
+
     break;
   }
 
@@ -283,6 +266,11 @@ void HeadingHold(){
     break;
   }  
 }
+
+
+
+
+
 
 
 

@@ -549,6 +549,10 @@ float shiftedAccX,shiftedAccY,shiftedAccZ;
 
 float headingFreeInitial;
 uint16_t startingThrottle;
+float velXBody,velYBody;
+float wpXDist,wpYDist;
+
+
 
 //constructors //fix the dts
 openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&scaledAccX,&scaledAccY,&scaledAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&rawZ,&imuDT,&d.v.declination);
@@ -567,7 +571,8 @@ PID AltHoldPosition(&targetAltitude,&actualAltitude,&targetVelAlt,&integrate,&d.
 PID AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_altitude_rate,&d.v.ki_altitude_rate,&d.v.kd_altitude_rate,&d.v.fc_altitude_rate,&imuDT,800,800);
 
 PID WayPointPosition(&zero,&distToWayPoint,&targetVelWayPoint,&integrate,&d.v.kp_waypoint_position,&d.v.ki_waypoint_position,&d.v.kd_waypoint_position,&d.v.fc_waypoint_position,&GPSDT,10,10);
-PID WayPointRate(&targetVelWayPoint,&speed2D_MPS,&pitchSetPoint,&integrate,&d.v.kp_waypoint_velocity,&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&imuDT,45,45);
+PID WayPointRate(&targetVelWayPoint,&velXBody,&pitchSetPoint,&integrate,&d.v.kp_waypoint_velocity,&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&imuDT,45,45);
+PID CrossTrack(&zero,&velYBody,&rollSetPoint,&integrate,&d.v.kp_cross_track,&d.v.ki_cross_track,&d.v.kd_cross_track,&d.v.fc_cross_track,&imuDT,30,30);
 //PID CrossTrack - include P
 //2D speed from GPS best idea where or use the vel from the estimator?
 
@@ -714,6 +719,7 @@ void loop(){
 
   if (gps.newData == true){
     gps.newData = false;
+    GPSPID = true;
     gps.DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&gps.data.vars.lat,&gps.data.vars.lon,&rawX,&rawY,&beeLineDist,&beeLineHeading);
     imu.GPSKalUpdate();
     d.v.lattitude = gps.data.vars.lat;
@@ -736,22 +742,22 @@ void loop(){
 
 
   /*if (millis() - generalPurposeTimer > 50){
-    generalPurposeTimer = millis();
-    //Serial<<rcCommands.values.aileron<<","<<rcCommands.values.elevator<<","<<rcCommands.values.throttle<<","<<rcCommands.values.rudder<<"\r\n";
-    //Serial<<rollSetPoint<<","<<pitchSetPoint<<"\r\n";
-    //debug 1 verify that the vel and pos est are correct
-    //Serial<<generalPurposeTimer<<","<<rawX<<","<<rawY<<","<<imu.velX<<","<<imu.XEst<<","<<imu.velY<<","<<imu.YEst<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
-    //degub 2 verify that the PID loops are behaving correctly
-    //Serial<<generalPurposeTimer<<","<<xTarget<<","<<imu.XEst<<","<<velSetPointX<<","<<imu.velX<<","<<setPointX<<","<<pitchSetPoint<<"\r\n";
-    //Serial<<generalPurposeTimer<<","<<YTarget<<","<<imu.YEst<<","<<velSetPointY<<","<<imu.velY<<","<<setPointY<<<","<<rollSetPoint<<"\r\n";
-    //Serial<<generalPurposeTimer<<",",<<targetAltitude<<","<<actualAltitude<<","<<targetVelAlt<<","<<imu.velZ<<","<<throttleAdjustment<<"\r\n";
-    //Serial<<d.v.kp_waypoint_velocity<<","<<d.v.fc_waypoint_velocity<<"\r\n";
-    //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<imu.velX<<","<<imu.XEst<<","<<imu.velY<<","<<imu.YEst<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
-    //Serial<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
-    //Serial<<imu.inertialZ<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
-    Serial<<imu.inertialX<<","<<imu.velX<<","<<imu.XEst<<","<<imu.inertialY<<","<<imu.velY<<","<<imu.YEst<<","<<imu.inertialZ<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
-    //Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-  }*/
+   generalPurposeTimer = millis();
+   //Serial<<rcCommands.values.aileron<<","<<rcCommands.values.elevator<<","<<rcCommands.values.throttle<<","<<rcCommands.values.rudder<<"\r\n";
+   //Serial<<rollSetPoint<<","<<pitchSetPoint<<"\r\n";
+   //debug 1 verify that the vel and pos est are correct
+   //Serial<<generalPurposeTimer<<","<<rawX<<","<<rawY<<","<<imu.velX<<","<<imu.XEst<<","<<imu.velY<<","<<imu.YEst<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
+   //degub 2 verify that the PID loops are behaving correctly
+   //Serial<<generalPurposeTimer<<","<<xTarget<<","<<imu.XEst<<","<<velSetPointX<<","<<imu.velX<<","<<setPointX<<","<<pitchSetPoint<<"\r\n";
+   //Serial<<generalPurposeTimer<<","<<YTarget<<","<<imu.YEst<<","<<velSetPointY<<","<<imu.velY<<","<<setPointY<<<","<<rollSetPoint<<"\r\n";
+   //Serial<<generalPurposeTimer<<",",<<targetAltitude<<","<<actualAltitude<<","<<targetVelAlt<<","<<imu.velZ<<","<<throttleAdjustment<<"\r\n";
+   //Serial<<d.v.kp_waypoint_velocity<<","<<d.v.fc_waypoint_velocity<<"\r\n";
+   //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<imu.velX<<","<<imu.XEst<<","<<imu.velY<<","<<imu.YEst<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
+   //Serial<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
+   //Serial<<imu.inertialZ<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
+   Serial<<imu.inertialX<<","<<imu.velX<<","<<imu.XEst<<","<<imu.inertialY<<","<<imu.velY<<","<<imu.YEst<<","<<imu.inertialZ<<","<<imu.velZ<<","<<imu.ZEst<<"\r\n";
+   //Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   }*/
 
   if (newRC == true){
     newRC = false;
@@ -858,7 +864,7 @@ void FlightSM(){
       headingFreeInitial = imu.yaw;
     }
     HeadingHold();
-    RotatePitchRoll(&imu.yaw,&headingFreeInitial,&pitchSetPointTX,&rollSetPointTX,&pitchSetPoint,&rollSetPoint);
+    Rotate2D(&imu.yaw,&headingFreeInitial,&pitchSetPointTX,&rollSetPointTX,&pitchSetPoint,&rollSetPoint);
     if (newRC == true){
       if (rcCommands.values.aux1 < 1500){
         d.v.flightMode = STABLE;
@@ -915,16 +921,10 @@ void FlightSM(){
     if (enterState == true){
       //GPSTimer = millis();
       //altHoldTimer = GPSTimer;
+      altitudeDifference = d.v.gpsAltitude - d.v.baroAltitude;
       enterState = false;
       yawSetPoint = imu.yaw;
-      //targetAltitude = imu.altitude;
-      //altitudeDifference = (d.v.gpsAltitude * 0.001) - imu.altitude;
-      latTarget = gps.data.vars.lat;
-      lonTarget = gps.data.vars.lon;
       wayPointState = WP_HOLD;
-      //startingThrottle = throttleCommand;
-      throttleAdjustment += throttleCommand;
-      throttleCommand = 0;
       digitalWrite(13,LOW);
       digitalWrite(RED,LOW);
       digitalWrite(YELLOW,LOW);
@@ -944,17 +944,15 @@ void FlightSM(){
       if (rcCommands.values.aux3 < 1500){
         d.v.flightMode = CARE_FREE;
         enterState = true;
-        //throttleAdjustment -= startingThrottle;
-        //throttleCommand = startingThrottle;
       }   
     }
     break;
   default:
     failSafe = true;
-    //failsafeCause = 2;
     break;
   }
 }
+
 
 
 

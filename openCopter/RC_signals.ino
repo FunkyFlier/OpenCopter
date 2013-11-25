@@ -88,9 +88,7 @@ void ProcessChannels(){
   case 4://waypoint
     rollSetPointTX  = 0;
     pitchSetPointTX = 0;
-    throttleCommand = 0; 
     yawInput = 0;
-    //rate + attitude + altitdue + waypoint PID loops
     break;
 
   }
