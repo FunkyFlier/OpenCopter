@@ -30,7 +30,7 @@ typedef union{
     int32_t heading;//48
     uint32_t sAcc;//52
     uint32_t cAcc;//56
-    volatile uint8_t gpsFix;
+    uint8_t gpsFix;
   }
   vars;
   byte buffer[61];
@@ -43,7 +43,7 @@ public:
   void DistBearing(int32_t*, int32_t*, int32_t*, int32_t*,float*,float*,float*,float*);
   void Monitor(void);
   GPS_Union_t data;
-  volatile boolean newData;
+  boolean newData;
 private:
   uint8_t GPSState;
   int i;

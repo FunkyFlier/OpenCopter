@@ -167,6 +167,34 @@ void UBLOX::Monitor(){
 }
 
 
+/*float UBLOX::fastAtan2( float y, float x)
+{
+  static float atan;
+  static float z;
+  if ( x == 0.0f )
+  {
+    if ( y > 0.0f ) return PIBY2_FLOAT;
+    if ( y == 0.0f ) return 0.0f;
+    return -PIBY2_FLOAT;
+  }
+  //atan;
+  z = y / x;
+  if ( fabs( z ) < 1.0f )
+  {
+    atan = z/(1.0f + 0.28f*z*z);
+    if ( x < 0.0f )
+    {
+      if ( y < 0.0f ) return atan - PI_FLOAT;
+      return atan + PI_FLOAT;
+    }
+  }
+  else
+  {
+    atan = PIBY2_FLOAT - z/(z*z + 0.28f);
+    if ( y < 0.0f ) return atan - PI_FLOAT;
+  }
+  return atan;
+}*/
 
 
 

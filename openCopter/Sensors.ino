@@ -1,19 +1,141 @@
-void LevelAngles(){
-  timer = micros();
-  delay(5);
-  for( int i = 0; i < 500; i++){//run the IMU so that the error can be driven to zero - keep it still for this
-    dt = ((micros() - timer) / 1000000.0);
-    timer = micros();
-    GetGyro();
+void CalcGravityOffSet(){
+  
+  for (int i =0; i < 100; i++){
+    while (micros() - imuTimer < 10000){
+    }
+    imuDT = (micros() - imuTimer) * 0.000001;
+    imuTimer = micros();
     GetAcc();
-    GetMag();//uncomment these lines if the full AHRS is going to be used
+    GetMag();
+    GetGyro();
     imu.AHRSupdate();
-    //imu.IMUupdate();
-    delay(5);
   }
   imu.GetEuler();
-  imu.pitchOffset = imu.pitch;
-  imu.rollOffset = imu.roll;
+  //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+  gravSum = 0;
+  for (int i = 0; i < 50; i++){
+    GetAcc();
+    gravSum += imu.GetGravOffset();
+    //Serial<<imu.GetGravOffset()<<"\r\n";;
+    delay(5);
+  }
+  gravAvg = gravSum / 50.0;
+  imu.gravityOffSet = gravAvg;
+}
+
+
+void CalibrateSensors(){
+
+  generalPurposeTimer = millis();
+  while(1){
+    if ( millis() - generalPurposeTimer >= 10){
+      generalPurposeTimer = millis();
+      GetAcc();
+      GetMag();
+      SendCalData();
+
+    }
+    Radio();
+    watchDogFailSafeCounter = 0;
+  }
+}
+
+void SendCalData(){
+  outputSum = 0;
+  outputDoubleSum = 0;
+  radio.write(0xAA);
+  radio.write(0x0D);
+
+  radio.write(0x00);
+
+  temp = (acc.v.x & 0x00FF);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (acc.v.x >> 8);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (acc.v.y & 0x00FF);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (acc.v.y >> 8);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (acc.v.z & 0x00FF);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (acc.v.z >> 8);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (mag.v.x & 0x00FF);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (mag.v.x >> 8);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (mag.v.y & 0x00FF);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (mag.v.y >> 8);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (mag.v.z & 0x00FF);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  temp = (mag.v.z >> 8);
+  radio.write(temp);
+  outputSum += temp;
+  outputDoubleSum +=outputSum;
+
+  radio.write(outputSum);
+  radio.write(outputDoubleSum);
+}
+
+
+void GPSStart(){
+  gps.init();
+  generalPurposeTimer = millis();
+  while ((millis() - generalPurposeTimer < 1000) && (gps.newData == false)){
+    gps.Monitor();
+    if (gps.newData == true){
+      GPSDetected = true;
+    }
+  }
+  //to do add feed back with leds
+  if (GPSDetected == true){
+    while (gps.data.vars.gpsFix != 3){
+    }
+    homeBase.coord.lat = gps.data.vars.lat;
+    homeBase.coord.lon = gps.data.vars.lon;
+    homeBase.coord.alt = gps.data.vars.hMSL; //+ (5000);//home altitude is ground altitude plus 5 meters
+    gps.newData = false;
+    while (gps.newData == false){
+    }
+  }  
+
+
+
 }
 
 void GetAltitude(long *press,long *pressInit, float *alti){
@@ -22,7 +144,7 @@ void GetAltitude(long *press,long *pressInit, float *alti){
 }
 
 void PollPressure(void){
-  if (millis() - baroTimer > POLL_RATE){
+  if (millis() - baroPollTimer > POLL_RATE){
     switch (pressureState){
     case 0://read ut
       StartUT();
@@ -30,31 +152,25 @@ void PollPressure(void){
       baroTimer = millis();
       break;
     case 1://wait for ready signal
-      if (millis() - baroReadyTimer > 5){
+      if (millis() - baroTimer > 5){
         pressureState = 2;
         ut = ReadUT();
+        StartUP();
+        baroTimer = millis();
       }
 
       break;
     case 2://read up
-      StartUP();
-      pressureState = 3;
-      baroTimer = millis();
-      break;
-    case 3://wait for ready signal
-      if (millis() - baroReadyTimer > CONV_TIME){
-        pressureState = 4;
+      if (millis() - baroTimer > CONV_TIME){
         up = ReadUP();
+        temperature = Temperature(ut);
+        pressure = Pressure(up);
+        pressureState = 0;
+        newBaro = true;
+        baroPollTimer = millis();
       }
+      break;
 
-      break;
-    case 4://
-      temperature = Temperature(ut);
-      pressure = Pressure(up);
-      pressureState = 0;
-      newBaro = true;
-      baroTimer = millis();
-      break;
     }
   }
 }
@@ -99,37 +215,36 @@ short Temperature(unsigned int ut){
 }
 
 void StartUT(void){
-
   I2c.write(BMP085_ADDRESS,0xF4,0x2E);
 }
 
 unsigned int ReadUT(void){
+
+
 
   I2c.read(BMP085_ADDRESS,0xF6,2);
   msb = I2c.receive();
   lsb = I2c.receive();
 
   return ((msb << 8) | lsb);
-
 }
 
 void StartUP(void){
   I2c.write(BMP085_ADDRESS,0xF4,(0x34 + (OSS<<6)));
 }
 
-unsigned ReadUP(void){
+unsigned long ReadUP(void){
+
   I2c.read(BMP085_ADDRESS,0xF6,3);
   msb = I2c.receive();
   lsb = I2c.receive();
   xlsb = I2c.receive();
-
   return ((((unsigned long) msb << 16) | ((unsigned long) lsb << 8) | (unsigned long) xlsb) >> (8-OSS));
 }
 
 void BaroInit(void){
-  pinMode(READY_PIN,INPUT);
+  //pinMode(READY_PIN,INPUT);
   pressureState = 0;
-  baroTimer = millis();
   newBaro = false;
   I2c.read(BMP085_ADDRESS,0xAA,22);
   msb = I2c.receive();
@@ -175,11 +290,6 @@ void BaroInit(void){
   msb = I2c.receive();
   lsb = I2c.receive();
   md = (msb << 8) | lsb;
-  while (newBaro == false){
-    PollPressure();
-  }
-  newBaro = false;
-
   //this is to get the ground pressure for relative altitude
   //lower pressure than this means positive altitude
   //higher pressure than this means negative altitude
@@ -199,19 +309,21 @@ void BaroInit(void){
 }
 
 
-
 void MagInit(){
+  //continous conversion 220Hz
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRA_REG,(uint8_t)0x1C);
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRB_REG,(uint8_t)0x60);
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_MR_REG,(uint8_t)0x00);
+  GetMag();
 }
 
 void AccInit(){
+
   SPI.setDataMode(SPI_MODE3);
 
   AccSSLow();
   SPI.transfer(WRITE | SINGLE | BW_RATE);
-  SPI.transfer(0x0D);//800hz
+  SPI.transfer(0x0A);
   AccSSHigh();
 
   AccSSLow();
@@ -224,10 +336,16 @@ void AccInit(){
   SPI.transfer(0x0B);//full resolution + / - 16g
   AccSSHigh();
 
-  for(j = 0; j < 50; j++){
-    GetAcc();//to get the smoothing filters caugt up
+  GetAcc();
+
+  smoothAccX = (float)acc.v.x;
+  smoothAccY = (float)(-1.0 * acc.v.y);
+  smoothAccZ = (float)(-1.0 * acc.v.z);
+  for (uint8_t i = 0;i < 50; i++){
+    GetAcc();
     delay(5);
   }
+
 }
 
 void GyroInit(){
@@ -235,6 +353,7 @@ void GyroInit(){
   GyroSSLow();
   SPI.transfer(L3G_CTRL_REG2 | WRITE | SINGLE);
   SPI.transfer(0x00); //high pass filter disabled
+  //SPI.transfer(0x04);
   GyroSSHigh();
 
   GyroSSLow();
@@ -250,11 +369,12 @@ void GyroInit(){
   GyroSSLow();
   SPI.transfer(L3G_CTRL_REG5 | WRITE | SINGLE);
   SPI.transfer(0x02); //out select to use the second LPF
+  //not using HPF or interrupts
   GyroSSHigh();
 
   GyroSSLow();
   SPI.transfer(L3G_CTRL_REG1 | WRITE | SINGLE);
-  SPI.transfer(0xCF); //fastest update rate 30Hz cutoff
+  SPI.transfer(0x8F);
   GyroSSHigh();
   //this section takes an average of 500 samples to calculate the offset
   //if this step is skipped the IMU will still work, but this simple step gives better results
@@ -264,20 +384,20 @@ void GyroInit(){
   gyroSumX = 0;
   gyroSumY = 0;
   gyroSumZ = 0;
-  for (j = 0; j < 50; j ++){//give the internal LPF time to warm up
+  for (uint8_t j = 0; j < 250; j ++){
     GetGyro();
     delay(3);
   }
-  for (j = 0; j < 50; j ++){//give the internal LPF time to warm up
+  for (uint8_t j = 0; j < 250; j ++){
     GetGyro();
     gyroSumX += gyro.v.x;
     gyroSumY += gyro.v.y;
     gyroSumZ += gyro.v.z;
     delay(3);
   }
-  offsetX = gyroSumX / 50;
-  offsetY = gyroSumY / 50;
-  offsetZ = gyroSumZ / 50;
+  offsetX = gyroSumX / 250;
+  offsetY = gyroSumY / 250;
+  offsetZ = gyroSumZ / 250;
 
 }
 
@@ -289,28 +409,23 @@ void GetMag(){
   mag.buffer[4] = I2c.receive();
   mag.buffer[3] = I2c.receive();//Y
   mag.buffer[2] = I2c.receive();
-  
+
   mag.v.y *= -1;
   mag.v.z *= -1;
   shiftedMagX  = mag.v.x - MAG_OFFSET_X;
   shiftedMagY  = mag.v.y - MAG_OFFSET_Y;
   shiftedMagZ  = mag.v.z - MAG_OFFSET_Z;
-  
-  floatMagX = W_INV_00 * shiftedMagX + W_INV_01 * shiftedMagY + W_INV_02 * shiftedMagZ;
-  floatMagY = W_INV_10 * shiftedMagX + W_INV_11 * shiftedMagY + W_INV_12 * shiftedMagZ;
-  floatMagZ = W_INV_20 * shiftedMagX + W_INV_21 * shiftedMagY + W_INV_22 * shiftedMagZ;
-  /*floatMagX = ((float)mag.v.x - MAG_OFFSET_X) * MAG_SCALE_X;
-  floatMagY = -1.0 * (((float)mag.v.y - MAG_OFFSET_Y) * MAG_SCALE_Y);
-  floatMagZ = -1.0 * (((float)mag.v.z - MAG_OFFSET_Z) * MAG_SCALE_Z);*/
-  
 
+  floatMagX = MAG_W_INV_00 * shiftedMagX + MAG_W_INV_01 * shiftedMagY + MAG_W_INV_02 * shiftedMagZ;
+  floatMagY = MAG_W_INV_10 * shiftedMagX + MAG_W_INV_11 * shiftedMagY + MAG_W_INV_12 * shiftedMagZ;
+  floatMagZ = MAG_W_INV_20 * shiftedMagX + MAG_W_INV_21 * shiftedMagY + MAG_W_INV_22 * shiftedMagZ;
 }
 
 void GetGyro(){
   SPI.setDataMode(SPI_MODE0);
   GyroSSLow();
   SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
-  for (i = 0; i < 6; i++){//the endianness matches as does the axis order
+  for (uint8_t i = 0; i < 6; i++){//the endianness matches as does the axis order
     gyro.buffer[i] = SPI.transfer(0x00);
   }
   GyroSSHigh();
@@ -319,41 +434,52 @@ void GetGyro(){
   degreeGyroX = (gyro.v.x - offsetX) * 0.07;
   degreeGyroY = -1.0 * ((gyro.v.y - offsetY) * 0.07);
   degreeGyroZ = -1.0 * ((gyro.v.z - offsetZ) * 0.07);
+  /*degreeGyroX = (gyro.v.x - offsetX) * 0.0175;
+   degreeGyroY = -1.0 * ((gyro.v.y - offsetY) * 0.0175);
+   degreeGyroZ = -1.0 * ((gyro.v.z - offsetZ) * 0.0175);*/
   radianGyroX = ToRad(degreeGyroX);
   radianGyroY = ToRad(degreeGyroY);
   radianGyroZ = ToRad(degreeGyroZ);
-}
 
+}
 void GetAcc(){
   SPI.setDataMode(SPI_MODE3);
   AccSSLow();
   SPI.transfer(DATAX0 | READ | MULTI);
-  for (i = 0; i < 6; i++){//the endianness matches as does the axis order
+  for (uint8_t i = 0; i < 6; i++){//the endianness matches as does the axis order
     acc.buffer[i] = SPI.transfer(0x00);
   }
   AccSSHigh();  
 
   acc.v.y *= -1;
   acc.v.z *= -1;
+
   //the data goes through the low pass filter 
-  Smoothing(&acc.v.x,&smoothAccX);//this is a very simple low pass digital filter
-  Smoothing(&acc.v.y,&smoothAccY);//it helps significiantlly with vibrations. 
-  Smoothing(&acc.v.z,&smoothAccZ);
+  SmoothingACC(&acc.v.x,&smoothAccX);//this is a very simple low pass digital filter
+  SmoothingACC(&acc.v.y,&smoothAccY);//it helps significiantlly with vibrations. 
+  SmoothingACC(&acc.v.z,&smoothAccZ);
   //the offset and scaling factor to meters per second is applied
   //the values are generate by the accelerometer calibration sketch
   //notice the sign negation. The axes must be in North East Down convention
   //however gravity is measured as negative in that convention by the accelerometer
   //the complimentary filter expects gravity to be positive in the North East Down convention
-  accToFilterX = -1.0 * ((smoothAccX - ACC_OFFSET_X) * ACC_SCALE_X);//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-  accToFilterY = -1.0 * ((smoothAccY - ACC_OFFSET_Y) * ACC_SCALE_Y);
-  accToFilterZ = -1.0 * ((smoothAccZ - ACC_OFFSET_Z) * ACC_SCALE_Z);
+  /*scaledAccX = ((smoothAccX - ACC_OFFSET_X) * ACC_SCALE_X);
+  scaledAccY = ((smoothAccY - ACC_OFFSET_Y) * ACC_SCALE_Y);
+  scaledAccZ = ((smoothAccZ - ACC_OFFSET_Z) * ACC_SCALE_Z);*/
   
-  scaledAccX = smoothAccX;
-  scaledAccY = smoothAccY;
-  scaledAccZ = smoothAccZ;
+  shiftedAccX = (smoothAccX - ACC_OFFSET_X) ;
+  shiftedAccY = (smoothAccY - ACC_OFFSET_Y) ;
+  shiftedAccZ = (smoothAccZ - ACC_OFFSET_Z);
+  
+  scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
+  scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
+  scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);
+
+  accToFilterX = -1.0 * scaledAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+  accToFilterY = -1.0 * scaledAccY;
+  accToFilterZ = -1.0 * scaledAccZ;
 
 }
-
 
 
 

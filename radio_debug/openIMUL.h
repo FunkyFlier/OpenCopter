@@ -17,7 +17,7 @@
 
 #define v1_ 2.0f//GPS
 #define v2_ 1.0f//baro
-#define w_ 0.05f
+#define w_ 5.0f
 
 #define PITCH_OFFSET 0.0f
 #define ROLL_OFFSET 0.0f
@@ -28,22 +28,19 @@ class openIMU{
 public:
   openIMU(float*, float*, float*, float*, float*, 
           float*, float*, float*, float*, float*, 
-          float*, float*, float* , float*, float*, float*, float*);
+          float*, float*, float* , float*, float*, float*);
   void AHRSupdate(void);
   void GetEuler(void);
   void InitialQuat(void);
   void BaroKalUpdate(void);
   void AccKalUpdate(void);
   void GPSKalUpdate(void);
-  float GetGravOffset(void);
   float q0,q1,q2,q3;
   float pitch,roll,yaw;
   //float cosYaw,sinYaw;
   float XEst,YEst,ZEst;
   float velX,velY,velZ;
   float inertialX,inertialY,inertialZ;
-  float gravityOffSet;
-  float* declination;
 private:
   float *gx;
   float *gy;

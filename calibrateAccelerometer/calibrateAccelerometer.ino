@@ -17,6 +17,17 @@ http://dsscircuits.com/articles/arduino-i2c-master-library.html
 http://arduiniana.org/libraries/streaming/
  */
 #include <SPI.h>
+#include <EEPROM.h>
+
+//ROM defines
+#define ALL_DEF 7
+#define GAIN_DEF 6
+#define COMP_DEF 5
+#define ACC_DEF 4 
+#define ALL_CAL 3
+#define GAIN_CAL 2
+#define COMP_CAL 1
+#define ACC_CAL 0
 
 #define DSM2 0
 #define DSMX 1
@@ -92,7 +103,7 @@ int16_t offset = 0;
 uint8_t sBusData[25];
 
 
-const int NUM_READINGS = 6;
+//const int NUM_READINGS = 6;
 
 
 //data collection structures
@@ -104,7 +115,16 @@ int sample_size=32;                // Number of measurements averaged to produce
 // Basic UI functions
 int ledPin = 13;        //turn a light on when data is being collected
 
+typedef union{
+  float num;
+  uint8_t buffer[4];
+}
+Float_Union_t;
 
+Float_Union_t outFloat;
+
+uint8_t outFloatIndex;
+uint8_t calibrationFlags;
 
 float beta[6];                        //parameters for model.  beta[0], beta[1], and beta[2] are the 0-G marks (about 512),
 // while beta[3], beta[4], and beta[5] are the scaling factors.  So, e.g., if xpin reads
@@ -142,6 +162,7 @@ void setup()
   // initialize the serial communications:
   Serial.begin(115200);
   Serial.println("start");
+  Serial2.begin(115200);
   I2c.begin();
   I2c.setSpeed(1);
   SPI.begin();
@@ -157,7 +178,7 @@ void setup()
 
 
   //initialize to handle 20 samples
-  samp_capacity = 20;
+  samp_capacity = 30;
   data = (int*)malloc(samp_capacity*3*sizeof(int));
 
   reset_calibration_matrices();
@@ -192,6 +213,11 @@ void loop()
     while(Serial1.available() > 0){//flush the port to get the newest frame
       Serial1.read();
     }
+    while(rcCommands.values.rudder > 1700){
+      if (rcType != RC){
+        FeedLine();
+      } 
+    }
   }
 
   if (calculate == true) {
@@ -201,6 +227,11 @@ void loop()
     calibrate_model();
     while(Serial1.available() > 0){//flush the port to get the newest frame
       Serial1.read();
+    }
+    while(rcCommands.values.rudder < 1200){
+      if (rcType != RC){
+        FeedLine();
+      } 
     }
   }
 
@@ -218,11 +249,11 @@ void take_sample(int* sample_out) {
     //Make all variables longs because we will do some aritmetic that 
     // will overflow an int.
     long sum[] = {
-      0,0,0            };
+      0,0,0                };
     long sum_squares[] = {
-      0,0,0            };
+      0,0,0                };
     long variance[] = {
-      0,0,0            };
+      0,0,0                };
     long x,y,z;
     for(i=0;i< (1<<first_pass_size);++i) {
       GetAcc();
@@ -326,6 +357,14 @@ void take_sample(int* sample_out) {
       Serial.print(" ");
       Serial.print(sample_out[2]/32.0);
       Serial.print(";\n");
+      
+      
+      Serial2.print(sample_out[0]/32.0);
+      Serial2.print(" ");
+      Serial2.print(sample_out[1]/32.0);
+      Serial2.print(" ");
+      Serial2.print(sample_out[2]/32.0);
+      Serial2.print("\r\n");
 
     }
   }
@@ -442,8 +481,9 @@ void calibrate_model() {
 
   Serial<<"\r\n#define ACC_OFFSET_X "<<_FLOAT(beta[0],7)<<"\r\n#define ACC_OFFSET_Y "<<_FLOAT(beta[1],7)<<"\r\n#define ACC_OFFSET_Z "<<_FLOAT(beta[2],7)
     <<"\r\n#define ACC_SCALE_X "<<_FLOAT((beta[3]*9.8),7)<<"\r\n#define ACC_SCALE_Y "<<_FLOAT((beta[4]*9.8),7)<<"\r\n#define ACC_SCALE_Z "<<_FLOAT((beta[5]*9.8),7)<<"\r\n";
-
+  WriteROM();
 }
+
 
 
 

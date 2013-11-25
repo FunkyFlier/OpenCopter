@@ -1,11 +1,11 @@
-#ifndef MPIDL_h
-#define MPIDL_h
+#ifndef PIDL_h
+#define PIDL_h
 
 #include <Arduino.h>
 
-class MPID{
+class PID{
 public:
-  MPID(float*, float*, float*,boolean*,float*, float*, float*, float*,float*,float,float);
+  PID(float*, float*, float*,boolean*,float*, float*, float*, float*,float*,float,float);
   void calculate();
   void reset();
 private:
@@ -30,9 +30,10 @@ private:
   float dErrorPrev;
 
 };
-class MYAW{
+class YAW{
 public:
-  MYAW(float*, float*, float*,boolean*,float*, float*, float*, float*,float*,float,float);
+  YAW(float*, float*, float*,boolean*,float*, float*, float*, float*,float*,float,float);
+  //MYAW(float*, float*, float*,boolean*,float*, float*, float*, float*,const float*,float,float);
   void calculate();
   void reset();
 private:

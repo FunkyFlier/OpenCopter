@@ -8,7 +8,7 @@
 
 
 openIMU::openIMU(float *gyroX, float *gyroY, float *gyroZ, float *accX, float *accY, 
-float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *magY, float *magZ, float *XIn , float *YIn, float *ZIn, float *G_Dt, float *dec){
+float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *magY, float *magZ, float *XIn , float *YIn, float *ZIn, float *G_Dt){
   //constructor for the 10DOF system
   gx = gyroX;
   gy = gyroY;
@@ -31,9 +31,6 @@ float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *ma
   ZRaw = ZIn;
 
   dt = G_Dt;
-
-  declination = dec;
-
   //set the feedback gain and initial quaternion
   twoKp = twoKpDef;
   twoKi = twoKiDef;
@@ -49,40 +46,27 @@ float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *ma
   //Kalman stuff
   XEst = 0;
   velX = 0;
-  p11 = 1.0;
+  p11 = 0.1;
   p12 = 0;
   p21 = 0;
-  p22 = 1.0;
-
+  p22 = 0.1;
+  
   YEst = 0;
   velY = 0;
-  p13 = 1.0;
+  p13 = 0.1;
   p14 = 0;
   p23 = 0;
-  p24 = 1.0;
-
+  p24 = 0.1;
+  
   velZ = 0;
   ZEst = 0;
-  p15 = 1.0;
+  p15 = 0.01;
   p16 = 0;
   p25 = 0;
-  p26 = 1.0;
+  p26 = 0.01;
 }
 
-float openIMU::GetGravOffset(void){
-  q0q0 = q0 * q0;
-  q0q1 = q0 * q1;
-  q0q2 = q0 * q2;
-  q0q3 = q0 * q3;
-  q1q1 = q1 * q1;
-  q1q2 = q1 * q2;
-  q1q3 = q1 * q3;
-  q2q2 = q2 * q2;
-  q2q3 = q2 * q3;
-  q3q3 = q3 * q3;
 
-  return (2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) )) ; 
-}
 void openIMU::AccKalUpdate(void){
   //first rotate the accelerometer reading from the body to the intertial frame
   // Auxiliary variables to avoid repeated arithmetic
@@ -98,9 +82,10 @@ void openIMU::AccKalUpdate(void){
   q3q3 = q3 * q3;   
   //remember gravity is sensed with the sign negated - that is why it is added into the equation instead of subtracted
   inertialX =  (2.0f * (*sax * (0.5f - q2q2 - q3q3) + *say * (q1q2 - q0q3) + *saz * (q1q3 + q0q2)) );
+  //inertialY = -1.0 * (2.0 * (*sax * (q1q2 + q0q3) + *say * (0.5f - q1q1 - q3q3) + *saz * (q2q3 - q0q1)) );
   inertialY = 2.0 * (*sax * (q1q2 + q0q3) + *say * (0.5f - q1q1 - q3q3) + *saz * (q2q3 - q0q1));
-  //inertialZ = -1.0 * ((2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) )) + 9.815 );
-  inertialZ = -1.0 * ((2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) )) - gravityOffSet);
+  inertialZ = -1.0 * ((2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) )) + 9.8 );
+  
   //Kalman filter stuff - makes more sense looking at it in matrix form
   velX += inertialX * *dt;
   XEst += velX * *dt;
@@ -123,6 +108,12 @@ void openIMU::AccKalUpdate(void){
   p25 = p25 + *dt * p26;
   p26 = p26 + *dt * w_;
 
+  /*Xpos = XEst;
+  velocityX = velX;
+  Ypos = YEst;
+  velocityY = velY;
+  Zpos = ZEst;
+  velocityZ = velZ;*/
 }
 
 void openIMU::GPSKalUpdate(){
@@ -137,6 +128,9 @@ void openIMU::GPSKalUpdate(){
   p11 = -p11*(k1 - 1);
   p12 = -p12*(k1 - 1);
 
+  /*velocityX = velX;
+  Xpos = XEst;*/
+
   temp = p13 + v1_;
   k3 = p13 / temp;
   k4 = p23 / temp;
@@ -147,6 +141,8 @@ void openIMU::GPSKalUpdate(){
   p13 = -p13*(k3 - 1);
   p14 = -p14*(k3 - 1);
 
+  /*velocityY = velY;
+  Ypos = YEst;*/
 }
 void openIMU::BaroKalUpdate(){
   static float temp3;
@@ -159,7 +155,8 @@ void openIMU::BaroKalUpdate(){
   p25 = p25 - k6 * p15;
   p15 = -p15*(k5 - 1);
   p16 = -p16*(k5 - 1);
-
+  /*velocityZ = velZ;
+  Zpos = ZEst;*/
 }
 
 
@@ -323,7 +320,7 @@ void openIMU::GetEuler(void){
   roll= ToDeg(FastAtan2(2 * (q0 * q1 + q2 * q3),1 - 2 * (q1 * q1 + q2 * q2))) - ROLL_OFFSET;
   pitch = ToDeg(asin(2 * (q0 * q2 - q3 * q1))) - PITCH_OFFSET;
   yaw = ToDeg(FastAtan2(2 * (q0 * q3 + q1 * q2) , 1 - 2* (q2 * q2 + q3 * q3)));
-  yaw -= DECLINATION;
+  //yaw -= DECLINATION;
   if (yaw < 0){
     yaw +=360;
   }
@@ -331,10 +328,9 @@ void openIMU::GetEuler(void){
   //consider moving to the 50Hz loop since they will not be needed at 100Hz
   //cosYaw = cos(yaw);
   //sinYaw = sin(yaw);
-
+  
 
 
 }
-
 
 

@@ -1,6 +1,6 @@
-#include "MPIDL.h"
+#include "PIDL.h"
 
-MPID::MPID(float *set, float *act, float *adj,boolean *intToggle,float *p, float *i, float *d,float *n,float *delta,float iLim,float lim){
+PID::PID(float *set,float *act, float *adj,boolean *intToggle,float *p, float *i, float *d,float *n,float *delta,float iLim,float lim){
   setPoint = set;
   actual = act;
   adjustment = adj;
@@ -19,7 +19,7 @@ MPID::MPID(float *set, float *act, float *adj,boolean *intToggle,float *p, float
 
 }
 
-void MPID::calculate(){
+void PID::calculate(){
   error = *setPoint - *actual;
 
 
@@ -48,7 +48,7 @@ void MPID::calculate(){
   dErrorPrev = dError;
 }
 
-void MPID::reset(){
+void PID::reset(){
   error = 0;
   iError = 0;
   dError = 0;
@@ -58,7 +58,7 @@ void MPID::reset(){
   dErrorPrev = 0;
 }
 
-MYAW::MYAW(float *set, float *act, float *adj,boolean *intToggle,float *p, float *i, float *d,float *n,float *delta,float iLim,float lim){
+YAW::YAW(float *set,float *act, float *adj,boolean *intToggle,float *p, float *i, float *d,float *n,float *delta,float iLim,float lim){
   setPoint = set;
   actual = act;
   adjustment = adj;
@@ -79,7 +79,7 @@ MYAW::MYAW(float *set, float *act, float *adj,boolean *intToggle,float *p, float
 
 }
 
-void MYAW::calculate(){
+void YAW::calculate(){
   PIDAngle = *actual;
 
   error = *setPoint - PIDAngle;
@@ -120,7 +120,7 @@ void MYAW::calculate(){
 
 }
 
-void MYAW::reset(){
+void YAW::reset(){
   error = 0;
   prevError=0;
   iError = 0;

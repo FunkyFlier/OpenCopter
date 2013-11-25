@@ -11,7 +11,7 @@ void AccInit(){
 
   AccSSLow();
   SPI.transfer(WRITE | SINGLE | BW_RATE);
-  SPI.transfer(0x0D);
+  SPI.transfer(0x0B);
   AccSSHigh();
 
   AccSSLow();
