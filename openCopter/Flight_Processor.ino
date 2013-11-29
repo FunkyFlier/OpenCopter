@@ -137,27 +137,35 @@ void WayPointControl(){
       gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
       distToWayPoint *= -1;
       rollSetPoint = 0;
+      SetXYLoiterPosition();
       GPSTimer = millis();
     }
     break;
   case WP_TRAVEL:
-    AltHold();
-    if (GPSPID == true){
-      GPSPID = false;
-      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
-      distToWayPoint *= -1;
-      GPSDT = (millis() - GPSTimer) * 0.001;
-      GPSTimer = millis();
-      WayPointPosition.calculate();
-      if (distToWayPoint >= -1 ){
-        currentWayPointNumber++;
-        targetAltitude = (wayPoints[currentWayPointNumber].coord.alt * 0.001) - altitudeDifference;
-      }
+    if (fabs(targetAltitude - imu.ZEst) > 2){
+      AltHold();
+      Loiter();
     }
-    Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
-    WayPointRate.calculate();
-    pitchSetPoint *= -1;
-    CrossTrack.calculate();
+    else{
+      AltHold();
+      if (GPSPID == true){
+        GPSPID = false;
+        gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
+        distToWayPoint *= -1;
+        GPSDT = (millis() - GPSTimer) * 0.001;
+        GPSTimer = millis();
+        WayPointPosition.calculate();
+        if (distToWayPoint >= -1 ){
+          currentWayPointNumber++;
+          targetAltitude = (wayPoints[currentWayPointNumber].coord.alt * 0.001) - altitudeDifference;
+          SetXYLoiterPosition();
+        }
+      }
+      Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
+      WayPointRate.calculate();
+      pitchSetPoint *= -1;
+      CrossTrack.calculate();
+    }
     if (currentWayPointNumber == inputWayPointNumber){
       wayPointState = WP_END;
       SetXYLoiterPosition();
@@ -173,13 +181,13 @@ void WayPointControl(){
     }
     if (RTBFlag == true){
       wayPointState = WP_RTB;
-      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
+      //targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
       break;
     }
     if (millis() - endOfWPTimer > 5000){
       wayPointState = WP_FAIL_RTB;
       RTBFailSafe = true;
-      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
+      //targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
     }
     break;
   case WP_RTB:
@@ -215,6 +223,8 @@ void WayPointControl(){
       GPSTimer = millis();
       WayPointPosition.calculate();
       if (distToWayPoint >= -1){
+        SetXYLoiterPosition();
+        targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
         d.v.flightMode = CARE_FREE;
         enterState = true;
       }
@@ -266,6 +276,7 @@ void HeadingHold(){
     break;
   }  
 }
+
 
 
 

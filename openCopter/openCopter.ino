@@ -573,26 +573,11 @@ PID AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_a
 PID WayPointPosition(&zero,&distToWayPoint,&targetVelWayPoint,&integrate,&d.v.kp_waypoint_position,&d.v.ki_waypoint_position,&d.v.kd_waypoint_position,&d.v.fc_waypoint_position,&GPSDT,10,10);
 PID WayPointRate(&targetVelWayPoint,&velXBody,&pitchSetPoint,&integrate,&d.v.kp_waypoint_velocity,&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&imuDT,45,45);
 PID CrossTrack(&zero,&velYBody,&rollSetPoint,&integrate,&d.v.kp_cross_track,&d.v.ki_cross_track,&d.v.kd_cross_track,&d.v.fc_cross_track,&imuDT,30,30);
-//PID CrossTrack - include P
-//2D speed from GPS best idea where or use the vel from the estimator?
 
 PID LoiterXPosition(&xTarget,&imu.XEst,&velSetPointX,&integrate,&d.v.kp_loiter_pos_x,&d.v.ki_loiter_pos_x,&d.v.kd_loiter_pos_x,&d.v.fc_loiter_pos_x,&imuDT,2,2);
 PID LoiterXRate(&velSetPointX,&imu.velX,&setPointX,&integrate,&d.v.kp_loiter_rate_x,&d.v.ki_loiter_rate_x,&d.v.kd_loiter_rate_x,&d.v.fc_loiter_rate_x,&imuDT,25,25);
 PID LoiterYPosition(&yTarget,&imu.YEst,&velSetPointY,&integrate,&d.v.kp_loiter_pos_y,&d.v.ki_loiter_pos_y,&d.v.kd_loiter_pos_y,&d.v.fc_loiter_pos_y,&imuDT,2,2);
 PID LoiterYRate(&velSetPointY,&imu.velY,&setPointY,&integrate,&d.v.kp_loiter_rate_y,&d.v.ki_loiter_rate_y,&d.v.kd_loiter_rate_y,&d.v.fc_loiter_rate_y,&imuDT,25,25);
-
-//x and y setpoints are rotated into pitch and roll set points
-
-//for debugging the protocol remove later
-
-
-void pause(){
-  while(digitalRead(22)==0){
-  }//wait for the toggle
-  delay(500);
-}
-
-
 
 
 void setup(){
