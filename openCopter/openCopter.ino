@@ -581,7 +581,7 @@ PID LoiterYRate(&velSetPointY,&imu.velY,&setPointY,&integrate,&d.v.kp_loiter_rat
 
 
 void setup(){
-  delay(500);
+  
   pinMode(RED,OUTPUT);
   pinMode(YELLOW,OUTPUT);
   pinMode(GREEN,OUTPUT);
@@ -606,6 +606,7 @@ void setup(){
   _200HzISRConfig();
   MotorInit();
   CalibrateESC();//throttle high will trigger this reset after calibration
+  delay(500);
   HandShake();
   I2c.begin();
   I2c.setSpeed(1);

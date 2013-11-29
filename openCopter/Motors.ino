@@ -45,14 +45,14 @@ void MotorInit(){
   ICR1 = PERIOD;
 
 
-  Motor1WriteMicros(1000);//set the output compare value
+  /*Motor1WriteMicros(1000);//set the output compare value
   Motor2WriteMicros(1000);
   Motor3WriteMicros(1000);
   Motor4WriteMicros(1000);
   Motor5WriteMicros(1000);
   Motor6WriteMicros(1000);
   Motor7WriteMicros(1000);
-  Motor8WriteMicros(1000);
+  Motor8WriteMicros(1000);*/
 }
 
 void MotorHandler(){
