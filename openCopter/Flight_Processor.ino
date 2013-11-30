@@ -61,12 +61,15 @@ void Arm(){
 
 
 void Rotate2D(float *currentBearing, float *initialBearing, float *pitchIn, float *rollIn, float *pitchOut, float *rollOut){//change to take arguments
-  static float headingFreeDifference = *currentBearing - *initialBearing;
-  static float sinHeadingFreeDiff = sin(ToRad(headingFreeDifference));
-  static float cosHeadingFreeDiff = cos(ToRad(headingFreeDifference));
+  static float headingFreeDifference;
+  static float sinHeadingFreeDiff;
+  static float cosHeadingFreeDiff;
+  
+  headingFreeDifference = *currentBearing - *initialBearing;
+  sinHeadingFreeDiff = sin(ToRad(headingFreeDifference));
+  cosHeadingFreeDiff = cos(ToRad(headingFreeDifference));
   *rollOut = *rollIn * cosHeadingFreeDiff + *pitchIn * sinHeadingFreeDiff;
   *pitchOut = -1.0 * *rollIn * sinHeadingFreeDiff + *pitchIn * cosHeadingFreeDiff;
-
 }
 
 void SetAltHold(){

@@ -831,9 +831,7 @@ void FlightSM(){
         activeOK = false;
         headFreeOK = false;
         d.v.flightMode = HEAD_FREE; 
-        //d.v.flightMode = LOITER;
         enterState = true;
-        //headingFreeInitial = imu.yaw; //add later
       }
     }
     HeadingHold();
@@ -842,7 +840,6 @@ void FlightSM(){
     if (enterState == true){
       throttleAdjustment = 0;
       enterState = false;
-      //GPSState = MANUAL; // add once the decision is final regarding modes
       digitalWrite(13,LOW);
       digitalWrite(RED,HIGH);
       digitalWrite(YELLOW,LOW);
@@ -855,7 +852,6 @@ void FlightSM(){
       if (rcCommands.values.aux1 < 1500){
         d.v.flightMode = STABLE;
         enterState = true;
-        //stableCause = 2;
       }
       if (rcCommands.values.aux2 < 1500){
         loiterOK = true;

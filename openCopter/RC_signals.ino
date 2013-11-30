@@ -58,11 +58,11 @@ void ProcessChannels(){
     MapVar(&rcCommands.values.rudder,&yawInput,1000,2000,-300,300);
     throttleCommand = rcCommands.values.throttle;
     //dead zone
-    if (rollSetPoint < 2 && rollSetPoint > -2){
-      rollSetPoint = 0;
+    if (rollSetPointTX < 2 && rollSetPointTX > -2){
+      rollSetPointTX = 0;
     }
-    if (pitchSetPoint < 2 && pitchSetPoint > -2){
-      pitchSetPoint = 0;
+    if (pitchSetPointTX < 2 && pitchSetPointTX > -2){
+      pitchSetPointTX = 0;
     }
     if (yawInput < 2 && yawInput > -2){
       yawInput = 0;
