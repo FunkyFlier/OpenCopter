@@ -218,7 +218,7 @@ void openIMU::AHRSupdate() {
   magnitude = sqrt(squareSum);
   if ((magnitude < 10.78) && (magnitude > 8.82)){
     // Normalise accelerometer measurement
-    recipNorm = InvSqrt(magnitude);
+    recipNorm =1.0 / magnitude;
     *ax *= recipNorm;
     *ay *= recipNorm;
     *az *= recipNorm;     
