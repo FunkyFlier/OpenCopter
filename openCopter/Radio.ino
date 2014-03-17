@@ -1,3 +1,506 @@
+void TuningTransmitter(){
+
+  if (tuningTransmit == true){
+    if (millis() - tuningTimer >= refreshMillis){
+      tuningTimer = millis();
+      outputSum = 0;
+      outputDoubleSum = 0;
+      radio.write(0xAA);
+      lenOfTuningDataPacket = numOfItems * 5 + 2;
+      radio.write(lenOfTuningDataPacket);
+      //switch to a define
+      radio.write(0x65);
+      outputSum += 0x65;
+      outputDoubleSum += outputSum;
+      radio.write(numOfItems);
+      outputSum += numOfItems;
+      outputDoubleSum += outputSum;
+      
+      for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
+       switch (itemBuffer[i]){
+       case 0x00:
+       outFloat.num = millis();
+       break;
+       case 0x01:
+       outFloat.num = xTarget;
+       //outFloat.num = acc.v.x;
+       break;
+       case 0x02:
+       outFloat.num = imu.XEst;
+       //outFloat.num = acc.v.y;
+       break;
+       case 0x03:
+       outFloat.num = velSetPointX;
+       //outFloat.num = acc.v.z;
+       break;
+       case 0x04:
+       outFloat.num = setPointX;
+       //outFloat.num = smoothAccX;
+       break;
+       case 0x05:
+       outFloat.num = yTarget;
+       //outFloat.num = smoothAccY;
+       break;
+       case 0x06:
+       outFloat.num = imu.YEst;
+       //outFloat.num = smoothAccZ;
+       break;
+       case 0x07:
+       outFloat.num = velSetPointY;
+       break;
+       case 0x08:
+       outFloat.num = imu.velY;
+       break;
+       case 0x09:
+       outFloat.num = setPointY;
+       break;
+       case 0x0A:
+       outFloat.num = targetAltitude;
+       break;
+       case 0x0B:
+       outFloat.num = imu.ZEst;
+       break;
+       case 0x0C:
+       outFloat.num = targetVelAlt;
+       break;
+       case 0x0D:
+       outFloat.num = imu.velZ;
+       break;
+       case 0x0E:
+       outFloat.num = throttleAdjustment;
+       break;
+       case 0x0F:
+       outFloat.num = imu.pitch;
+       break;
+       case 0x10:
+       outFloat.num = imu.roll;
+       break;
+       case 0x11:
+       outFloat.num = imu.yaw;
+       break;
+       case 0x12:
+       outFloat.num = gps.data.vars.hAcc * 0.001;
+       break;
+       case 0x13:
+       outFloat.num = imu.velX;
+       break;
+       case 0x14:
+       outFloat.num = imu.accelBiasX;
+       break;
+       case 0x15:
+       outFloat.num = imu.accelBiasY;
+       break;
+       case 0x16:
+       outFloat.num = imu.accelBiasZ;
+       break;
+       case 0x17:
+       outFloat.num = imu.inertialX;
+       break;
+       case 0x18:
+       outFloat.num = imu.inertialY;
+       break;
+       case 0x19:
+       outFloat.num = imu.inertialZ;
+       break;
+       case 0x1A:
+       outFloat.num = 0;
+       break;
+       
+       default:
+       break;
+       
+       }      /*
+      for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
+        switch (itemBuffer[i]){
+        case 0x00:
+          outFloat.num = millis();
+          break;
+        case 0x01:
+          outFloat.num = radianGyroX;
+          //outFloat.num = (float)acc.v.x;
+          break;
+        case 0x02:
+          outFloat.num = radianGyroY;
+          //outFloat.num = (float)acc.v.y;
+          break;
+        case 0x03:
+          outFloat.num = radianGyroZ;
+          //outFloat.num = (float)acc.v.z;
+          break;
+        case 0x04:
+          outFloat.num = scaledAccX;
+          break;
+        case 0x05:
+          outFloat.num = scaledAccY;
+          break;
+        case 0x06:
+          outFloat.num = scaledAccZ;
+          break;
+        case 0x07:
+          outFloat.num = floatMagX;
+          //outFloat.num = smoothAccX;
+          break;
+        case 0x08:
+          outFloat.num = floatMagY;
+          //outFloat.num = smoothAccY;
+          break;
+        case 0x09:
+          outFloat.num = floatMagZ;
+          //outFloat.num = smoothAccZ;
+          break;
+        case 0x0A:
+          outFloat.num = imu.pitch;
+          break;
+        case 0x0B:
+          outFloat.num = imu.roll;
+          break;
+        case 0x0C:
+          outFloat.num = imu.yaw;
+          break;
+        case 0x0D:
+          outFloat.num = imu.inertialX;
+          break;
+        case 0x0E:
+          outFloat.num = imu.inertialY;
+          break;
+        case 0x0F:
+          outFloat.num = imu.inertialZ;
+          break;
+        case 0x10:
+          outFloat.num = imu.feedBack;
+          break;
+        case 0x11:
+          outFloat.num = imu.accelBiasX;
+          break;
+        case 0x12:
+          outFloat.num = imu.accelBiasY;
+          break;
+        case 0x13:
+          outFloat.num = imu.accelBiasZ;
+          break;
+        case 0x14:
+          outFloat.num = imu.XEst;
+          break;
+        case 0x15:
+          outFloat.num = velSetPointX;
+          break;
+        case 0x16:
+          outFloat.num = imu.velX;
+          break;
+        case 0x17:
+          outFloat.num = yTarget;
+          break;
+        case 0x18:
+          outFloat.num = imu.YEst;
+          break;
+        case 0x19:
+          outFloat.num = velSetPointY;
+          break;
+        case 0x1A:
+          outFloat.num = imu.velY;
+          break;
+
+        default:
+          break;
+
+        }*/
+        /*for (uint8_t i = 0; i < numOfItems; i++){
+         switch (itemBuffer[i]){
+         case 0x00:
+         outFloat.num = millis();
+         break;
+         case 0x01:
+         outFloat.num = pitchSetPoint;
+         break;
+         case 0x02:
+         outFloat.num = imu.pitch;
+         break;
+         case 0x03:
+         outFloat.num = rateSetPointY;
+         break;
+         case 0x04:
+         outFloat.num = degreeGyroY;
+         break;
+         case 0x05:
+         outFloat.num = adjustmentY;
+         break;
+         case 0x06:
+         outFloat.num = rollSetPoint;
+         break;
+         case 0x07:
+         outFloat.num = imu.roll;
+         break;
+         case 0x08:
+         outFloat.num = rateSetPointX;
+         break;
+         case 0x09:
+         outFloat.num = degreeGyroX;
+         break;
+         case 0x0A:
+         outFloat.num = adjustmentX;
+         break;
+         case 0x0B:
+         outFloat.num = yawSetPoint;
+         break;
+         case 0x0C:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x0D:
+         outFloat.num = rateSetPointZ;
+         break;
+         case 0x0E:
+         outFloat.num = degreeGyroZ;
+         break;
+         case 0x0F:
+         outFloat.num = adjustmentZ;
+         break;
+         case 0x10:
+         outFloat.num = imu.roll;
+         break;
+         case 0x11:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x12:
+         outFloat.num = imu.inertialZ;
+         break;
+         case 0x13:
+         outFloat.num = xTarget;
+         break;
+         case 0x14:
+         outFloat.num = imu.XEst;
+         break;
+         case 0x15:
+         outFloat.num = velSetPointX;
+         break;
+         case 0x16:
+         outFloat.num = imu.velX;
+         break;
+         case 0x17:
+         outFloat.num = yTarget;
+         break;
+         case 0x18:
+         outFloat.num = imu.YEst;
+         break;
+         case 0x19:
+         outFloat.num = velSetPointY;
+         break;
+         case 0x1A:
+         outFloat.num = imu.velY;
+         break;
+         
+         default:
+         break;
+         
+         }*/
+       /* 
+      for (uint8_t i = 0; i < numOfItems; i++){
+         switch (itemBuffer[i]){
+         case 0x00:
+         outFloat.num = millis();
+         break;
+         case 0x01:
+         outFloat.num = imu.inertialX;
+         break;
+         case 0x02:
+         outFloat.num = imu.inertialY;
+         break;
+         case 0x03:
+         outFloat.num = imu.accelBiasX;
+         break;
+         case 0x04:
+         outFloat.num = imu.accelBiasY;
+         break;
+         case 0x05:
+         outFloat.num = imu.velX;
+         break;
+         case 0x06:
+         outFloat.num = imu.velY;
+         break;
+         case 0x07:
+         outFloat.num = imu.XEst;
+         break;
+         case 0x08:
+         outFloat.num = imu.YEst;
+         break;
+         case 0x09:
+         outFloat.num = rawX;
+         break;
+         case 0x0A:
+         outFloat.num = rawY;
+         break;
+         case 0x0B:
+         outFloat.num = xTarget;
+         break;
+         case 0x0C:
+         outFloat.num = velSetPointX;
+         break;
+         case 0x0D:
+         outFloat.num = setPointX;
+         break;
+         case 0x0E:
+         outFloat.num = yTarget;
+         break;
+         case 0x0F:
+         outFloat.num = velSetPointY;
+         break;
+         case 0x10:
+         outFloat.num = setPointY;
+         break;
+         case 0x11:
+         outFloat.num = imu.pitch;
+         break;
+         case 0x12:
+         outFloat.num = imu.roll;
+         break;
+         case 0x13:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x14:
+         outFloat.num = (gps.data.vars.hAcc * 0.001);
+         break;
+         case 0x15:
+         outFloat.num = (float)GPSFlag;
+         if (GPSFlag == true){
+         GPSFlag = false;
+         }
+         break;
+         case 0x16:
+         outFloat.num = 0;
+         break;
+         case 0x17:
+         outFloat.num = 0;
+         break;
+         case 0x18:
+         outFloat.num = 0;
+         break;
+         case 0x19:
+         outFloat.num = 0;
+         break;
+         case 0x1A:
+         outFloat.num = 0;
+         break;
+         
+         default:
+         break;
+         
+         }*/
+        /*
+      for (uint8_t i = 0; i < numOfItems; i++){
+         switch (itemBuffer[i]){
+         case 0x00:
+         outFloat.num = millis();
+         break;
+         case 0x01:
+         outFloat.num = imu.inertialZ;
+         //outFloat.num = rawZ;
+         break;
+         case 0x02:
+         outFloat.num = imu.accelBiasZ;
+         //outFloat.num = smoothAlt;
+         break;
+         case 0x03:
+         outFloat.num = imu.velZ;
+         break;
+         case 0x04:
+         outFloat.num = imu.ZEst;
+         break;
+         case 0x05:
+         outFloat.num = smoothAlt;
+         break;
+         case 0x06:
+         outFloat.num = targetAltitude;
+         break;
+         case 0x07:
+         outFloat.num = actualAltitude;
+         break;
+         case 0x08:
+         outFloat.num = targetVelAlt;
+         break;
+         case 0x09:
+         outFloat.num = throttleAdjustment;
+         break;
+         case 0x0A:
+         outFloat.num = imu.pitch;
+         break;
+         case 0x0B:
+         outFloat.num = imu.roll;
+         break;
+         case 0x0C:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x0D:
+         outFloat.num = baroFlag;
+         if (baroFlag == true){
+         baroFlag = false;
+         }
+         
+         break;
+         case 0x0E:
+         outFloat.num = rawZ;
+         break;
+         case 0x0F:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x10:
+         outFloat.num = targetVelAlt;
+         break;
+         case 0x11:
+         outFloat.num = throttleAdjustment;
+         break;
+         case 0x12:
+         outFloat.num = imu.inertialZ;
+         break;
+         case 0x13:
+         outFloat.num = xTarget;
+         break;
+         case 0x14:
+         outFloat.num = imu.XEst;
+         break;
+         case 0x15:
+         outFloat.num = velSetPointX;
+         break;
+         case 0x16:
+         outFloat.num = imu.velX;
+         break;
+         case 0x17:
+         outFloat.num = yTarget;
+         break;
+         case 0x18:
+         outFloat.num = imu.YEst;
+         break;
+         case 0x19:
+         outFloat.num = velSetPointY;
+         break;
+         case 0x1A:
+         outFloat.num = imu.velY;
+         break;
+         
+         default:
+         break;
+         
+         }*/
+         
+         
+        radio.write(itemBuffer[i]);
+        outputSum += itemBuffer[i];
+        outputDoubleSum += outputSum;
+        for(uint8_t j = 0; j < 4; j++){
+          radio.write(outFloat.buffer[j]);
+          outputSum += outFloat.buffer[j];
+          outputDoubleSum += outputSum;
+        }
+      }
+      radio.write(outputSum);
+      radio.write(outputDoubleSum);
+    }
+
+  }
+
+
+}
+
+
+
 void SendEndOfWPCheck(){
   outputSum = 0;
   outputDoubleSum = 0;
@@ -28,7 +531,7 @@ void HandShake(){
     radio.read();//clear any data in the buffer
   }
   radioTimer = millis();
-  while(millis() - radioTimer < 2000 && handShake == false){
+  while(millis() - radioTimer < 2000 &&  handShake == false){
     //look for data on the radio port
     if(radio.available() > 0){
       handShake = true;
@@ -1212,134 +1715,13 @@ void WayPointHandler(){
   }
 }
 
-void TuningTransmitter(){
-  
-  if (tuningTransmit == true){
-    if (millis() - tuningTimer >= refreshMillis){
-      D25High();
-      tuningTimer = millis();
-      outputSum = 0;
-      outputDoubleSum = 0;
-      radio.write(0xAA);
-      lenOfTuningDataPacket = numOfItems * 5 + 2;
-      radio.write(lenOfTuningDataPacket);
-      //switch to a define
-      radio.write(0x65);
-      outputSum += 0x65;
-      outputDoubleSum += outputSum;
-      radio.write(numOfItems);
-      outputSum += numOfItems;
-      outputDoubleSum += outputSum;
 
 
-      for (uint8_t i = 0; i < numOfItems; i++){
-        switch (itemBuffer[i]){
-        case 0x00:
-          outFloat.num = pitchSetPoint;
-          break;
-        case 0x01:
-          outFloat.num = imu.pitch;
-          break;
-        case 0x02:
-          outFloat.num = rollSetPoint;
-          break;
-        case 0x03:
-          outFloat.num = imu.roll;
-          break;
-        case 0x04:
-          outFloat.num = yawSetPoint;
-          break;
-        case 0x05:
-          outFloat.num = imu.yaw;
-          break;
-        case 0x06:
-          outFloat.num = rateSetPointX;
-          break;
-        case 0x07:
-          outFloat.num = degreeGyroX;
-          break;
-        case 0x08:
-          outFloat.num = rateSetPointY;
-          break;
-        case 0x09:
-          outFloat.num = degreeGyroY;
-          break;
-        case 0x0A:
-          outFloat.num = rateSetPointZ;
-          break;
-        case 0x0B:
-          outFloat.num = degreeGyroZ;
-          break;
-        case 0x0C:
-          outFloat.num = targetAltitude;
-          break;
-        case 0x0D:
-          outFloat.num = imu.ZEst;
-          break;
-        case 0x0E:
-          outFloat.num = targetVelAlt;
-          break;
-        case 0x0F:
-          outFloat.num = imu.velZ;
-          break;
-        case 0x10:
-          outFloat.num = distToWayPoint;
-          break;
-        case 0x11:
-          //outFloat.num = targetVelWayPoint;
-          outFloat.num = throttleAdjustment;
-          break;
-        case 0x12:
-          //outFloat.num = speed2D_MPS;
-          outFloat.num = imu.inertialZ;
-          break;
-        case 0x13:
-          outFloat.num = xTarget;
-          break;
-        case 0x14:
-          outFloat.num = imu.XEst;
-          break;
-        case 0x15:
-          outFloat.num = velSetPointX;
-          break;
-        case 0x16:
-          outFloat.num = imu.velX;
-          break;
-        case 0x17:
-          outFloat.num = yTarget;
-          break;
-        case 0x18:
-          outFloat.num = imu.YEst;
-          break;
-        case 0x19:
-          outFloat.num = velSetPointY;
-          break;
-        case 0x1A:
-          outFloat.num = imu.velY;
-          break;
 
-        default:
-          break;
 
-        }
-        radio.write(itemBuffer[i]);
-        outputSum += itemBuffer[i];
-        outputDoubleSum += outputSum;
-        for(uint8_t j = 0; j < 4; j++){
-          radio.write(outFloat.buffer[j]);
-          outputSum += outFloat.buffer[j];
-          outputDoubleSum += outputSum;
-        }
-      }
-      radio.write(outputSum);
-      radio.write(outputDoubleSum);
-      D25Low();
-    }
-    
-  }
-  
 
-}
+
+
 
 
 

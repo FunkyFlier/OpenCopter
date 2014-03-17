@@ -11,8 +11,7 @@ ISR(TIMER5_COMPA_vect, ISR_NOBLOCK){
     RCFailSafeCounter++;
   }
   ReadSerialStreams();
-  _200HzISRCounter++;
-
+  
   if (watchDogFailSafeCounter >=200){
     TIMSK5 = (0<<OCIE5A);
     digitalWrite(13,LOW);
@@ -42,9 +41,7 @@ void ReadSerialStreams(){
   }
 
 
-  if (GPSDetected == true){//what to do with loss of signal handling
-    //Serial<<"1234\r\n";
-    //Serial<<gps.newData<<"\r\n";
+  if (GPSDetected == true){
     gps.Monitor();
   }
   if (handShake == true){

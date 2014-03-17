@@ -5,24 +5,11 @@ void ProcessChannels(){
   switch (d.v.flightMode){
   case 0://active
     //stunt mode
-    //the aircraft will flip very quickly at the maximum extents of the right stick
-    MapVar(&rcCommands.values.elevator,&rateSetPointY,1000,2000,-300,300);
-    MapVar(&rcCommands.values.aileron,&rateSetPointX,1000,2000,-300,300);
-    MapVar(&rcCommands.values.rudder,&rateSetPointZ,1000,2000,-300,300);
+    MapVar(&rcCommands.values.elevator,&rateSetPointY,1000,2000,-400,400);
+    MapVar(&rcCommands.values.aileron,&rateSetPointX,1000,2000,-400,400);
+    MapVar(&rcCommands.values.rudder,&rateSetPointZ,1000,2000,-400,400);
     throttleCommand = rcCommands.values.throttle;
-    //increased rate for flips
-    if (rcCommands.values.aileron > 1950){
-      rateSetPointX = 600.0;
-    }
-    if (rcCommands.values.aileron < 1050){
-      rateSetPointX = -600.0;
-    }
-    if (rcCommands.values.elevator > 1950){
-      rateSetPointY = 600.0;
-    }
-    if (rcCommands.values.elevator < 1050){
-      rateSetPointY = -600.0;
-    }
+
     //dead zone
     if (rateSetPointY < 2 && rateSetPointY > -2){
       rateSetPointY= 0; 
@@ -51,24 +38,24 @@ void ProcessChannels(){
       yawInput = 0;
     }
     break;
-  case 2://Head free
+  case 2://care free with out GPS
     //rate + attitude + altitude PID loops
-    MapVar(&rcCommands.values.aileron,&rollSetPointTX,1000,2000,-60,60);
-    MapVar(&rcCommands.values.elevator,&pitchSetPointTX,1000,2000,-60,60);
+    MapVar(&rcCommands.values.aileron,&rollSetPoint,1000,2000,-60,60);
+    MapVar(&rcCommands.values.elevator,&pitchSetPoint,1000,2000,-60,60);
     MapVar(&rcCommands.values.rudder,&yawInput,1000,2000,-300,300);
     throttleCommand = rcCommands.values.throttle;
     //dead zone
-    if (rollSetPointTX < 2 && rollSetPointTX > -2){
-      rollSetPointTX = 0;
+    if (rollSetPoint < 2 && rollSetPoint > -2){
+      rollSetPoint = 0;
     }
-    if (pitchSetPointTX < 2 && pitchSetPointTX > -2){
-      pitchSetPointTX = 0;
+    if (pitchSetPoint < 2 && pitchSetPoint > -2){
+      pitchSetPoint = 0;
     }
     if (yawInput < 2 && yawInput > -2){
       yawInput = 0;
     }
     break;
-  case 3://care free
+  case 3://loiter -> care free with GPS
     //rate + attitude + altitude + loiter PID loops
     MapVar(&rcCommands.values.aileron,&rollSetPointTX,1000,2000,-60,60);
     MapVar(&rcCommands.values.elevator,&pitchSetPointTX,1000,2000,-60,60);
@@ -88,7 +75,9 @@ void ProcessChannels(){
   case 4://waypoint
     rollSetPointTX  = 0;
     pitchSetPointTX = 0;
+    throttleCommand = 0; 
     yawInput = 0;
+    //rate + attitude + altitdue + waypoint PID loops
     break;
 
   }
@@ -217,8 +206,9 @@ void SBusParser(){
 }
 
 void DSMXParser(){
-
+  
   while (Serial1.available() > 0){
+
     if (millis() - frameTime > 8){
       byteCount = 0;
       bufferIndex = 0;
@@ -239,7 +229,6 @@ void DSMXParser(){
         switch(channelNumber){
         case 0://throttle
           rcCommands.values.throttle = constrain(((spekBuffer[i] << 8) | (spekBuffer[i+1])) & 0x07FF,342,1706);
-          //rcCommands.values.throttle = ((spekBuffer[i] << 8) | (spekBuffer[i+1])) & 0x07FF;
           rcCommands.values.throttle = (rcCommands.values.throttle - 342) * 0.7331378 + 1000;
           break;
         case 1://aileron
@@ -277,8 +266,6 @@ void DSMXParser(){
       }
     }
   }
-
-
 }
 
 void DetectRC(){

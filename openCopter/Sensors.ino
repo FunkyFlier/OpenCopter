@@ -1,6 +1,8 @@
 void CalcGravityOffSet(){
-  
-  for (int i =0; i < 100; i++){
+  imuTimer = micros();
+
+  for (int i =0; i < 250; i++){
+
     while (micros() - imuTimer < 10000){
     }
     imuDT = (micros() - imuTimer) * 0.000001;
@@ -11,16 +13,24 @@ void CalcGravityOffSet(){
     imu.AHRSupdate();
   }
   imu.GetEuler();
-  //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
   gravSum = 0;
   for (int i = 0; i < 50; i++){
     GetAcc();
     gravSum += imu.GetGravOffset();
-    //Serial<<imu.GetGravOffset()<<"\r\n";;
-    delay(5);
+    imu.GetInertial();
+    delayMicroseconds(2500);
   }
   gravAvg = gravSum / 50.0;
   imu.gravityOffSet = gravAvg;
+  /*for (int i = 0; i < 50; i++){
+   GetAcc();
+   gravSum += -1.0*sqrt(scaledAccX * scaledAccX + scaledAccY * scaledAccY + scaledAccZ * scaledAccZ );
+   //Serial<<imu.GetGravOffset()<<"\r\n";;
+   delayMicroseconds(2500);
+   }
+   //imu.gravityOffSet = -1.0*sqrt(scaledAccX * scaledAccX + scaledAccY * scaledAccY + scaledAccZ * scaledAccZ );
+   gravAvg = gravSum / 50.0;
+   imu.gravityOffSet = gravAvg;*/
 }
 
 
@@ -125,7 +135,76 @@ void GPSStart(){
   //to do add feed back with leds
   if (GPSDetected == true){
     while (gps.data.vars.gpsFix != 3){
+      if (millis() - generalPurposeTimer > 500){
+        generalPurposeTimer = millis();
+        LEDState++;
+        if (LEDState == 4){
+          LEDState = 0;
+        }
+      }
+      switch (LEDState){
+      case 0:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 1:
+        digitalWrite(13,LOW);
+        digitalWrite(RED,HIGH);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 2:
+        digitalWrite(13,LOW);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,HIGH);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 3:
+        digitalWrite(13,LOW);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,HIGH);
+        break;
+      }
     }
+    while(gps.data.vars.hAcc > 5000){
+      if (millis() - generalPurposeTimer > 500){
+        generalPurposeTimer = millis();
+        LEDState++;
+        if (LEDState == 4){
+          LEDState = 0;
+        }
+      }
+      switch (LEDState){
+      case 0:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 1:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,HIGH);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 2:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,HIGH);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 3:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,HIGH);
+        break;
+      }
+    }
+    //imu.vXY = (gps.data.vars.hAcc * 0.001);
     homeBase.coord.lat = gps.data.vars.lat;
     homeBase.coord.lon = gps.data.vars.lon;
     homeBase.coord.alt = gps.data.vars.hMSL; //+ (5000);//home altitude is ground altitude plus 5 meters
@@ -314,7 +393,10 @@ void MagInit(){
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRA_REG,(uint8_t)0x1C);
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRB_REG,(uint8_t)0x60);
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_MR_REG,(uint8_t)0x00);
-  GetMag();
+  for (uint8_t i = 0; i < 100; i++){
+    GetMag();
+    delay(5);
+  }
 }
 
 void AccInit(){
@@ -323,7 +405,7 @@ void AccInit(){
 
   AccSSLow();
   SPI.transfer(WRITE | SINGLE | BW_RATE);
-  SPI.transfer(0x0A);
+  SPI.transfer(0x0C);
   AccSSHigh();
 
   AccSSLow();
@@ -338,12 +420,38 @@ void AccInit(){
 
   GetAcc();
 
-  smoothAccX = (float)acc.v.x;
-  smoothAccY = (float)(-1.0 * acc.v.y);
-  smoothAccZ = (float)(-1.0 * acc.v.z);
-  for (uint8_t i = 0;i < 50; i++){
+  if (acc.v.x > 0){
+    scaledAccX = acc.v.x * accXScalePos;
+  }
+  else{
+    scaledAccX = acc.v.x * accXScaleNeg;
+  }
+  if (acc.v.y > 0){
+    scaledAccY = acc.v.y  * accYScalePos;
+  }
+  else{
+    scaledAccY = acc.v.y  * accYScaleNeg;
+  }
+  if (acc.v.z > 0){
+    scaledAccZ = acc.v.z * accZScalePos;
+  }
+  else{
+    scaledAccZ = acc.v.z * accZScaleNeg;
+  }
+  smoothAccX = scaledAccX;
+  smoothAccY = scaledAccY;
+  smoothAccZ = scaledAccZ;  
+  for (uint8_t i = 0; i < 3 ; i++){
+    inBufferX[i] = smoothAccX;
+    inBufferY[i] = smoothAccY;
+    inBufferZ[i] = smoothAccZ;
+    outBufferX[i] = smoothAccX;
+    outBufferY[i] = smoothAccY;
+    outBufferZ[i] = smoothAccZ;
+  }
+  for (uint16_t i = 0;i < 100; i++){
     GetAcc();
-    delay(5);
+    delayMicroseconds(2500);
   }
 
 }
@@ -384,20 +492,21 @@ void GyroInit(){
   gyroSumX = 0;
   gyroSumY = 0;
   gyroSumZ = 0;
-  for (uint8_t j = 0; j < 250; j ++){
+  for (uint16_t j = 0; j < 500; j ++){
     GetGyro();
     delay(3);
   }
-  for (uint8_t j = 0; j < 250; j ++){
+  for (uint16_t j = 0; j < 500; j ++){
     GetGyro();
     gyroSumX += gyro.v.x;
     gyroSumY += gyro.v.y;
     gyroSumZ += gyro.v.z;
     delay(3);
   }
-  offsetX = gyroSumX / 250;
-  offsetY = gyroSumY / 250;
-  offsetZ = gyroSumZ / 250;
+  offsetX = gyroSumX / 500;
+  offsetY = gyroSumY / 500;
+  offsetZ = gyroSumZ / 500;
+  GetGyro();
 
 }
 
@@ -429,17 +538,15 @@ void GetGyro(){
     gyro.buffer[i] = SPI.transfer(0x00);
   }
   GyroSSHigh();
-  //don't forget to convert to radians per second. This absolutely will not work otherwise
-  //check the data sheet for more info on this
+
   degreeGyroX = (gyro.v.x - offsetX) * 0.07;
   degreeGyroY = -1.0 * ((gyro.v.y - offsetY) * 0.07);
   degreeGyroZ = -1.0 * ((gyro.v.z - offsetZ) * 0.07);
-  /*degreeGyroX = (gyro.v.x - offsetX) * 0.0175;
-   degreeGyroY = -1.0 * ((gyro.v.y - offsetY) * 0.0175);
-   degreeGyroZ = -1.0 * ((gyro.v.z - offsetZ) * 0.0175);*/
+
   radianGyroX = ToRad(degreeGyroX);
   radianGyroY = ToRad(degreeGyroY);
   radianGyroZ = ToRad(degreeGyroZ);
+
 
 }
 void GetAcc(){
@@ -454,32 +561,70 @@ void GetAcc(){
   acc.v.y *= -1;
   acc.v.z *= -1;
 
-  //the data goes through the low pass filter 
-  SmoothingACC(&acc.v.x,&smoothAccX);//this is a very simple low pass digital filter
-  SmoothingACC(&acc.v.y,&smoothAccY);//it helps significiantlly with vibrations. 
-  SmoothingACC(&acc.v.z,&smoothAccZ);
-  //the offset and scaling factor to meters per second is applied
-  //the values are generate by the accelerometer calibration sketch
-  //notice the sign negation. The axes must be in North East Down convention
-  //however gravity is measured as negative in that convention by the accelerometer
-  //the complimentary filter expects gravity to be positive in the North East Down convention
-  /*scaledAccX = ((smoothAccX - ACC_OFFSET_X) * ACC_SCALE_X);
-  scaledAccY = ((smoothAccY - ACC_OFFSET_Y) * ACC_SCALE_Y);
-  scaledAccZ = ((smoothAccZ - ACC_OFFSET_Z) * ACC_SCALE_Z);*/
-  
-  shiftedAccX = (smoothAccX - ACC_OFFSET_X) ;
-  shiftedAccY = (smoothAccY - ACC_OFFSET_Y) ;
-  shiftedAccZ = (smoothAccZ - ACC_OFFSET_Z);
-  
-  scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
-  scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
-  scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);
 
-  accToFilterX = -1.0 * scaledAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-  accToFilterY = -1.0 * scaledAccY;
-  accToFilterZ = -1.0 * scaledAccZ;
+  //Filter(&acc.v.x,&acc.v.y,&acc.v.z,&smoothAccX,&smoothAccY,&smoothAccZ);
+
+  /*shiftedAccX = (smoothAccX - ACC_OFFSET_X);
+   shiftedAccY = (smoothAccY - ACC_OFFSET_Y);
+   shiftedAccZ = (smoothAccZ - ACC_OFFSET_Z);*/
+  if (acc.v.x > 0){
+    scaledAccX = acc.v.x * accXScalePos;
+  }
+  else{
+    scaledAccX = acc.v.x * accXScaleNeg;
+  }
+  if (acc.v.y > 0){
+    scaledAccY = acc.v.y  * accYScalePos;
+  }
+  else{
+    scaledAccY = acc.v.y  * accYScaleNeg;
+  }
+  if (acc.v.z > 0){
+    scaledAccZ = acc.v.z * accZScalePos;
+  }
+  else{
+    scaledAccZ = acc.v.z * accZScaleNeg;
+  }
+  Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&smoothAccX,&smoothAccY,&smoothAccZ);
+
+  /*scaledAccX = shiftedAccX * ACC_W_INV_00;
+   scaledAccY = shiftedAccY * ACC_W_INV_01;
+   scaledAccZ = shiftedAccZ * ACC_W_INV_02;*/
+  /*scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
+   scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
+   scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);*/
+
+  accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+  accToFilterY = -1.0 * smoothAccY;
+  accToFilterZ = -1.0 * smoothAccZ;
+
+
+  //------------------------------------------------------------------------------------------------------------------------------
+
+
+  /*shiftedAccX = ((float)acc.v.x - ACC_OFFSET_X) ;
+   shiftedAccY = ((float)acc.v.y - ACC_OFFSET_Y) ;
+   shiftedAccZ = ((float)acc.v.z - ACC_OFFSET_Z);
+   
+   scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
+   scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
+   scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);
+   
+   Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&smoothAccX,&smoothAccY,&smoothAccZ);
+   
+   accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+   accToFilterY = -1.0 * smoothAccY;
+   accToFilterZ = -1.0 * smoothAccZ;*/
 
 }
+
+
+
+
+
+
+
+
 
 
 

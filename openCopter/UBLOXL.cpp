@@ -37,7 +37,7 @@ void UBLOX::DistBearing(int32_t *lat1, int32_t *lon1, int32_t *lat2, int32_t *lo
   deltaLat = ToRad( (*lat2 - * lat1) *0.0000001 );
   //the below line is as such to get the signs between the accelerometer and GPS position to the same sign convention
   //this will work for the north west heimsphere
-  deltaLon = (ToRad( (*lon1 - * lon2) *0.0000001 ) ) * cos( ToRad((*lat2 * 0.0000001)) );
+  deltaLon = (ToRad( (*lon2 - * lon1) *0.0000001 ) ) * cos( ToRad((*lat2 * 0.0000001)) );
   *distX = deltaLat * RADIUS_EARTH;
   *distY = deltaLon * RADIUS_EARTH;
   *distDirect = sqrt(*distX * *distX + *distY * *distY);

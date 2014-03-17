@@ -2,9 +2,6 @@
 void SafetyCheck(){
   generalPurposeTimer = millis();
   while (rcCommands.values.throttle > 1020){
-    /*if (rcType != RC){//removed since this is handled in the ISR
-     FeedLine();
-     }*/
     if (millis() - generalPurposeTimer > 500){
       digitalWrite(GREEN,toggle);
       toggle = ~toggle;
@@ -34,10 +31,10 @@ void Arm(){
     }
     if (millis() - generalPurposeTimer > 1000){//in case it has incorrectly detected serial RC
       rcType = RC;
-      DDRB &= 0xE0;
-      PORTB |= 0x1F;//turn on pull ups
-      PCMSK0 |= 0x1F;//set interrupt mask for all of PORTK
-      PCICR |= 1<<0;//enable the pin change interrupt for K
+      DDRK = 0;//PORTK as input
+      PORTK |= 0xFF;//turn on pull ups
+      PCMSK2 |= 0xFF;//set interrupt mask for all of PORTK
+      PCICR = 1<<2;//enable the pin change interrupt for K
       delay(100);//wait for a few frames
       Center();
       generalPurposeTimer = millis();
@@ -48,201 +45,226 @@ void Arm(){
     if (rcType == RC){
       delay(100);//wait for a few frames
     }
-    if (rcType != RC){
-      FeedLine();
-    }
     if (newRC == true){
       newRC = false;
     }
   } 
+
   digitalWrite(RED,LOW);
 }
 
+void AltitudeHold(){
+  /*actualAltitude = imu.ZEst;
+  distToAlt = fabs(actualAltitude - targetAltitude);
+  switch (ALTHoldState){
+  case LOITERING:
+    if (distToAlt > LOITER_DIST){
+      ALTHoldState = ADJUST;
+    }
+    break;
+  case ADJUST:
+    altitudeDT = (millis() - altHoldTimer) * 0.001;
+    altHoldTimer = millis();
+    AltHoldPosition.calculate();
+    AltHoldRate.calculate();
+    if (distToAlt < LOITER_DIST){
+      ALTHoldState = LOITERING;
+    }
+    break;
+  default:
+    ALTHoldState = LOITERING;
+    break;
 
+  }*/
+}
 
-void Rotate2D(float *currentBearing, float *initialBearing, float *pitchIn, float *rollIn, float *pitchOut, float *rollOut){//change to take arguments
-  static float headingFreeDifference;
-  static float sinHeadingFreeDiff;
-  static float cosHeadingFreeDiff;
-  
+void RotatePitchRoll(float *currentBearing, float *initialBearing, float *pitchIn, float *rollIn, float *pitchOut, float *rollOut){//change to take arguments
+  float headingFreeDifference;
+  float sinHeadingFreeDiff;
+  float cosHeadingFreeDiff;
   headingFreeDifference = *currentBearing - *initialBearing;
   sinHeadingFreeDiff = sin(ToRad(headingFreeDifference));
   cosHeadingFreeDiff = cos(ToRad(headingFreeDifference));
   *rollOut = *rollIn * cosHeadingFreeDiff + *pitchIn * sinHeadingFreeDiff;
   *pitchOut = -1.0 * *rollIn * sinHeadingFreeDiff + *pitchIn * cosHeadingFreeDiff;
+  
+  /*headingFreeDifference = imu.yaw - headingFreeInitial;
+  sinHeadingFreeDiff = sin(ToRad(headingFreeDifference));
+  cosHeadingFreeDiff = cos(ToRad(headingFreeDifference));
+
+  rollSetPoint = rollSetPointTX * cosHeadingFreeDiff + pitchSetPointTX * sinHeadingFreeDiff;
+  pitchSetPoint = -1.0 * rollSetPointTX * sinHeadingFreeDiff + pitchSetPointTX * cosHeadingFreeDiff;*/
 }
 
-void SetAltHold(){
-  targetAltitude = imu.ZEst;
-  AltHoldPosition.reset();
-  AltHoldRate.reset();  
-}
-void AltHold(){
-  actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
-  AltHoldPosition.calculate();
-  AltHoldRate.calculate();  
-}
-
-void SetXYLoiterPosition(){
-  LoiterXPosition.reset();
-  LoiterXRate.reset();
-  LoiterYPosition.reset();
-  LoiterYRate.reset();
-  xTarget = imu.XEst;
-  yTarget = imu.YEst;
-}
-
-void Loiter(){
-  LoiterXPosition.calculate();
-  LoiterYPosition.calculate();
-  LoiterXRate.calculate();
-  setPointX *= -1.0;
-  LoiterYRate.calculate();
-  Rotate2D(&imu.yaw,&zero,&setPointX,&setPointY,&pitchSetPoint,&rollSetPoint);
-}
-
-void GPSStable(){
-  if (pitchSetPointTX == 0 && rollSetPointTX == 0){
-    Loiter();
-  }
-  else{
-    Rotate2D(&imu.yaw,&headingFreeInitial,&pitchSetPointTX,&rollSetPointTX,&pitchSetPoint,&rollSetPoint);
-    SetXYLoiterPosition();
-  }
-
-  if (throttleCommand > (startingThrottle + 100)){
-    targetVelAlt = 1.25;
-    AltHoldRate.calculate();
-    targetAltitude = imu.ZEst;
-  }
-  else{
-    if(throttleCommand < (startingThrottle - 100)){
-      targetVelAlt = - 1.25;
-      AltHoldRate.calculate();
-      targetAltitude = imu.ZEst;
-    }
-    else{
-      AltHold();
-    }
-  }
-
-}
 void WayPointControl(){
   switch (wayPointState){
   case WP_HOLD:
+    //Serial<<"wp hold\r\n";
+    AltitudeHold();
     GPSStable();
     if (startFlight == true && inputWayPointNumber > 0){
       startFlight = false;
       wayPointState = WP_TRAVEL;
-      CrossTrack.reset();
       currentWayPointNumber = 0;
       targetAltitude = (wayPoints[0].coord.alt * 0.001) - altitudeDifference;
-      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
-      distToWayPoint *= -1;
+      //gps.Heading(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&currentBearing);
+      //change to the correct dist heading function call
+      //previousBearing = currentBearing;
       rollSetPoint = 0;
-      SetXYLoiterPosition();
-      GPSTimer = millis();
     }
     break;
   case WP_TRAVEL:
-    if (fabs(targetAltitude - imu.ZEst) > 2){
-      AltHold();
-      Loiter();
-    }
-    else{
-      AltHold();
-      if (GPSPID == true){
-        GPSPID = false;
-        gps.DistBearing(&d.v.lattitude,&d.v.longitude,&wayPoints[0].coord.lat,&wayPoints[0].coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
-        distToWayPoint *= -1;
-        GPSDT = (millis() - GPSTimer) * 0.001;
-        GPSTimer = millis();
-        WayPointPosition.calculate();
-        if (distToWayPoint >= -1 ){
-          currentWayPointNumber++;
-          targetAltitude = (wayPoints[currentWayPointNumber].coord.alt * 0.001) - altitudeDifference;
-          SetXYLoiterPosition();
-        }
-      }
-      Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
+    //Serial<<"wp travel\r\n";
+    AltitudeHold();
+    if (GPSPID == true){
+      GPSPID = false;
+      //gps.Distance(&d.v.lattitude,&d.v.longitude,&wayPoints[currentWayPointNumber].v.lat,&wayPoints[currentWayPointNumber].v.lon,&distToWayPoint);
+      distToWayPoint *= -1;
+      speed2D_MPS = d.v.groundSpeed * 0.001;
+      //previousBearing = currentBearing;
+      //gps.Heading(&d.v.lattitude,&d.v.longitude,&wayPoints[currentWayPointNumber].v.lat,&wayPoints[currentWayPointNumber].v.lon,&currentBearing);
+      //yawSetPoint = currentBearing;
+      //GPSdt = (millis() - GPSTimer) * 0.001;
+      //GPSTimer = millis();
+      WayPointPosition.calculate();
       WayPointRate.calculate();
       pitchSetPoint *= -1;
-      CrossTrack.calculate();
+      if (distToWayPoint >= -1 /*|| fabs(previousBearing - currentBearing) > 90*/){
+        currentWayPointNumber++;
+        targetAltitude = (wayPoints[currentWayPointNumber].coord.alt * 0.001) - altitudeDifference;
+      }
+      /*if (rcCommands.values.aileron > 1650){
+        currentWayPointNumber++;
+      }*/
+      
     }
     if (currentWayPointNumber == inputWayPointNumber){
       wayPointState = WP_END;
-      SetXYLoiterPosition();
+      targetAltitude = imu.ZEst;
+      latTarget = gps.data.vars.lat;
+      lonTarget = gps.data.vars.lon;
       SendEndOfWPCheck();
       endOfWPTimer = millis();
     }
     break;
   case WP_END:
+  //Serial<<"wp end\r\n";
     GPSStable();
+    AltitudeHold();
     if (endOfWPCheck == true){
       wayPointState = WP_HOLD;
       break;
     }
     if (RTBFlag == true){
       wayPointState = WP_RTB;
-      //targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
+      //remove extra altitude for autoland
+      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference;
       break;
     }
     if (millis() - endOfWPTimer > 5000){
       wayPointState = WP_FAIL_RTB;
       RTBFailSafe = true;
-      //targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
+      //remove more for autoland
+      targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference;
     }
     break;
   case WP_RTB:
-    AltHold();
+  ///Serial<<"wp rtb\r\n";
+    AltitudeHold();
     if (GPSPID == true){
       GPSPID = false;
-      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&homeBase.coord.lat,&homeBase.coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
+      //gps.Distance(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&distToWayPoint);
       distToWayPoint *= -1;
-      GPSDT = (millis() - GPSTimer) * 0.001;
-      GPSTimer = millis();
+      speed2D_MPS = d.v.groundSpeed * 0.001;
+      //gps.Heading(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&currentBearing);
+      //yawSetPoint = currentBearing;
+      //GPSdt = (millis() - GPSTimer) * 0.001;
+      //GPSTimer = millis();
       WayPointPosition.calculate();
+      WayPointRate.calculate();
+      pitchSetPoint *= -1;
       if (distToWayPoint >= -1){
-        targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
-        SetXYLoiterPosition();
+        targetAltitude = imu.ZEst;
+        latTarget = gps.data.vars.lat;
+        lonTarget = gps.data.vars.lon;
         wayPointState = WP_HOLD;
       }
     }
-    Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
-    WayPointRate.calculate();
-    pitchSetPoint *= -1;
-    CrossTrack.calculate();
-
-
 
     break;
   case WP_FAIL_RTB:
-    AltHold();
+    //Serial<<"wp rtb fs\r\n";
+    AltitudeHold();
     if (GPSPID == true){
       GPSPID = false;
-      gps.DistBearing(&d.v.lattitude,&d.v.longitude,&homeBase.coord.lat,&homeBase.coord.lon,&wpXDist,&wpYDist,&distToWayPoint,&yawSetPoint);
+      //gps.Distance(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&distToWayPoint);
       distToWayPoint *= -1;
-      GPSDT = (millis() - GPSTimer) * 0.001;
-      GPSTimer = millis();
+      speed2D_MPS = d.v.groundSpeed * 0.001;
+      //gps.Heading(&d.v.lattitude,&d.v.longitude,&homeBase.v.lat,&homeBase.v.lon,&currentBearing);
+      //yawSetPoint = currentBearing;
+      //GPSdt = (millis() - GPSTimer) * 0.001;
+      //GPSTimer = millis();
       WayPointPosition.calculate();
+      WayPointRate.calculate();
+      pitchSetPoint *= -1;
       if (distToWayPoint >= -1){
-        SetXYLoiterPosition();
-        targetAltitude = (homeBase.coord.alt * 0.001) - altitudeDifference + 4;
-        d.v.flightMode = CARE_FREE;
+        d.v.flightMode = STABLE;
         enterState = true;
+        
       }
     }
-    Rotate2D(&imu.yaw,&zero,&imu.velX,&imu.velY,&velXBody,&velYBody);
-    WayPointRate.calculate();
-    pitchSetPoint *= -1;
-    CrossTrack.calculate();
-
     break;
   }
 
 }
 
-
+void GPSStable(){
+  //get loiter working first
+  /*switch (GPSState){
+  case MANUAL:
+    if (pitchSetPointTX == 0 && rollSetPointTX == 0){
+      GPSState = LOITERING;
+      latTarget = gps.data.vars.lat;
+      lonTarget = gps.data.vars.lon;
+    }
+    break;
+  case LOITERING:
+    if (GPSPID == true){
+      gps.Distance(&gps.data.vars.lat,&gps.data.vars.lon,&latTarget,&lonTarget,&distToCoords);
+      GPSPID = false;
+    }
+    if (pitchSetPointTX != 0 || rollSetPointTX != 0){
+      GPSState = MANUAL;
+    }
+    if (distToCoords > LOITER_DIST){
+      GPSState = ADJUST;
+    }
+    break;
+  case ADJUST:
+    if (GPSPID == true){
+      GPSPID = false;
+      gps.Heading(&gps.data.vars.lat,&gps.data.vars.lon,&latTarget,&lonTarget,&GPSHeading);
+      gps.Distance(&gps.data.vars.lat,&gps.data.vars.lon,&latTarget,&lonTarget,&distToCoords);
+      bodyHeading = GPSHeading - imu.yaw;
+      rollError = distToCoords * -1.0 * sin(ToRad(bodyHeading));
+      pitchError = distToCoords * cos(ToRad(bodyHeading));
+      GPSdt = (millis() - GPSTimer) * 0.001;
+      GPSTimer = millis();
+      LoiterRollPosition.calculate();
+      LoiterPitchPosition.calculate();
+    }
+    if (pitchSetPointTX != 0 || rollSetPointTX != 0){
+      GPSState = MANUAL;
+    }
+    if (distToCoords < LOITER_DIST){
+      GPSState = LOITERING;
+    }
+    break;
+  default:
+    GPSState = MANUAL;
+    break;
+  }*/
+}
 void HeadingHold(){
   switch (HHState){
   case TAKEOFF:
@@ -279,18 +301,6 @@ void HeadingHold(){
     break;
   }  
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

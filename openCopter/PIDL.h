@@ -30,6 +30,34 @@ private:
   float dErrorPrev;
 
 };
+class ALT{
+public:
+  ALT(float*, float*, float*,boolean*,float*, float*, float*, float*,float*,float,float,float*);
+  void calculate();
+  void reset();
+private:
+  float integralLimitHigh;
+  float integralLimitLow;
+  float outputLimitHigh;
+  float outputLimitLow;
+  float *dt;
+  float *setPoint;
+  float *actual;
+  float *adjustment;
+  boolean *integrate;
+  float *kp;
+  float *ki;
+  float *kd;
+  float *fc;
+  float *multiplier;
+  float prevError;
+  float prevActual;
+  float error;
+  float iError;
+  float dError;
+  float dErrorPrev;
+
+};
 class YAW{
 public:
   YAW(float*, float*, float*,boolean*,float*, float*, float*, float*,float*,float,float);
