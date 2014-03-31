@@ -169,7 +169,7 @@ void GPSStart(){
         break;
       }
     }
-    while(gps.data.vars.hAcc > 5000){
+    while(gps.data.vars.hAcc > 500000/*5000*/){
       if (millis() - generalPurposeTimer > 500){
         generalPurposeTimer = millis();
         LEDState++;

@@ -23,7 +23,7 @@
 #define vZ 2.5f
 
 #define w1XY 1.4f
-#define w2XY 0.f
+#define w2XY 0.9f
 #define w3XY 0.0001f
 
 
@@ -71,7 +71,7 @@ public:
   float gravityOffSet;
   float* declination;
   boolean feedBack;
-
+  float xError,yError;
   
 private:
 

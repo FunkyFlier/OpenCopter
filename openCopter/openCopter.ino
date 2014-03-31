@@ -9,7 +9,9 @@
 #include <Streaming.h>
 #include <AUXMATH.h>
 
-
+#define VALID_GPS_DIST 0.2
+#define EXPANSION_RATE 1.05
+#define GPS_DT 0.2
 
 //LED defines
 #define RED 38
@@ -158,8 +160,8 @@
 
 //telemetery defines
 #define RADIO_BUF_SIZE 256
-//#define radio Serial
-#define radio Serial2
+#define radio Serial
+//#define radio Serial2
 #define NUM_WAY_POINTS 0x14
 
 //to do - move these vars to appropriate headers 
@@ -530,7 +532,7 @@ float shiftedAccX,shiftedAccY,shiftedAccZ;
 float smoothAlt;
 //constructors //fix the dts
 openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,
-            &smoothAccX,&smoothAccY,&smoothAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&rawZ,&imuDT,&d.v.declination);
+&smoothAccX,&smoothAccY,&smoothAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&rawZ,&imuDT,&d.v.declination);
 //openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&scaledAccX,&scaledAccY,&scaledAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&smoothAlt,&imuDT,&d.v.declination);
 
 PID PitchAngle(&pitchSetPoint,&imu.pitch,&rateSetPointY,&integrate,&d.v.kp_pitch_attitude,&d.v.ki_pitch_attitude,&d.v.kd_pitch_attitude,&d.v.fc_pitch_attitude,&imuDT,800,800);
@@ -573,7 +575,10 @@ uint8_t LEDState;
 float accXScalePos, accYScalePos, accZScalePos, accXScaleNeg, accYScaleNeg, accZScaleNeg;
 uint32_t loopCount;
 
-
+float xDifference,yDifference,predictedX,predictedY,positionError,expandingDist;
+boolean gpsUpdate = true;
+uint8_t debugFlag,updateCount;
+float predVelX,predVelY;
 
 /*int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
  float outBufferX[3],outBufferY[3],outBufferZ[3];
@@ -644,10 +649,10 @@ void setup(){
   ACC_OFFSET_Z = 0;
   accXScalePos = 0.037212151;
   accXScaleNeg = 0.04080591;
-  
+
   accYScalePos = 0.038367716;
   accYScaleNeg = 0.03971761;
-  
+
   accZScalePos = 0.036842105;
   accZScaleNeg = 0.041350211;
   /*accXScalePos = 0.03828125;
@@ -665,7 +670,7 @@ void setup(){
   delay(500);
   digitalWrite(GREEN,LOW);
 
-
+  expandingDist = 1;
   imuTimer = micros();
   _400HzTimer = micros();
   generalPurposeTimer = millis();
@@ -780,8 +785,8 @@ void loop(){
     gps.newData = false;
     GPSFlag = true;
     gps.DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&gps.data.vars.lat,&gps.data.vars.lon,&rawX,&rawY,&beeLineDist,&beeLineHeading);
-    //imu.vXY = (gps.data.vars.hAcc * 0.001);
-    if (gps.data.vars.gpsFix == 0x03){
+
+    if (gps.data.vars.gpsFix == 0x03 /*&& updateCount == 0 && gpsUpdate == true*/){
       imu.GPSKalUpdate();
     }
     else{
@@ -1079,6 +1084,12 @@ void FlightSM(){
     break;
   }
 }
+
+
+
+
+
+
 
 
 

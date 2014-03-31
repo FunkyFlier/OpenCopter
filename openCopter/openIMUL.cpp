@@ -229,6 +229,7 @@ void openIMU::UpdateLagIndex(void){
   if (lagIndex == LAG_SIZE){
     lagIndex = 0;
   }
+
   /*
   currentEstIndex_z++;
    
@@ -384,6 +385,7 @@ void openIMU::GPSKalUpdate(){
   temp1 = p11X + vXY;
   temp2 = (p11X / temp1) - 1;
   temp3 = *XRaw - XEstHist[lagIndex];
+  xError = temp3;
   k1X = p11X / temp1;
   k2X = p21X / temp1;
   k3X = p31X / temp1;
@@ -407,6 +409,7 @@ void openIMU::GPSKalUpdate(){
   temp1 = p11Y + vXY;
   temp2 = (p11Y / temp1) - 1;
   temp3 = *YRaw - YEstHist[lagIndex];
+  yError = temp3;
   k1Y = p11Y / temp1;
   k2Y = p21Y / temp1;
   k3Y = p31Y / temp1;
