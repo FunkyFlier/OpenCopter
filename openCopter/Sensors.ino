@@ -122,20 +122,22 @@ void SendCalData(){
   radio.write(outputDoubleSum);
 }
 
-
+//gpsUpdate
 void GPSStart(){
-  gps.init();
+  gpsPort.begin(115200);
   generalPurposeTimer = millis();
-  while ((millis() - generalPurposeTimer < 1000) && (gps.newData == false)){
-    gps.Monitor();
-    if (gps.newData == true){
+  while ((millis() - generalPurposeTimer < 1000) && (GPSDetected == false)){
+    if (gpsPort.available() > 0){
       GPSDetected = true;
     }
+
   }
-  //to do add feed back with leds
   if (GPSDetected == true){
-    while (gps.data.vars.gpsFix != 3){
-      if (millis() - generalPurposeTimer > 500){
+    gpsUpdate = false;
+    while(gpsUpdate == false){
+      while(gpsPort.available() > 0){
+        gpsUpdate = gps.encode(gpsPort.read());
+        if (millis() - generalPurposeTimer > 500){
         generalPurposeTimer = millis();
         LEDState++;
         if (LEDState == 4){
@@ -168,8 +170,12 @@ void GPSStart(){
         digitalWrite(GREEN,HIGH);
         break;
       }
+      }
     }
-    while(gps.data.vars.hAcc > 500000/*5000*/){
+    while (gps.satellites() < 6){
+      while(gpsPort.available() > 0){
+        gpsUpdate = gps.encode(gpsPort.read());
+      }
       if (millis() - generalPurposeTimer > 500){
         generalPurposeTimer = millis();
         LEDState++;
@@ -204,13 +210,22 @@ void GPSStart(){
         break;
       }
     }
-    //imu.vXY = (gps.data.vars.hAcc * 0.001);
-    homeBase.coord.lat = gps.data.vars.lat;
-    homeBase.coord.lon = gps.data.vars.lon;
-    homeBase.coord.alt = gps.data.vars.hMSL; //+ (5000);//home altitude is ground altitude plus 5 meters
-    gps.newData = false;
-    while (gps.newData == false){
+    generalPurposeTimer = millis();
+    /*while(millis() - generalPurposeTimer < 5000){
+      while(gpsPort.available() > 0){
+        gpsUpdate = gps.encode(gpsPort.read());
+      }
+    }*/
+    gpsUpdate = false;
+    while(gpsUpdate == false){
+      while(gpsPort.available() > 0){
+        gpsUpdate = gps.encode(gpsPort.read());
+      }
     }
+    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+    homeBase.coord.lat = d.v.lattitude;
+    homeBase.coord.lon = d.v.longitude;
+    gpsUpdate = false;
   }  
 
 
@@ -617,6 +632,7 @@ void GetAcc(){
    accToFilterZ = -1.0 * smoothAccZ;*/
 
 }
+
 
 
 

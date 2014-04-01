@@ -141,8 +141,8 @@ void WayPointControl(){
     if (currentWayPointNumber == inputWayPointNumber){
       wayPointState = WP_END;
       targetAltitude = imu.ZEst;
-      latTarget = gps.data.vars.lat;
-      lonTarget = gps.data.vars.lon;
+      latTarget = d.v.lattitude;
+      lonTarget = d.v.longitude;
       SendEndOfWPCheck();
       endOfWPTimer = millis();
     }
@@ -185,8 +185,8 @@ void WayPointControl(){
       pitchSetPoint *= -1;
       if (distToWayPoint >= -1){
         targetAltitude = imu.ZEst;
-        latTarget = gps.data.vars.lat;
-        lonTarget = gps.data.vars.lon;
+        latTarget = d.v.lattitude;
+      lonTarget = d.v.longitude;
         wayPointState = WP_HOLD;
       }
     }

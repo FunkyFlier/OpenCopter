@@ -11,7 +11,7 @@ ISR(TIMER5_COMPA_vect, ISR_NOBLOCK){
     RCFailSafeCounter++;
   }
   ReadSerialStreams();
-  
+
   if (watchDogFailSafeCounter >=200){
     TIMSK5 = (0<<OCIE5A);
     digitalWrite(13,LOW);
@@ -42,7 +42,12 @@ void ReadSerialStreams(){
 
 
   if (GPSDetected == true){
-    gps.Monitor();
+    while(gpsPort.available() > 0){
+      if (gps.encode(gpsPort.read()) == true){
+        gpsUpdate = true;
+      }
+      //gpsUpdate = gps.encode(gpsPort.read());
+    }
   }
   if (handShake == true){
     while(radio.available() > 0){
@@ -56,6 +61,7 @@ void ReadSerialStreams(){
     }
   }
 }
+
 
 
 

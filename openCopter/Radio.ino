@@ -72,7 +72,7 @@ void TuningTransmitter(){
           outFloat.num = imu.yaw;
           break;
         case 0x12:
-          outFloat.num = gps.data.vars.hAcc * 0.001;
+          outFloat.num = gps.hdop();
           break;
         case 0x13:
           outFloat.num = outFloat.num = (float)GPSFlag;
@@ -81,7 +81,7 @@ void TuningTransmitter(){
           }
           break;
         case 0x14:
-          outFloat.num = gps.data.vars.gpsFix;
+          outFloat.num = gps.satellites();
           break;
         case 0x15:
           outFloat.num = imu.accelBiasY;
@@ -96,10 +96,10 @@ void TuningTransmitter(){
           outFloat.num = imu.yError;
           break;
         case 0x19:
-          outFloat.num = gps.data.vars.lat;
+          outFloat.num = d.v.lattitude;
           break;
         case 0x1A:
-          outFloat.num = gps.data.vars.lon;
+          outFloat.num = d.v.longitude;
           break;
 
         default:
@@ -1746,8 +1746,8 @@ void WayPointHandler(){
     //to do
     //get current lat lon alt and set the loiter coords
     targetAltitude = imu.ZEst;
-    latTarget = gps.data.vars.lat;
-    lonTarget = gps.data.vars.lon;
+    latTarget = d.v.lattitude;
+    lonTarget = d.v.longitude;
     inputWayPointNumber = 0;
     wayPointState = WP_HOLD;
     //set way point mode to HOLD

@@ -4,14 +4,13 @@
 #include <SPI.h>
 #include <I2C.h>
 #include "openIMUL.h"
-#include "UBLOXL.h"
 #include "PIDL.h"//the L is for local in case there is already a library by that name
 #include <Streaming.h>
 #include <AUXMATH.h>
+#include <TinyGPS.h>
 
-#define VALID_GPS_DIST 0.2
-#define EXPANSION_RATE 1.05
-#define GPS_DT 0.2
+#define RADIUS_EARTH 6372795
+
 
 //LED defines
 #define RED 38
@@ -163,6 +162,7 @@
 #define radio Serial
 //#define radio Serial2
 #define NUM_WAY_POINTS 0x14
+#define gpsPort Serial3
 
 //to do - move these vars to appropriate headers 
 
@@ -248,7 +248,8 @@ WayPoint_t loiterWP;//rename
 
 float rawX,rawY,rawZ;
 
-UBLOX gps;
+//UBLOX gps;
+TinyGPS gps;
 volatile boolean GPSDetected;
 float beeLineDist;
 float beeLineHeading;
@@ -576,9 +577,10 @@ float accXScalePos, accYScalePos, accZScalePos, accXScaleNeg, accYScaleNeg, accZ
 uint32_t loopCount;
 
 float xDifference,yDifference,predictedX,predictedY,positionError,expandingDist;
-boolean gpsUpdate = true;
+volatile boolean gpsUpdate = false;
 uint8_t debugFlag,updateCount;
 float predVelX,predVelY;
+uint32_t gpsFixAge;
 
 /*int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
  float outBufferX[3],outBufferY[3],outBufferZ[3];
@@ -780,27 +782,36 @@ void loop(){
   }
 
   _400HzTask();
-
-  if (gps.newData == true){
-    gps.newData = false;
+  /*if (millis() - generalPurposeTimer >= 100){
+    generalPurposeTimer = millis();
+    //Serial<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
+    //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+    //Serial<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+    //Serial<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
+    //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
+    //Serial<<imu.inertialZ<<"\r\n";
+    //Serial<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+    //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
+    //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+    //Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<"\r\n";
+    //Serial<<imu.accelBiasX<<","<<imu.accelBiasY<<","<<imu.accelBiasZ<<","<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
+    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+    Serial<<d.v.lattitude<<","<<d.v.longitude<<","<<gps.satellites()<<","<<gpsUpdate<<","<<gpsFixAge<<"\r\n";
+  }
+  _400HzTask();*/
+  if (gpsUpdate == true){
+    gpsUpdate = false;
     GPSFlag = true;
-    gps.DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&gps.data.vars.lat,&gps.data.vars.lon,&rawX,&rawY,&beeLineDist,&beeLineHeading);
+    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+    DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
+    imu.GPSKalUpdate();
+    /*if (gps.data.vars.gpsFix == 0x03 /*&& updateCount == 0 && gpsUpdate == true){
+     imu.GPSKalUpdate();
+     }
+     else{
+     //include action to take in event of fix loss
+     }*/
 
-    if (gps.data.vars.gpsFix == 0x03 /*&& updateCount == 0 && gpsUpdate == true*/){
-      imu.GPSKalUpdate();
-    }
-    else{
-      //include action to take in event of fix loss
-    }
-    d.v.lattitude = gps.data.vars.lat;
-    d.v.longitude = gps.data.vars.lon;
-    d.v.gpsAltitude = gps.data.vars.height;
-    d.v.velN = gps.data.vars.velN;
-    d.v.velE = gps.data.vars.velE;
-    d.v.velD = gps.data.vars.velD;
-    d.v.gpsHeading = gps.data.vars.heading;
-    d.v._3DSpeed = gps.data.vars.speed3D;
-    d.v.groundSpeed = gps.data.vars.speed2D;
   }
 
   _400HzTask();
@@ -817,21 +828,7 @@ void loop(){
   _400HzTask();
 
 
-  /*if (millis() - generalPurposeTimer >= 100){
-   generalPurposeTimer = millis();
-   //Serial<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Serial<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
-   //Serial<<imu.inertialZ<<"\r\n";
-   //Serial<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-   Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<"\r\n";
-   //Serial<<imu.accelBiasX<<","<<imu.accelBiasY<<","<<imu.accelBiasZ<<","<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
-   }
-   _400HzTask();*/
+
 
 
   if (newRC == true){
@@ -869,6 +866,21 @@ void loop(){
   watchDogFailSafeCounter = 0;
   //Serial.println(freeMemory());
 }
+
+void DistBearing(int32_t *lat1, int32_t *lon1, int32_t *lat2, int32_t *lon2,float *distX,float *distY,float *distDirect,float *bearing){
+  //using euqirectangular projection since the distances are << than the RADIUS of the earth
+  float deltaLat = ToRad( (*lat2 - * lat1) * 0.000001 );
+  //the below line is as such to get the signs between the accelerometer and GPS position to the same sign convention
+  //this will work for the north west heimsphere
+  
+  float deltaLon = (ToRad( (*lon2 - * lon1) * 0.000001 ) ) * cos( ToRad((*lat2 * 0.000001)) );
+  *distX = deltaLat * RADIUS_EARTH;
+  *distY = deltaLon * RADIUS_EARTH;
+  *distDirect = sqrt(*distX * *distX + *distY * *distY);
+  *bearing = FastAtan2(*distY,*distX);
+}
+
+
 void _400HzTask(){
   if (micros() - _400HzTimer >= 2500){
     rateDT = (micros() - _400HzTimer) * 0.000001;
@@ -984,8 +996,8 @@ void FlightSM(){
       LoiterYRate.reset();
       //AltHoldPosition.reset();
       //AltHoldRate.reset();//add back in after testing is complete
-      //latTarget = gps.data.vars.lat;
-      //lonTarget = gps.data.vars.lon;//not needed
+      //latTarget = d.v.lattitude;
+      //lonTarget = d.v.lattitude;//not needed
       xTarget = imu.XEst;
       yTarget = imu.YEst;
       enterState = false;
@@ -1048,8 +1060,8 @@ void FlightSM(){
       yawSetPoint = imu.yaw;
       //targetAltitude = imu.altitude;
       //altitudeDifference = (d.v.gpsAltitude * 0.001) - imu.altitude;
-      latTarget = gps.data.vars.lat;
-      lonTarget = gps.data.vars.lon;
+      //latTarget = gps.data.vars.lat;
+      //lonTarget = gps.data.vars.lon;
       wayPointState = WP_HOLD;
       //startingThrottle = throttleCommand;
       throttleAdjustment += throttleCommand;
@@ -1084,6 +1096,8 @@ void FlightSM(){
     break;
   }
 }
+
+
 
 
 
