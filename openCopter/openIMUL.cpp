@@ -8,7 +8,8 @@
 
 
 openIMU::openIMU(float *gyroX, float *gyroY, float *gyroZ, float *accX, float *accY, 
-float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *magY, float *magZ, float *XIn , float *YIn, float *ZIn, float *G_Dt, float *dec){
+float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *magY, float *magZ, float *XIn , float *YIn, float *ZIn, float *G_Dt, float *dec,float *w1,float *w2,float *w3, float* bMag, float* bAcc){
+  
   //constructor for the 10DOF system
   gx = gyroX;
   gy = gyroY;
@@ -34,8 +35,13 @@ float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *ma
 
 
   declination = dec;
+  
+  w1XY = w1;
+  w2XY = w2;
+  w3XY = w3;
 
-
+  betaAcc = bAcc;
+  betaMag = bMag;
 
   q0 = 1;
   q1 = 0;
@@ -134,17 +140,17 @@ void openIMU::pUpateX(void){
   XEst = XEst + velX * *dt + (inertialX * *dt * *dt * 0.5) + (accelBiasX * *dt * *dt * 0.5);
   XEstHist[currentEstIndex] = XEst;
 
-  p11X_ = p11X + *dt * p21X + *dt * w1XY + *dt * ((p32X * *dt * *dt)* 0.5 + p22X * *dt + p12X) + (*dt * *dt * p31X) * 0.5 + (*dt * *dt * ((p33X * *dt * *dt)/2 + p23X * *dt + p13X))* 0.5;
+  p11X_ = p11X + *dt * p21X + *dt * *w1XY + *dt * ((p32X * *dt * *dt)* 0.5 + p22X * *dt + p12X) + (*dt * *dt * p31X) * 0.5 + (*dt * *dt * ((p33X * *dt * *dt)/2 + p23X * *dt + p13X))* 0.5;
   p12X_ = p12X + *dt * p22X + *dt * ((p33X * *dt * *dt) * 0.5 + p23X * *dt + p13X) + (*dt * *dt *p32X) * 0.5;
   p13X_ = (p33X * *dt * *dt) * 0.5  + p23X * * dt + p13X;
 
   p21X_ = p21X + (*dt * *dt *(p23X + *dt * p33X)) * 0.5 + *dt * p31X + *dt * (p22X + *dt * p32X);
-  p22X_ = p22X + *dt * p32X + *dt * w2XY + *dt * (p23X + *dt * p33X);
+  p22X_ = p22X + *dt * p32X + *dt * *w2XY + *dt * (p23X + *dt * p33X);
   p23X_ = p23X + *dt * p33X;
 
   p31X_ = (p33X * *dt * *dt) * 0.5 + p32X * *dt + p31X;
   p32X_ = p32X + *dt * p33X;
-  p33X_ = p33X + *dt * w3XY;
+  p33X_ = p33X + *dt * *w3XY;
   p11X = p11X_;
   p12X = p12X_;
   p13X = p13X_;
@@ -163,17 +169,17 @@ void openIMU::pUpateY(void){
   YEst = YEst + velY * *dt + (inertialY * *dt * *dt * 0.5) + (accelBiasY * *dt * *dt * 0.5);
   YEstHist[currentEstIndex] = YEst;
 
-  p11Y_ = p11Y + *dt * p21Y + *dt * w1XY + *dt * ((p32Y * *dt * *dt)* 0.5 + p22Y * *dt + p12Y) + (*dt * *dt * p31Y) * 0.5 + (*dt * *dt * ((p33Y * *dt * *dt)/2 + p23Y * *dt + p13Y))* 0.5;
+  p11Y_ = p11Y + *dt * p21Y + *dt * *w1XY + *dt * ((p32Y * *dt * *dt)* 0.5 + p22Y * *dt + p12Y) + (*dt * *dt * p31Y) * 0.5 + (*dt * *dt * ((p33Y * *dt * *dt)/2 + p23Y * *dt + p13Y))* 0.5;
   p12Y_ = p12Y + *dt * p22Y + *dt * ((p33Y * *dt * *dt) * 0.5 + p23Y * *dt + p13Y) + (*dt * *dt *p32Y) * 0.5;
   p13Y_ = (p33Y * *dt * *dt) * 0.5  + p23Y * * dt + p13Y;
 
   p21Y_ = p21Y + (*dt * *dt *(p23Y + *dt * p33Y)) * 0.5 + *dt * p31Y + *dt * (p22Y + *dt * p32Y);
-  p22Y_ = p22Y + *dt * p32Y + *dt * w2XY + *dt * (p23Y + *dt * p33Y);
+  p22Y_ = p22Y + *dt * p32Y + *dt * *w2XY + *dt * (p23Y + *dt * p33Y);
   p23Y_ = p23Y + *dt * p33Y;
 
   p31Y_ = (p33Y * *dt * *dt) * 0.5 + p32Y * *dt + p31Y;
   p32Y_ = p32Y + *dt * p33Y;
-  p33Y_ = p33Y + *dt * w3XY;  
+  p33Y_ = p33Y + *dt * *w3XY;  
   p11Y = p11Y_;
   p12Y = p12Y_;
   p13Y = p13Y_;
@@ -268,17 +274,17 @@ void openIMU::AccKalUpdate(void){
   XEst = XEst + velX * *dt + (inertialX * *dt * *dt * 0.5) + (accelBiasX * *dt * *dt * 0.5);
   XEstHist[currentEstIndex] = XEst;
 
-  p11X_ = p11X + *dt * p21X + *dt * w1XY + *dt * ((p32X * *dt * *dt)* 0.5 + p22X * *dt + p12X) + (*dt * *dt * p31X) * 0.5 + (*dt * *dt * ((p33X * *dt * *dt)/2 + p23X * *dt + p13X))* 0.5;
+  p11X_ = p11X + *dt * p21X + *dt * *w1XY + *dt * ((p32X * *dt * *dt)* 0.5 + p22X * *dt + p12X) + (*dt * *dt * p31X) * 0.5 + (*dt * *dt * ((p33X * *dt * *dt)/2 + p23X * *dt + p13X))* 0.5;
   p12X_ = p12X + *dt * p22X + *dt * ((p33X * *dt * *dt) * 0.5 + p23X * *dt + p13X) + (*dt * *dt *p32X) * 0.5;
   p13X_ = (p33X * *dt * *dt) * 0.5  + p23X * * dt + p13X;
 
   p21X_ = p21X + (*dt * *dt *(p23X + *dt * p33X)) * 0.5 + *dt * p31X + *dt * (p22X + *dt * p32X);
-  p22X_ = p22X + *dt * p32X + *dt * w2XY + *dt * (p23X + *dt * p33X);
+  p22X_ = p22X + *dt * p32X + *dt * *w2XY + *dt * (p23X + *dt * p33X);
   p23X_ = p23X + *dt * p33X;
 
   p31X_ = (p33X * *dt * *dt) * 0.5 + p32X * *dt + p31X;
   p32X_ = p32X + *dt * p33X;
-  p33X_ = p33X + *dt * w3XY;
+  p33X_ = p33X + *dt * *w3XY;
 
 
   velY = velY + (inertialY * *dt) + (accelBiasY * *dt);
@@ -286,17 +292,17 @@ void openIMU::AccKalUpdate(void){
   YEst = YEst + velY * *dt + (inertialY * *dt * *dt * 0.5) + (accelBiasY * *dt * *dt * 0.5);
   YEstHist[currentEstIndex] = YEst;
 
-  p11Y_ = p11Y + *dt * p21Y + *dt * w1XY + *dt * ((p32Y * *dt * *dt)* 0.5 + p22Y * *dt + p12Y) + (*dt * *dt * p31Y) * 0.5 + (*dt * *dt * ((p33Y * *dt * *dt)/2 + p23Y * *dt + p13Y))* 0.5;
+  p11Y_ = p11Y + *dt * p21Y + *dt * *w1XY + *dt * ((p32Y * *dt * *dt)* 0.5 + p22Y * *dt + p12Y) + (*dt * *dt * p31Y) * 0.5 + (*dt * *dt * ((p33Y * *dt * *dt)/2 + p23Y * *dt + p13Y))* 0.5;
   p12Y_ = p12Y + *dt * p22Y + *dt * ((p33Y * *dt * *dt) * 0.5 + p23Y * *dt + p13Y) + (*dt * *dt *p32Y) * 0.5;
   p13Y_ = (p33Y * *dt * *dt) * 0.5  + p23Y * * dt + p13Y;
 
   p21Y_ = p21Y + (*dt * *dt *(p23Y + *dt * p33Y)) * 0.5 + *dt * p31Y + *dt * (p22Y + *dt * p32Y);
-  p22Y_ = p22Y + *dt * p32Y + *dt * w2XY + *dt * (p23Y + *dt * p33Y);
+  p22Y_ = p22Y + *dt * p32Y + *dt * *w2XY + *dt * (p23Y + *dt * p33Y);
   p23Y_ = p23Y + *dt * p33Y;
 
   p31Y_ = (p33Y * *dt * *dt) * 0.5 + p32Y * *dt + p31Y;
   p32Y_ = p32Y + *dt * p33Y;
-  p33Y_ = p33Y + *dt * w3XY;
+  p33Y_ = p33Y + *dt * *w3XY;
   //---------------------------------------------------------------------------------
 
   //velZ = velZ + (inertialZ_Grav * *dt) + (accelBiasZ * *dt);
@@ -626,10 +632,10 @@ void openIMU::AHRSEnd(){
     s3 *= recipNorm;
 
     // Apply feedback step
-    qDot1 -= betaMag * s0;
-    qDot2 -= betaMag * s1;
-    qDot3 -= betaMag * s2;
-    qDot4 -= betaMag * s3;
+    qDot1 -= *betaMag * s0;
+    qDot2 -= *betaMag * s1;
+    qDot3 -= *betaMag * s2;
+    qDot4 -= *betaMag * s3;
     feedBack = false;
   }
   // Integrate rate of change of quaternion to yield quaternion
@@ -685,10 +691,10 @@ void openIMU::IMUupdate(){
     s3 *= recipNorm;
 
     // Apply feedback step
-    qDot1 -= betaAcc * s0;
-    qDot2 -= betaAcc * s1;
-    qDot3 -= betaAcc * s2;
-    qDot4 -= betaAcc * s3;   
+    qDot1 -= *betaAcc * s0;
+    qDot2 -= *betaAcc * s1;
+    qDot3 -= *betaAcc * s2;
+    qDot4 -= *betaAcc * s3;   
   }
   else{
     feedBack = false;
@@ -770,10 +776,10 @@ void openIMU::AHRSupdate() {
     s3 *= recipNorm;
 
     // Apply feedback step
-    qDot1 -= betaMag * s0;
-    qDot2 -= betaMag * s1;
-    qDot3 -= betaMag * s2;
-    qDot4 -= betaMag * s3;
+    qDot1 -= *betaMag * s0;
+    qDot2 -= *betaMag * s1;
+    qDot3 -= *betaMag * s2;
+    qDot4 -= *betaMag * s3;
 
   }
   else{

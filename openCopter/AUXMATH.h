@@ -23,18 +23,18 @@
 /*#define a_ 0.0848826f//fc = 3.75Hz
 #define b_ 0.0036025f
 #define c_ 0.0000764f*/
-/*#define a_ 0.1061033f//fc = 3.0Hz
+#define a_ 0.1061033f//fc = 3.0Hz
 #define b_ 0.0056290f
-#define c_ 0.0001493f*/
+#define c_ 0.0001493f
 //#define a_ 0.1273240f//fc = 2.5Hz
 //#define b_ 0.0081057f
 //#define c_ 0.0002580f
 /*#define a_ 0.1414711f//fc = 2.25Hz
 #define b_ 0.0100070f
 #define c_ 0.0003539f*/
-#define a_ 0.1591549f//fc = 2.0Hz
+/*#define a_ 0.1591549f//fc = 2.0Hz
 #define b_ 0.0126651f
-#define c_ 0.0005039f
+#define c_ 0.0005039f*/
 /*#define a_ 0.2122066f//fc = 1.5Hz
 #define b_ 0.0225158f
 #define c 0.0011945f*/

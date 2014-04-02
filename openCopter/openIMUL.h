@@ -16,15 +16,15 @@
 
 //#define betaMag 0.0125f
 //#define betaAcc 0.035f
-#define betaMag 0.038f
-#define betaAcc 0.027f
+//#define betaMag 0.038f
+//#define betaAcc 0.027f
 
 #define vXY 2.0f
 #define vZ 2.5f
 
-#define w1XY 1.4f
+/*#define w1XY 1.4f
 #define w2XY 0.9f
-#define w3XY 0.0001f
+#define w3XY 0.0001f*/
 
 
 #define w1Z 0.5f
@@ -40,7 +40,7 @@ class openIMU{
 public:
   openIMU(float*, float*, float*, float*, float*, 
   float*, float*, float*, float*, float*, 
-  float*, float*, float* , float*, float*, float*, float*);
+  float*, float*, float* , float*, float*, float*, float*,float*,float*,float*,float*,float*);
   
   void AHRSupdate(void);
   void GetEuler(void);
@@ -72,6 +72,11 @@ public:
   float* declination;
   boolean feedBack;
   float xError,yError;
+  float* w1XY;
+  float* w2XY;
+  float* w3XY;
+  float* betaMag;
+  float* betaAcc;
   
 private:
 

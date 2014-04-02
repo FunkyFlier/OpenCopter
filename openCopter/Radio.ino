@@ -87,13 +87,13 @@ void TuningTransmitter(){
           outFloat.num = imu.accelBiasY;
           break;
         case 0x16:
-          outFloat.num = imu.accelBiasZ;
+          outFloat.num = accToFilterX;
           break;
         case 0x17:
-          outFloat.num = imu.xError;
+          outFloat.num = accToFilterY;
           break;
         case 0x18:
-          outFloat.num = imu.yError;
+          outFloat.num = accToFilterZ;
           break;
         case 0x19:
           outFloat.num = d.v.lattitude;
