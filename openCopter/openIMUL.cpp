@@ -619,7 +619,6 @@ void openIMU::AHRSStart(void){
 }
 void openIMU::AHRSEnd(){
   if (feedBack == true){
-
     // Gradient decent algorithm corrective step
     s0 = -_2q2 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q1 * (2.0f * q0q1 + _2q2q3 - *ay) - _2bz * q2 * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (-_2bx * q3 + _2bz * q1) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + _2bx * q2 * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
     s1 = _2q3 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q0 * (2.0f * q0q1 + _2q2q3 - *ay) - 4.0f * q1 * (1 - 2.0f * q1q1 - 2.0f * q2q2 - *az) + _2bz * q3 * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (_2bx * q2 + _2bz * q0) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + (_2bx * q3 - _4bz * q1) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
@@ -659,7 +658,7 @@ void openIMU::IMUupdate(){
   qDot4 = 0.5f * (q0 * *gz + q1 * *gy - q2 * *gx);
   magnitude = sqrt(squareSum);
   if ((magnitude < 11.76) && (magnitude > 7.84)){
-    feedBack = true;
+    //feedBack = true;
     recipNorm = 1 / magnitude;
     *ax *= recipNorm;
     *ay *= recipNorm;
@@ -697,7 +696,7 @@ void openIMU::IMUupdate(){
     qDot4 -= *betaAcc * s3;   
   }
   else{
-    feedBack = false;
+    //feedBack = false;
   }
   // Integrate rate of change of quaternion to yield quaternion
   q0 += qDot1 * *dt;
@@ -720,8 +719,9 @@ void openIMU::AHRSupdate() {
   qDot3 = 0.5f * (q0 * *gy - q1 * *gz + q3 * *gx);
   qDot4 = 0.5f * (q0 * *gz + q1 * *gy - q2 * *gx);
   magnitude = sqrt(squareSum);
+  //feedBack = false;
   if ((magnitude < 11.76) && (magnitude > 7.84)){
-    feedBack = true;
+    //feedBack = true;
     // Normalise accelerometer measurement
 
     //recipNorm = InvSqrt(squareSum);
@@ -783,7 +783,7 @@ void openIMU::AHRSupdate() {
 
   }
   else{
-    feedBack = false;
+    //feedBack = false;
   }
   // Integrate rate of change of quaternion to yield quaternion
   q0 += qDot1 * *dt;

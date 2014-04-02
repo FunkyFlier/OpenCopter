@@ -77,11 +77,11 @@ public:
   float* w3XY;
   float* betaMag;
   float* betaAcc;
-  
+  float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];//,ZEstHist[LAG_SIZE_Z];
+  uint8_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;  
 private:
 
-  float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];//,ZEstHist[LAG_SIZE_Z];
-  uint8_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;
+
   float *gx;
   float *gy;
   float *gz;

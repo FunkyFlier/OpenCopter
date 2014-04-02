@@ -51,16 +51,16 @@ void TuningTransmitter(){
           outFloat.num = imu.accelBiasY;
           break;
         case 0x0B:
-          outFloat.num = predictedX;
+          //outFloat.num = predictedX;
           break;
         case 0x0C:
-          outFloat.num = predictedY;
+          //outFloat.num = predictedY;
           break;
         case 0x0D:
           outFloat.num = positionError;
           break;
         case 0x0E:
-          outFloat.num = expandingDist;
+          outFloat.num = imu.feedBack;
           break;
         case 0x0F:
           outFloat.num = imu.pitch;

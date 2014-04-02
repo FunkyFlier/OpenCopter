@@ -138,38 +138,38 @@ void GPSStart(){
       while(gpsPort.available() > 0){
         gpsUpdate = gps.encode(gpsPort.read());
         if (millis() - generalPurposeTimer > 500){
-        generalPurposeTimer = millis();
-        LEDState++;
-        if (LEDState == 4){
-          LEDState = 0;
+          generalPurposeTimer = millis();
+          LEDState++;
+          if (LEDState == 4){
+            LEDState = 0;
+          }
         }
-      }
-      switch (LEDState){
-      case 0:
-        digitalWrite(13,HIGH);
-        digitalWrite(RED,LOW);
-        digitalWrite(YELLOW,LOW);
-        digitalWrite(GREEN,LOW);
-        break;
-      case 1:
-        digitalWrite(13,LOW);
-        digitalWrite(RED,HIGH);
-        digitalWrite(YELLOW,LOW);
-        digitalWrite(GREEN,LOW);
-        break;
-      case 2:
-        digitalWrite(13,LOW);
-        digitalWrite(RED,LOW);
-        digitalWrite(YELLOW,HIGH);
-        digitalWrite(GREEN,LOW);
-        break;
-      case 3:
-        digitalWrite(13,LOW);
-        digitalWrite(RED,LOW);
-        digitalWrite(YELLOW,LOW);
-        digitalWrite(GREEN,HIGH);
-        break;
-      }
+        switch (LEDState){
+        case 0:
+          digitalWrite(13,HIGH);
+          digitalWrite(RED,LOW);
+          digitalWrite(YELLOW,LOW);
+          digitalWrite(GREEN,LOW);
+          break;
+        case 1:
+          digitalWrite(13,LOW);
+          digitalWrite(RED,HIGH);
+          digitalWrite(YELLOW,LOW);
+          digitalWrite(GREEN,LOW);
+          break;
+        case 2:
+          digitalWrite(13,LOW);
+          digitalWrite(RED,LOW);
+          digitalWrite(YELLOW,HIGH);
+          digitalWrite(GREEN,LOW);
+          break;
+        case 3:
+          digitalWrite(13,LOW);
+          digitalWrite(RED,LOW);
+          digitalWrite(YELLOW,LOW);
+          digitalWrite(GREEN,HIGH);
+          break;
+        }
       }
     }
     while (gps.satellites() < 6){
@@ -212,10 +212,10 @@ void GPSStart(){
     }
     generalPurposeTimer = millis();
     /*while(millis() - generalPurposeTimer < 5000){
-      while(gpsPort.available() > 0){
-        gpsUpdate = gps.encode(gpsPort.read());
-      }
-    }*/
+     while(gpsPort.available() > 0){
+     gpsUpdate = gps.encode(gpsPort.read());
+     }
+     }*/
     gpsUpdate = false;
     while(gpsUpdate == false){
       while(gpsPort.available() > 0){
@@ -608,10 +608,11 @@ void GetAcc(){
   /*scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
    scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
    scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);*/
-
-  accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-  accToFilterY = -1.0 * smoothAccY;
-  accToFilterZ = -1.0 * smoothAccZ;
+  if (imu.feedBack == false){
+    accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+    accToFilterY = -1.0 * smoothAccY;
+    accToFilterZ = -1.0 * smoothAccZ;
+  }
 
 
   //------------------------------------------------------------------------------------------------------------------------------
@@ -632,6 +633,7 @@ void GetAcc(){
    accToFilterZ = -1.0 * smoothAccZ;*/
 
 }
+
 
 
 

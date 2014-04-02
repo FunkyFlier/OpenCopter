@@ -578,11 +578,24 @@ uint8_t LEDState;
 float accXScalePos, accYScalePos, accZScalePos, accXScaleNeg, accYScaleNeg, accZScaleNeg;
 uint32_t loopCount;
 
-float xDifference,yDifference,predictedX,predictedY,positionError,expandingDist;
+//float xDifference,yDifference,predictedX,predictedY,positionError,expandingDist;
 volatile boolean gpsUpdate = false;
-uint8_t debugFlag,updateCount;
-float predVelX,predVelY;
+//uint8_t debugFlag,updateCount;
+//float predVelX,predVelY;
 uint32_t gpsFixAge;
+
+float startingX,startingY,jumpDistX,jumpDistY,homeBaseX,homeBaseY;
+#define POSITION_ERROR_LIMIT 1.5f
+#define ACC_RATE 1.03f
+#define DR_PERIOD 750
+#define DR_FS_PERIOD 5000
+float drTimer;
+float positionError,accCircle;
+boolean drFlag = false;
+float drVelX,drVelY,drPosX,drPosY;
+float halfDTSq;
+boolean GPSDenial = false;
+uint32_t gpsUpdateTimer;
 
 /*int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
  float outBufferX[3],outBufferY[3],outBufferZ[3];
@@ -674,7 +687,6 @@ void setup(){
   delay(500);
   digitalWrite(GREEN,LOW);
 
-  expandingDist = 1;
   imuTimer = micros();
   _400HzTimer = micros();
   generalPurposeTimer = millis();
@@ -684,24 +696,70 @@ void setup(){
 void loop(){
   _400HzTask();
   if ( micros() - imuTimer >= 16666){  
+    D24High();
     imuDT = (micros() - imuTimer) * 0.000001;
     imuTimer = micros();
     _400HzTask();
     loopCount++;
     //to do break into functions 
-    if (loopCount % 4 == 0){
-      GetMag();
 
+    if (loopCount % 4 == 0){
+      D22High();
+      GetMag();
+      //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
+      //imu.feedBack = false;
       _400HzTask();
+
       imu.AHRSStart();
 
       _400HzTask();
-
+      //Serial<<imu.feedBack<<"\r\n";
       imu.AHRSEnd();
+      D22Low();
 
     }
     else{
+      D23High();
       imu.IMUupdate();
+      D23Low();
+      //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+    }
+    _400HzTask();
+    if (drFlag == false){
+      if (imuTimer - drTimer > 750000 ){
+        drTimer = imuTimer;
+        drVelX = imu.velX;
+        drPosX = imu.XEst;
+
+        drVelY = imu.velY;
+        drPosY = imu.YEst;      
+
+      }
+      else{
+        halfDTSq = 0.5 * imuDT * imuDT;
+        drVelX += imu.inertialX * imuDT + imu.accelBiasX * imuDT;
+        drPosX += drVelX * imuDT + imu.inertialX * halfDTSq + imu.accelBiasX * halfDTSq;
+
+        drVelY += imu.inertialY * imuDT + imu.accelBiasY * imuDT;
+        drPosY += drVelY * imuDT + imu.inertialY * halfDTSq + imu.accelBiasY * halfDTSq;
+      }      
+    }
+    else{
+      halfDTSq = 0.5 * imuDT * imuDT;
+      drVelX += imu.inertialX * imuDT + imu.accelBiasX * imuDT;
+      drPosX += drVelX * imuDT + imu.inertialX * halfDTSq + imu.accelBiasX * halfDTSq;
+
+      drVelY += imu.inertialY * imuDT + imu.accelBiasY * imuDT;
+      drPosY += drVelY * imuDT + imu.inertialY * halfDTSq + imu.accelBiasY * halfDTSq;
+
+      imu.XEst = drPosX;
+      imu.velX = drVelX;
+
+      imu.YEst = drPosY;
+      imu.velY = drVelY;
+      if (imuTimer - drTimer > 5000000 ){
+        GPSDenial = true;
+      }
     }
     /*GetMag();
      
@@ -772,6 +830,11 @@ void loop(){
     tuningTrasnmitOK = true;
 
     _400HzTask();
+    D24Low();
+    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+    if (gpsFixAge > 1500){
+      GPSDenial = true;
+    }
 
   }
   _400HzTask();
@@ -785,28 +848,71 @@ void loop(){
 
   _400HzTask();
   /*if (millis() - generalPurposeTimer >= 100){
-    generalPurposeTimer = millis();
-    //Serial<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
-    //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-    //Serial<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-    //Serial<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
-    //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
-    //Serial<<imu.inertialZ<<"\r\n";
-    //Serial<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-    //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
-    //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-    //Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<"\r\n";
-    //Serial<<imu.accelBiasX<<","<<imu.accelBiasY<<","<<imu.accelBiasZ<<","<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
-    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
-    Serial<<d.v.lattitude<<","<<d.v.longitude<<","<<gps.satellites()<<","<<gpsUpdate<<","<<gpsFixAge<<"\r\n";
-  }
-  _400HzTask();*/
+   generalPurposeTimer = millis();
+   //Serial<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
+   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+   //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<","<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<","<<gyro.v.x<<","<<gyro.v.y<<","<<gyro.v.z<<"\r\n";
+   //Serial<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   //Serial<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
+   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
+   //Serial<<imu.inertialZ<<"\r\n";
+   //Serial<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
+   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+   //Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<"\r\n";
+   //Serial<<imu.accelBiasX<<","<<imu.accelBiasY<<","<<imu.accelBiasZ<<","<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
+   //gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+   //Serial<<d.v.lattitude<<","<<d.v.longitude<<","<<gps.satellites()<<","<<gpsUpdate<<","<<gpsFixAge<<"\r\n";
+   }
+   _400HzTask();*/
   if (gpsUpdate == true){
     gpsUpdate = false;
     GPSFlag = true;
     gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+
     DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
-    imu.GPSKalUpdate();
+    if (gps.satellites() <= 6){
+      GPSDenial = true;
+    }
+    //imu.GPSKalUpdate();
+    positionError = sqrt( sq(rawX - drPosX)  + sq(rawY - drPosY)  );
+    if (positionError > POSITION_ERROR_LIMIT){
+      drFlag = true;
+      startingX = drPosX;
+      startingY = drPosY;
+      imu.velX = drVelX;
+      imu.velY = drVelY;
+      accCircle = POSITION_ERROR_LIMIT;
+      drTimer = micros();
+    }
+    if (drFlag = false){
+      imu.GPSKalUpdate();
+    }
+    else{
+      accCircle *= ACC_RATE;
+      if (positionError < POSITION_ERROR_LIMIT){
+        drFlag = false;
+      }
+      else{
+        if (positionError < accCircle){
+          drFlag = false;
+          jumpDistX = rawX - startingX;
+          jumpDistY = rawY - startingY;
+          xTarget += jumpDistX;
+          yTarget += jumpDistY;
+          drPosX = rawX;
+          drPosY = rawY;
+          imu.currentEstIndex = 0;
+          imu.lagIndex = 1;
+          for (uint8_t resetIndex = 0; resetIndex< LAG_SIZE; resetIndex++){
+            imu.XEstHist[resetIndex] = rawX;
+            imu.YEstHist[resetIndex] = rawY;
+          }
+          drTimer = micros();
+        }
+      }
+
+    }
     /*if (gps.data.vars.gpsFix == 0x03 /*&& updateCount == 0 && gpsUpdate == true){
      imu.GPSKalUpdate();
      }
@@ -874,7 +980,7 @@ void DistBearing(int32_t *lat1, int32_t *lon1, int32_t *lat2, int32_t *lon2,floa
   float deltaLat = ToRad( (*lat2 - * lat1) * 0.000001 );
   //the below line is as such to get the signs between the accelerometer and GPS position to the same sign convention
   //this will work for the north west heimsphere
-  
+
   float deltaLon = (ToRad( (*lon2 - * lon1) * 0.000001 ) ) * cos( ToRad((*lat2 * 0.000001)) );
   *distX = deltaLat * RADIUS_EARTH;
   *distY = deltaLon * RADIUS_EARTH;
@@ -944,7 +1050,7 @@ void FlightSM(){
       if (rcCommands.values.aux1 < 1500 && rcCommands.values.aux2 < 1500 && rcCommands.values.aux3 < 1500){
         headFreeOK = true;
       }
-      if (rcCommands.values.aux1 > 1500 && headFreeOK == true){
+      if (rcCommands.values.aux1 > 1500 && headFreeOK == true && GPSDetected == true && GPSDenial == false){
         activeOK = false;
         headFreeOK = false;
         //d.v.flightMode = HEAD_FREE; 
@@ -1018,16 +1124,35 @@ void FlightSM(){
     //HeadingFree();
     //gps.DistBearing(&latTarget,&lonTarget,&gps.data.vars.lat,&gps.data.vars.lon,&rawX,&rawY,&beeLineDist,&beeLineHeading);
     //incorrect pace the rawX and rawY should be calculated when the GPS comes in
+    if (GPSDenial == false){
+      LoiterXPosition.calculate();
+      LoiterYPosition.calculate();
+      LoiterXRate.calculate();
+      setPointX *= -1.0;
+      LoiterYRate.calculate();
+      RotatePitchRoll(&imu.yaw,&zero,&setPointX,&setPointY,&pitchSetPoint,&rollSetPoint);
+      actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
+      AltHoldPosition.calculate();
+      AltHoldRate.calculate();
+    }
+    else{
+      pitchSetPoint = 0;
+      rollSetPoint = 0;
+      targetVelAlt = -1.0;
+      AltHoldRate.calculate();
+      if (throttleCommand + throttleAdjustment < 0){
+        d.v.flightMode = STABLE;
+        enterState = true;
+        throttleHold = true;
+        Motor1WriteMicros(1000);
+        Motor2WriteMicros(1000);
+        Motor3WriteMicros(1000);
+        Motor4WriteMicros(1000); 
+        
+      }
 
-    LoiterXPosition.calculate();
-    LoiterYPosition.calculate();
-    LoiterXRate.calculate();
-    setPointX *= -1.0;
-    LoiterYRate.calculate();
-    RotatePitchRoll(&imu.yaw,&zero,&setPointX,&setPointY,&pitchSetPoint,&rollSetPoint);
-    actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
-    AltHoldPosition.calculate();
-    AltHoldRate.calculate();
+    }
+
     if (newRC == true){
       if (rcCommands.values.aux1 < 1500){
         d.v.flightMode = STABLE;
@@ -1098,6 +1223,18 @@ void FlightSM(){
     break;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
