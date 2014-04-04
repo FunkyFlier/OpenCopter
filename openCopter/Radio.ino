@@ -15,97 +15,284 @@ void TuningTransmitter(){
       radio.write(numOfItems);
       outputSum += numOfItems;
       outputDoubleSum += outputSum;
+
       for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
         switch (itemBuffer[i]){
-        case 0x00:
+        case 0:
           outFloat.num = millis();
           break;
-        case 0x01:
+        case 1:
           outFloat.num = rawX;
           break;
-        case 0x02:
+        case 2:
           outFloat.num = imu.XEst;
           break;
-        case 0x03:
+        case 3:
           outFloat.num = imu.velX;
           break;
-        case 0x04:
+        case 4:
           outFloat.num = imu.inertialX;
           break;
-        case 0x05:
-          outFloat.num = rawY;
-          break;
-        case 0x06:
-          outFloat.num = imu.YEst;
-          break;
-        case 0x07:
-          outFloat.num = imu.velY;
-          break;
-        case 0x08:
-          outFloat.num = imu.inertialY;
-          break;
-        case 0x09:
+        case 5:
           outFloat.num = imu.accelBiasX;
           break;
-        case 0x0A:
+        case 6:
+          outFloat.num = rawY;
+          break;
+        case 7:
+          outFloat.num = imu.YEst;
+          break;
+        case 8:
+          outFloat.num = imu.velY;
+          break;
+        case 9:
+          outFloat.num = imu.inertialY;
+          break;
+        case 10:
           outFloat.num = imu.accelBiasY;
           break;
-        case 0x0B:
-          //outFloat.num = predictedX;
+        case 11:
+          outFloat.num = d.v.lattitude;
           break;
-        case 0x0C:
-          //outFloat.num = predictedY;
+        case 12:
+          outFloat.num = d.v.longitude;
           break;
-        case 0x0D:
-          outFloat.num = positionError;
-          break;
-        case 0x0E:
-          outFloat.num = imu.feedBack;
-          break;
-        case 0x0F:
-          outFloat.num = imu.pitch;
-          break;
-        case 0x10:
-          outFloat.num = imu.roll;
-          break;
-        case 0x11:
-          outFloat.num = imu.yaw;
-          break;
-        case 0x12:
-          outFloat.num = gps.hdop();
-          break;
-        case 0x13:
-          outFloat.num = outFloat.num = (float)GPSFlag;
+        case 13:
+          outFloat.num = (float)GPSFlag;
           if (GPSFlag == true){
             GPSFlag = false;
           }
           break;
-        case 0x14:
+        case 14:
+          outFloat.num = drPosX;
+          break;
+        case 15:
+          outFloat.num = drVelX;
+          break;
+        case 16:
+          outFloat.num = drPosY;
+          break;
+        case 17:
+          outFloat.num = drVelY;
+          break;
+        case 18:
+          outFloat.num = gps.hdop();
+          break;
+        case 19:
           outFloat.num = gps.satellites();
           break;
-        case 0x15:
-          outFloat.num = imu.accelBiasY;
+        case 20:
+          outFloat.num = positionError;
           break;
-        case 0x16:
-          outFloat.num = accToFilterX;
+        case 21:
+          outFloat.num = (float)drFlag;
           break;
-        case 0x17:
-          outFloat.num = accToFilterY;
+        case 22:
+          outFloat.num = (float)GPSDenial;
           break;
-        case 0x18:
-          outFloat.num = accToFilterZ;
+        case 23:
+          outFloat.num = homeBase.coord.lat;
           break;
-        case 0x19:
-          outFloat.num = d.v.lattitude;
+        case 24:
+          outFloat.num = homeBase.coord.lon;
           break;
-        case 0x1A:
-          outFloat.num = d.v.longitude;
+        case 25:
+          outFloat.num = accCircle;
+          break;
+        case 26:
+          outFloat.num = 0;
           break;
 
         default:
           break;
 
         }
+
+        /* for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
+         switch (itemBuffer[i]){
+         case 0x00:
+         outFloat.num = millis();
+         break;
+         case 0x01:
+         outFloat.num = xTarget;
+         //outFloat.num = acc.v.x;
+         break;
+         case 0x02:
+         outFloat.num = imu.XEst;
+         //outFloat.num = acc.v.y;
+         break;
+         case 0x03:
+         outFloat.num = velSetPointX;
+         //outFloat.num = acc.v.z;
+         break;
+         case 0x04:
+         outFloat.num = setPointX;
+         //outFloat.num = smoothAccX;
+         break;
+         case 0x05:
+         outFloat.num = yTarget;
+         //outFloat.num = smoothAccY;
+         break;
+         case 0x06:
+         outFloat.num = imu.YEst;
+         //outFloat.num = smoothAccZ;
+         break;
+         case 0x07:
+         outFloat.num = velSetPointY;
+         break;
+         case 0x08:
+         outFloat.num = imu.velY;
+         break;
+         case 0x09:
+         outFloat.num = setPointY;
+         break;
+         case 0x0A:
+         outFloat.num = targetAltitude;
+         break;
+         case 0x0B:
+         outFloat.num = imu.ZEst;
+         break;
+         case 0x0C:
+         outFloat.num = targetVelAlt;
+         break;
+         case 0x0D:
+         outFloat.num = imu.velZ;
+         break;
+         case 0x0E:
+         outFloat.num = throttleAdjustment;
+         break;
+         case 0x0F:
+         outFloat.num = imu.pitch;
+         break;
+         case 0x10:
+         outFloat.num = imu.roll;
+         break;
+         case 0x11:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x12:
+         outFloat.num = gps.data.vars.hAcc * 0.001;
+         break;
+         case 0x13:
+         outFloat.num = imu.velX;
+         break;
+         case 0x14:
+         outFloat.num = imu.accelBiasX;
+         break;
+         case 0x15:
+         outFloat.num = imu.accelBiasY;
+         break;
+         case 0x16:
+         outFloat.num = imu.accelBiasZ;
+         break;
+         case 0x17:
+         outFloat.num = imu.inertialX;
+         break;
+         case 0x18:
+         outFloat.num = imu.inertialY;
+         break;
+         case 0x19:
+         outFloat.num = imu.inertialZ;
+         break;
+         case 0x1A:
+         outFloat.num = 0;
+         break;
+         
+         default:
+         break;
+         
+         }
+        /*for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
+         switch (itemBuffer[i]){
+         case 0x00:
+         outFloat.num = millis();
+         break;
+         case 0x01:
+         outFloat.num = rawX;
+         break;
+         case 0x02:
+         outFloat.num = imu.XEst;
+         break;
+         case 0x03:
+         outFloat.num = imu.velX;
+         break;
+         case 0x04:
+         outFloat.num = imu.inertialX;
+         break;
+         case 0x05:
+         outFloat.num = rawY;
+         break;
+         case 0x06:
+         outFloat.num = imu.YEst;
+         break;
+         case 0x07:
+         outFloat.num = imu.velY;
+         break;
+         case 0x08:
+         outFloat.num = imu.inertialY;
+         break;
+         case 0x09:
+         outFloat.num = imu.accelBiasX;
+         break;
+         case 0x0A:
+         outFloat.num = imu.accelBiasY;
+         break;
+         case 0x0B:
+         //outFloat.num = predictedX;
+         break;
+         case 0x0C:
+         //outFloat.num = predictedY;
+         break;
+         case 0x0D:
+         outFloat.num = positionError;
+         break;
+         case 0x0E:
+         outFloat.num = imu.feedBack;
+         break;
+         case 0x0F:
+         outFloat.num = imu.pitch;
+         break;
+         case 0x10:
+         outFloat.num = imu.roll;
+         break;
+         case 0x11:
+         outFloat.num = imu.yaw;
+         break;
+         case 0x12:
+         outFloat.num = gps.hdop();
+         break;
+         case 0x13:
+         outFloat.num = outFloat.num = (float)GPSFlag;
+         if (GPSFlag == true){
+         GPSFlag = false;
+         }
+         break;
+         case 0x14:
+         outFloat.num = gps.satellites();
+         break;
+         case 0x15:
+         outFloat.num = imu.accelBiasY;
+         break;
+         case 0x16:
+         outFloat.num = accToFilterX;
+         break;
+         case 0x17:
+         outFloat.num = accToFilterY;
+         break;
+         case 0x18:
+         outFloat.num = accToFilterZ;
+         break;
+         case 0x19:
+         outFloat.num = d.v.lattitude;
+         break;
+         case 0x1A:
+         outFloat.num = d.v.longitude;
+         break;
+         
+         default:
+         break;
+         
+         }*/
         /* for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
          switch (itemBuffer[i]){
          case 0x00:
@@ -1804,6 +1991,7 @@ void WayPointHandler(){
     break;
   }
 }
+
 
 
 

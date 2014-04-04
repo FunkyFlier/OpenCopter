@@ -584,18 +584,19 @@ volatile boolean gpsUpdate = false;
 //float predVelX,predVelY;
 uint32_t gpsFixAge;
 
-float startingX,startingY,jumpDistX,jumpDistY,homeBaseX,homeBaseY;
+float startingX,startingY,jumpDistX,jumpDistY,homeBaseXOffset=0,homeBaseYOffset=0;
 #define POSITION_ERROR_LIMIT 1.5f
-#define ACC_RATE 1.03f
-#define DR_PERIOD 750
-#define DR_FS_PERIOD 5000
+#define ACC_RATE 1.035f
+#define DR_PERIOD 1.0 * 1000000 
+#define DR_FS_PERIOD 5 * 1000000 
 float drTimer;
-float positionError,accCircle;
+float positionError,accCircle=POSITION_ERROR_LIMIT;
 boolean drFlag = false;
 float drVelX,drVelY,drPosX,drPosY;
 float halfDTSq;
 boolean GPSDenial = false;
 uint32_t gpsUpdateTimer;
+
 
 /*int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
  float outBufferX[3],outBufferY[3],outBufferZ[3];
@@ -703,30 +704,41 @@ void loop(){
     loopCount++;
     //to do break into functions 
 
-    if (loopCount % 4 == 0){
-      D22High();
-      GetMag();
-      //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
-      //imu.feedBack = false;
-      _400HzTask();
-
-      imu.AHRSStart();
-
-      _400HzTask();
-      //Serial<<imu.feedBack<<"\r\n";
-      imu.AHRSEnd();
-      D22Low();
-
-    }
-    else{
-      D23High();
-      imu.IMUupdate();
-      D23Low();
-      //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-    }
+    D22High();
+    GetMag();
+    _400HzTask();
+    accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+    accToFilterY = -1.0 * smoothAccY;
+    accToFilterZ = -1.0 * smoothAccZ;
+    imu.AHRSStart();
+    _400HzTask();
+    imu.AHRSEnd();
+    D22Low();
+    /*if (loopCount % 4 == 0){
+     D22High();
+     GetMag();
+     //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
+     //imu.feedBack = false;
+     _400HzTask();
+     
+     imu.AHRSStart();
+     
+     _400HzTask();
+     //Serial<<imu.feedBack<<"\r\n";
+     imu.AHRSEnd();
+     D22Low();
+     
+     }
+     else{
+     D23High();
+     imu.IMUupdate();
+     D23Low();
+     //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
+     }*/
     _400HzTask();
     if (drFlag == false){
-      if (imuTimer - drTimer > 750000 ){
+      digitalWrite(GREEN,HIGH);
+      if (imuTimer - drTimer > DR_PERIOD ){
         drTimer = imuTimer;
         drVelX = imu.velX;
         drPosX = imu.XEst;
@@ -745,6 +757,7 @@ void loop(){
       }      
     }
     else{
+      digitalWrite(GREEN,LOW);
       halfDTSq = 0.5 * imuDT * imuDT;
       drVelX += imu.inertialX * imuDT + imu.accelBiasX * imuDT;
       drPosX += drVelX * imuDT + imu.inertialX * halfDTSq + imu.accelBiasX * halfDTSq;
@@ -757,7 +770,7 @@ void loop(){
 
       imu.YEst = drPosY;
       imu.velY = drVelY;
-      if (imuTimer - drTimer > 5000000 ){
+      if (imuTimer - drTimer > DR_FS_PERIOD ){
         GPSDenial = true;
       }
     }
@@ -832,7 +845,7 @@ void loop(){
     _400HzTask();
     D24Low();
     gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
-    if (gpsFixAge > 1500){
+    if (gpsFixAge > 500){
       GPSDenial = true;
     }
 
@@ -871,21 +884,24 @@ void loop(){
     gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
 
     DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
-    if (gps.satellites() <= 6){
+    //imu.GPSKalUpdate();
+    if (gps.satellites() <= 6 || gps.hdop() >= 215){
+      digitalWrite(13,HIGH);
       GPSDenial = true;
     }
-    //imu.GPSKalUpdate();
+    //
     positionError = sqrt( sq(rawX - drPosX)  + sq(rawY - drPosY)  );
-    if (positionError > POSITION_ERROR_LIMIT){
+    if (positionError > POSITION_ERROR_LIMIT && drFlag == false){
       drFlag = true;
       startingX = drPosX;
       startingY = drPosY;
       imu.velX = drVelX;
       imu.velY = drVelY;
+
       accCircle = POSITION_ERROR_LIMIT;
       drTimer = micros();
     }
-    if (drFlag = false){
+    if (drFlag == false){
       imu.GPSKalUpdate();
     }
     else{
@@ -902,8 +918,14 @@ void loop(){
           yTarget += jumpDistY;
           drPosX = rawX;
           drPosY = rawY;
+          homeBaseXOffset += jumpDistX;
+          homeBaseYOffset += jumpDistY;
           imu.currentEstIndex = 0;
           imu.lagIndex = 1;
+          imu.XEst = rawX;
+          imu.YEst = rawY;
+          imu.velX = drVelX;
+          imu.velY = drVelY;
           for (uint8_t resetIndex = 0; resetIndex< LAG_SIZE; resetIndex++){
             imu.XEstHist[resetIndex] = rawX;
             imu.YEstHist[resetIndex] = rawY;
@@ -1148,7 +1170,7 @@ void FlightSM(){
         Motor2WriteMicros(1000);
         Motor3WriteMicros(1000);
         Motor4WriteMicros(1000); 
-        
+
       }
 
     }
@@ -1223,6 +1245,10 @@ void FlightSM(){
     break;
   }
 }
+
+
+
+
 
 
 

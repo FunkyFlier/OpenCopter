@@ -657,6 +657,7 @@ void openIMU::IMUupdate(){
   qDot3 = 0.5f * (q0 * *gy - q1 * *gz + q3 * *gx);
   qDot4 = 0.5f * (q0 * *gz + q1 * *gy - q2 * *gx);
   magnitude = sqrt(squareSum);
+  //if ((magnitude < 10.78) && (magnitude > 8.82)   ){  
   if ((magnitude < 11.76) && (magnitude > 7.84)){
     //feedBack = true;
     recipNorm = 1 / magnitude;
@@ -720,6 +721,7 @@ void openIMU::AHRSupdate() {
   qDot4 = 0.5f * (q0 * *gz + q1 * *gy - q2 * *gx);
   magnitude = sqrt(squareSum);
   //feedBack = false;
+  //if ((magnitude < 10.78) && (magnitude > 8.82)   ){  
   if ((magnitude < 11.76) && (magnitude > 7.84)){
     //feedBack = true;
     // Normalise accelerometer measurement

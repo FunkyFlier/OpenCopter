@@ -1,7 +1,7 @@
 void CalcGravityOffSet(){
   imuTimer = micros();
 
-  for (int i =0; i < 250; i++){
+  for (int i =0; i < 500; i++){
 
     while (micros() - imuTimer < 10000){
     }
@@ -124,113 +124,255 @@ void SendCalData(){
 
 //gpsUpdate
 void GPSStart(){
+  uint8_t gpsStartState;
+  unsigned long chars;
+  unsigned short goodSentences,csFailures;
+
+
   gpsPort.begin(115200);
+
+  GPSDetected = false;
+  gpsStartState = 0;
+  GPSDetected = false;
   generalPurposeTimer = millis();
+
+
+  //first make sure there is data on the GPS port
   while ((millis() - generalPurposeTimer < 1000) && (GPSDetected == false)){
+    digitalWrite(13,HIGH);
+    digitalWrite(RED,LOW);
+    digitalWrite(YELLOW,LOW);
+    digitalWrite(GREEN,LOW);
     if (gpsPort.available() > 0){
       GPSDetected = true;
     }
-
   }
-  if (GPSDetected == true){
-    gpsUpdate = false;
-    while(gpsUpdate == false){
-      while(gpsPort.available() > 0){
-        gpsUpdate = gps.encode(gpsPort.read());
-        if (millis() - generalPurposeTimer > 500){
-          generalPurposeTimer = millis();
-          LEDState++;
-          if (LEDState == 4){
-            LEDState = 0;
-          }
-        }
-        switch (LEDState){
-        case 0:
-          digitalWrite(13,HIGH);
-          digitalWrite(RED,LOW);
-          digitalWrite(YELLOW,LOW);
-          digitalWrite(GREEN,LOW);
-          break;
-        case 1:
-          digitalWrite(13,LOW);
-          digitalWrite(RED,HIGH);
-          digitalWrite(YELLOW,LOW);
-          digitalWrite(GREEN,LOW);
-          break;
-        case 2:
-          digitalWrite(13,LOW);
-          digitalWrite(RED,LOW);
-          digitalWrite(YELLOW,HIGH);
-          digitalWrite(GREEN,LOW);
-          break;
-        case 3:
-          digitalWrite(13,LOW);
-          digitalWrite(RED,LOW);
-          digitalWrite(YELLOW,LOW);
-          digitalWrite(GREEN,HIGH);
-          break;
-        }
+
+  //make sure that the data is gps data
+  GPSDetected = false;
+  generalPurposeTimer = millis();
+  while ((millis() - generalPurposeTimer < 1000) ){
+    digitalWrite(13,HIGH);
+    digitalWrite(RED,LOW);
+    digitalWrite(YELLOW,HIGH);
+    digitalWrite(GREEN,LOW);
+    while(gpsPort.available() > 0){
+      inByte = gpsPort.read();
+      gpsUpdate = gps.encode(inByte);
+      if (inByte == '$'){//consider switching to validate that the reciver is recieving GPGGA
+        GPSDetected = true;
       }
+      //gpsUpdate = gps.encode(gpsPort.read());
     }
-    while (gps.satellites() < 6){
-      while(gpsPort.available() > 0){
-        gpsUpdate = gps.encode(gpsPort.read());
+  }
+
+  if (GPSDetected == false){
+    return;
+  }
+  GPSDetected = false;
+
+  //wait for a good gps fix
+  while(GPSDetected == false){
+
+    while(gpsPort.available() > 0){
+      gpsUpdate = gps.encode(gpsPort.read());
+      gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+      if (gpsFixAge > 500){
+        gpsStartState = 0;
+        gpsUpdate = false;
       }
-      if (millis() - generalPurposeTimer > 500){
-        generalPurposeTimer = millis();
-        LEDState++;
-        if (LEDState == 4){
-          LEDState = 0;
-        }
-      }
-      switch (LEDState){
+      switch (gpsStartState){
       case 0:
-        digitalWrite(13,HIGH);
-        digitalWrite(RED,LOW);
-        digitalWrite(YELLOW,LOW);
-        digitalWrite(GREEN,LOW);
-        break;
-      case 1:
-        digitalWrite(13,HIGH);
+        digitalWrite(13,LOW);
         digitalWrite(RED,HIGH);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,LOW);
+        if (gpsUpdate == true){
+          gpsUpdate = false;
+          gpsStartState = 1;
+        }
+        break;
+      case 1:
+        digitalWrite(13,LOW);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,HIGH);
+        digitalWrite(GREEN,LOW);
+        if (gpsUpdate == true){
+          gpsUpdate = false;
+          if (gps.hdop() < 200 && gps.satellites() >= 8){
+            gpsStartState = 2;
+            generalPurposeTimer = millis();
+          }
+        }
         break;
       case 2:
         digitalWrite(13,HIGH);
         digitalWrite(RED,LOW);
-        digitalWrite(YELLOW,HIGH);
+        digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,LOW);
+        if (gpsUpdate == true){
+          gpsUpdate = false;
+          if (gps.hdop() > 200 || gps.satellites() < 8){
+            gpsStartState = 1;
+          }
+        }
+        if (millis() - generalPurposeTimer > 15000){
+          gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+          homeBase.coord.lat = d.v.lattitude;
+          homeBase.coord.lon = d.v.longitude;
+          gpsStartState = 3;
+          generalPurposeTimer = millis();
+        }
         break;
       case 3:
-        digitalWrite(13,HIGH);
+        digitalWrite(13,LOW);
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,HIGH);
+        if (gpsUpdate == true){
+          gpsUpdate = false;
+          if (gps.hdop() > 200 || gps.satellites() < 8){
+            gpsStartState = 1;
+          }
+        }
+        if (millis() - generalPurposeTimer > 15000){
+          gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+          DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
+          if ( sqrt( sq(rawX) + sq(rawY)) <= 3 ){
+            imu.XEst = rawX;
+            imu.YEst = rawY;
+            homeBaseXOffset = rawX;
+            homeBaseYOffset = rawY;
+            drPosX = rawX;
+            drPosY = rawY;
+            GPSDetected = true;
+          }
+          else{
+            gpsStartState = 1;
+          }
+        }
         break;
       }
-    }
-    generalPurposeTimer = millis();
-    /*while(millis() - generalPurposeTimer < 5000){
-     while(gpsPort.available() > 0){
-     gpsUpdate = gps.encode(gpsPort.read());
-     }
-     }*/
-    gpsUpdate = false;
-    while(gpsUpdate == false){
-      while(gpsPort.available() > 0){
-        gpsUpdate = gps.encode(gpsPort.read());
-      }
-    }
-    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
-    homeBase.coord.lat = d.v.lattitude;
-    homeBase.coord.lon = d.v.longitude;
-    gpsUpdate = false;
-  }  
 
+    }
 
+  }
 
 }
+
+
+
+/*  if (GPSDetected == true){
+ gpsUpdate = false;
+ while(gpsUpdate == false){
+ Serial<<"2\r\n";
+ while(gpsPort.available() > 0){
+ gpsUpdate = gps.encode(gpsPort.read());
+ if (millis() - generalPurposeTimer > 500){
+ generalPurposeTimer = millis();
+ LEDState++;
+ if (LEDState == 4){
+ LEDState = 0;
+ }
+ }
+ switch (LEDState){
+ case 0:
+ digitalWrite(13,HIGH);
+ digitalWrite(RED,LOW);
+ digitalWrite(YELLOW,LOW);
+ digitalWrite(GREEN,LOW);
+ break;
+ case 1:
+ digitalWrite(13,LOW);
+ digitalWrite(RED,HIGH);
+ digitalWrite(YELLOW,LOW);
+ digitalWrite(GREEN,LOW);
+ break;
+ case 2:
+ digitalWrite(13,LOW);
+ digitalWrite(RED,LOW);
+ digitalWrite(YELLOW,HIGH);
+ digitalWrite(GREEN,LOW);
+ break;
+ case 3:
+ digitalWrite(13,LOW);
+ digitalWrite(RED,LOW);
+ digitalWrite(YELLOW,LOW);
+ digitalWrite(GREEN,HIGH);
+ break;
+ }
+ }
+ }
+ //Serial<<"1\r\n";
+ while (gps.satellites() < 8 || gps.hdop() >= 200){
+ gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+ Serial<<gps.satellites()<<","<<gps.hdop()<<","<<d.v.lattitude<<","<<d.v.longitude<<","<<gpsFixAge<<"\r\n";
+ while(gpsPort.available() > 0){
+ gpsUpdate = gps.encode(gpsPort.read());
+ }
+ if (millis() - generalPurposeTimer > 500){
+ generalPurposeTimer = millis();
+ LEDState++;
+ if (LEDState == 4){
+ LEDState = 0;
+ }
+ }
+ switch (LEDState){
+ case 0:
+ digitalWrite(13,HIGH);
+ digitalWrite(RED,LOW);
+ digitalWrite(YELLOW,LOW);
+ digitalWrite(GREEN,LOW);
+ break;
+ case 1:
+ digitalWrite(13,HIGH);
+ digitalWrite(RED,HIGH);
+ digitalWrite(YELLOW,LOW);
+ digitalWrite(GREEN,LOW);
+ break;
+ case 2:
+ digitalWrite(13,HIGH);
+ digitalWrite(RED,LOW);
+ digitalWrite(YELLOW,HIGH);
+ digitalWrite(GREEN,LOW);
+ break;
+ case 3:
+ digitalWrite(13,HIGH);
+ digitalWrite(RED,LOW);
+ digitalWrite(YELLOW,LOW);
+ digitalWrite(GREEN,HIGH);
+ break;
+ }
+ }
+ generalPurposeTimer = millis();
+ while(millis() - generalPurposeTimer < 10000){
+ Serial<<"4\r\n";
+ digitalWrite(13,HIGH);
+ while(gpsPort.available() > 0){
+ gpsUpdate = gps.encode(gpsPort.read());
+ }
+ gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+ Serial<<gpsFixAge<<"\r\n";
+ if (gps.satellites() < 8 || gps.hdop() >= 200 || gpsFixAge > 300){
+ Serial<<"******************\r\n";
+ gpsUpdate = false;
+ }
+ }
+ Serial<<"5\r\n";
+ gpsUpdate = false;
+ while(gpsUpdate == false){
+ while(gpsPort.available() > 0){
+ gpsUpdate = gps.encode(gpsPort.read());
+ }
+ }
+ Serial<<"6\r\n";
+ digitalWrite(13,LOW);
+ gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+ homeBase.coord.lat = d.v.lattitude;
+ homeBase.coord.lon = d.v.longitude;
+ //Serial<<homeBase.coord.lat<<","<<homeBase.coord.lon<<"\r\n";
+ gpsUpdate = false;
+ }  */
 
 void GetAltitude(long *press,long *pressInit, float *alti){
   pressureRatio = (float) *press / (float) *pressInit;
@@ -608,11 +750,11 @@ void GetAcc(){
   /*scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
    scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
    scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);*/
-  if (imu.feedBack == false){
-    accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-    accToFilterY = -1.0 * smoothAccY;
-    accToFilterZ = -1.0 * smoothAccZ;
-  }
+  /*if (imu.feedBack == false){
+   accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+   accToFilterY = -1.0 * smoothAccY;
+   accToFilterZ = -1.0 * smoothAccZ;
+   }*/
 
 
   //------------------------------------------------------------------------------------------------------------------------------
@@ -633,6 +775,19 @@ void GetAcc(){
    accToFilterZ = -1.0 * smoothAccZ;*/
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
