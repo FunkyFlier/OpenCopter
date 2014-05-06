@@ -159,8 +159,8 @@
 
 //telemetery defines
 #define RADIO_BUF_SIZE 256
-#define radio Serial
-//#define radio Serial2
+//#define radio Serial
+#define radio Serial2
 #define NUM_WAY_POINTS 0x14
 #define gpsPort Serial3
 
@@ -535,7 +535,8 @@ float smoothAlt;
 
 //constructors //fix the dts
 openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,
-&smoothAccX,&smoothAccY,&smoothAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&rawZ,&imuDT,&d.v.declination,&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&d.v.kd_cross_track,&d.v.fc_cross_track);
+&smoothAccX,&smoothAccY,&smoothAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&rawZ,&imuDT,&d.v.declination,
+&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&d.v.kd_cross_track,&d.v.fc_cross_track);
 //openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&scaledAccX,&scaledAccY,&scaledAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&smoothAlt,&imuDT,&d.v.declination);
 
 PID PitchAngle(&pitchSetPoint,&imu.pitch,&rateSetPointY,&integrate,&d.v.kp_pitch_attitude,&d.v.ki_pitch_attitude,&d.v.kd_pitch_attitude,&d.v.fc_pitch_attitude,&imuDT,800,800);
@@ -576,6 +577,7 @@ float rGOutX,rGOutY,rGOutZ;
 uint32_t _400HzTimer;
 uint8_t LEDState;
 float accXScalePos, accYScalePos, accZScalePos, accXScaleNeg, accYScaleNeg, accZScaleNeg;
+float accXOffset,accYOffset;
 uint32_t loopCount;
 
 //float xDifference,yDifference,predictedX,predictedY,positionError,expandingDist;
@@ -665,14 +667,28 @@ void setup(){
   ACC_OFFSET_X = 0;
   ACC_OFFSET_Y = 0;
   ACC_OFFSET_Z = 0;
-  accXScalePos = 0.037212151;
-  accXScaleNeg = 0.04080591;
+  //zn bird
+  accXScalePos = 0.0378378;
+  accXScaleNeg = 0.0393574;
 
-  accYScalePos = 0.038367716;
-  accYScaleNeg = 0.03971761;
+  accYScalePos = 0.04;
+  accYScaleNeg = 0.0368421;
 
-  accZScalePos = 0.036842105;
-  accZScaleNeg = 0.041350211;
+  accZScalePos = 0.0375478;
+  accZScaleNeg = 0.0403292;
+  //accXOffset = 3;
+  //accYOffset = -10;
+  //main bird
+  /*accXScalePos = 0.0379844;
+  accXScaleNeg = 0.0404958;
+
+  accYScalePos = 0.0378378;
+  accYScaleNeg = 0.0371212;
+
+  accZScalePos = 0.0362962;
+  accZScaleNeg = 0.0413502;*/
+  
+  
   /*accXScalePos = 0.03828125;
    accYScalePos = 0.03828125;
    accZScalePos = 0.03828125;
@@ -772,6 +788,7 @@ void loop(){
       imu.velY = drVelY;
       if (imuTimer - drTimer > DR_FS_PERIOD ){
         GPSDenial = true;
+        digitalWrite(YELLOW,HIGH);
       }
     }
     /*GetMag();
@@ -850,6 +867,9 @@ void loop(){
     }
 
   }
+  if (GPSDenial == true){
+    digitalWrite(13,HIGH);
+  }
   _400HzTask();
   if (handShake == true){
     Radio();
@@ -886,7 +906,7 @@ void loop(){
     DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
     //imu.GPSKalUpdate();
     if (gps.satellites() <= 6 || gps.hdop() >= 215){
-      digitalWrite(13,HIGH);
+      digitalWrite(RED,HIGH);
       GPSDenial = true;
     }
     //
@@ -1054,10 +1074,10 @@ void FlightSM(){
     if (enterState == true){
       throttleAdjustment = 0;
       enterState = false;
-      digitalWrite(13,HIGH);
-      digitalWrite(RED,LOW);
+      //digitalWrite(13,HIGH);
+      //digitalWrite(RED,LOW);
       digitalWrite(YELLOW,LOW);
-      digitalWrite(GREEN,LOW);
+      //digitalWrite(GREEN,LOW);
     }
     if (newRC == true){
       if (rcCommands.values.gear > 1500){
@@ -1161,6 +1181,7 @@ void FlightSM(){
       pitchSetPoint = 0;
       rollSetPoint = 0;
       targetVelAlt = -1.0;
+      actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
       AltHoldRate.calculate();
       if (throttleCommand + throttleAdjustment < 0){
         d.v.flightMode = STABLE;

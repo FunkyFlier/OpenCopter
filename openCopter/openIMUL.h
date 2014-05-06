@@ -33,8 +33,8 @@
 
 #define LAG_SIZE 20
 
-#define PITCH_OFFSET 2.065
-#define ROLL_OFFSET -0.68
+#define PITCH_OFFSET 0
+#define ROLL_OFFSET 0
 
 class openIMU{
 public:

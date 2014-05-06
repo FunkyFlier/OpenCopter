@@ -22,31 +22,40 @@ void TuningTransmitter(){
           outFloat.num = millis();
           break;
         case 1:
-          outFloat.num = rawX;
+          //outFloat.num = rawX;
+          outFloat.num = degreeGyroX;
           break;
         case 2:
-          outFloat.num = imu.XEst;
+          //outFloat.num = imu.XEst;
+          outFloat.num = degreeGyroY;
           break;
         case 3:
-          outFloat.num = imu.velX;
+          //outFloat.num = imu.velX;
+          outFloat.num = degreeGyroZ;
           break;
         case 4:
-          outFloat.num = imu.inertialX;
+          //outFloat.num = imu.inertialX;
+          outFloat.num = imu.pitch;
           break;
         case 5:
-          outFloat.num = imu.accelBiasX;
+          //outFloat.num = imu.accelBiasX;
+          outFloat.num = imu.roll;
           break;
         case 6:
-          outFloat.num = rawY;
+          //outFloat.num = rawY;
+          outFloat.num = imu.yaw;
           break;
         case 7:
-          outFloat.num = imu.YEst;
+          //outFloat.num = imu.YEst;
+          outFloat.num = pitchSetPoint;
           break;
         case 8:
-          outFloat.num = imu.velY;
+          //outFloat.num = imu.velY;
+          outFloat.num = rollSetPoint;
           break;
         case 9:
-          outFloat.num = imu.inertialY;
+          //outFloat.num = imu.inertialY;
+          outFloat.num = yawSetPoint;
           break;
         case 10:
           outFloat.num = imu.accelBiasY;

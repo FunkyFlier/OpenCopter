@@ -85,14 +85,14 @@ void MotorHandler(){
     if (rcCommands.values.rudder > 1700){
       digitalWrite(RED,HIGH);
       digitalWrite(YELLOW,HIGH);
-      digitalWrite(GREEN,LOW);
-      digitalWrite(13,LOW);
+      //digitalWrite(GREEN,LOW);
+      //digitalWrite(13,LOW);
       throttleHold = true;
     }
     if (rcCommands.values.rudder < 1300){
       digitalWrite(RED,LOW);
       digitalWrite(YELLOW,LOW);
-      digitalWrite(GREEN,LOW);
+      //digitalWrite(GREEN,LOW);
       //digitalWrite(13,LOW);
       throttleHold = false;
     }
