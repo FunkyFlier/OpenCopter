@@ -667,18 +667,9 @@ void setup(){
   ACC_OFFSET_X = 0;
   ACC_OFFSET_Y = 0;
   ACC_OFFSET_Z = 0;
-  //zn bird
-  accXScalePos = 0.0378378;
-  accXScaleNeg = 0.0393574;
+  
 
-  accYScalePos = 0.04;
-  accYScaleNeg = 0.0368421;
-
-  accZScalePos = 0.0375478;
-  accZScaleNeg = 0.0403292;
-  //accXOffset = 3;
-  //accYOffset = -10;
-  //main bird
+  //#1
   /*accXScalePos = 0.0379844;
   accXScaleNeg = 0.0404958;
 
@@ -688,6 +679,55 @@ void setup(){
   accZScalePos = 0.0362962;
   accZScaleNeg = 0.0413502;*/
   
+  //#2
+  /*accXScalePos = 0.0378378;
+  accXScaleNeg = 0.0393574;
+
+  accYScalePos = 0.04;
+  accYScaleNeg = 0.0368421;
+
+  accZScalePos = 0.0375478;
+  accZScaleNeg = 0.0403292;*/
+  
+  //#3
+  /*accXScalePos = 0.0368421;
+  accXScaleNeg = 0.0396761;
+
+  accYScalePos = 0.0387351;
+  accYScaleNeg = 0.0376923;
+
+  accZScalePos = 0.0378378;
+  accZScaleNeg = 0.04083;*/
+  
+  //#4
+  /*accXScalePos = 0.0365671;
+  accXScaleNeg = 0.0401639;
+
+  accYScalePos = 0.0382812;
+  accYScaleNeg = 0.0379844;
+
+  accZScalePos = 0.0362962;
+  accZScaleNeg = 0.0411764;*/
+  
+  //#5
+  /*accXScalePos = 0.0384313;
+  accXScaleNeg = 0.0384313;
+
+  accYScalePos = 0.0398373;
+  accYScaleNeg = 0.0372623;
+
+  accZScalePos = 0.0358974;
+  accZScaleNeg = 0.0426086;*/
+  
+    //#6
+  accXScalePos = 0.0357664;
+  accXScaleNeg = 0.04;
+
+  accYScalePos = 0.03828125;
+  accYScaleNeg = 0.03828125;
+
+  accZScalePos = 0.0369811;
+  accZScaleNeg = 0.0408333;
   
   /*accXScalePos = 0.03828125;
    accYScalePos = 0.03828125;
@@ -717,7 +757,7 @@ void loop(){
     imuDT = (micros() - imuTimer) * 0.000001;
     imuTimer = micros();
     _400HzTask();
-    loopCount++;
+    //loopCount++;
     //to do break into functions 
 
     D22High();
@@ -1095,8 +1135,8 @@ void FlightSM(){
       if (rcCommands.values.aux1 > 1500 && headFreeOK == true && GPSDetected == true && GPSDenial == false){
         activeOK = false;
         headFreeOK = false;
-        //d.v.flightMode = HEAD_FREE; 
-        d.v.flightMode = LOITER;
+        d.v.flightMode = HEAD_FREE; 
+        //d.v.flightMode = LOITER;
         enterState = true;
         //headingFreeInitial = imu.yaw; //add later
       }

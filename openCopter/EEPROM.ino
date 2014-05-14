@@ -519,14 +519,14 @@ void SetDefaultGains(){
   d.v.fc_waypoint_position = 0;
 
   d.v.kp_waypoint_velocity = 1;
-  d.v.ki_waypoint_velocity = 10;
-  d.v.kd_waypoint_velocity = 0;
-  d.v.fc_waypoint_velocity = 0;
+  d.v.ki_waypoint_velocity = 2.0;
+  d.v.kd_waypoint_velocity = 1.0;
+  d.v.fc_waypoint_velocity = 0.0001;
 
   d.v.kp_cross_track = 0;
-  d.v.ki_cross_track = 0;
-  d.v.kd_cross_track = 0;
-  d.v.fc_cross_track = 0;
+  d.v.ki_cross_track = 0.5;
+  d.v.kd_cross_track = 0.06;
+  d.v.fc_cross_track = 0.04;
 
   d.v.declination = 3.66;
 

@@ -22,49 +22,55 @@ void TuningTransmitter(){
           outFloat.num = millis();
           break;
         case 1:
-          //outFloat.num = rawX;
-          outFloat.num = degreeGyroX;
+          outFloat.num = rawX;
+          //outFloat.num = degreeGyroX;
           break;
         case 2:
-          //outFloat.num = imu.XEst;
-          outFloat.num = degreeGyroY;
+          outFloat.num = imu.XEst;
+          //outFloat.num = degreeGyroY;
           break;
         case 3:
-          //outFloat.num = imu.velX;
-          outFloat.num = degreeGyroZ;
+          outFloat.num = imu.velX;
+          //outFloat.num = degreeGyroZ;
           break;
         case 4:
-          //outFloat.num = imu.inertialX;
-          outFloat.num = imu.pitch;
+          outFloat.num = imu.inertialX;
+          //outFloat.num = imu.pitch;
           break;
         case 5:
-          //outFloat.num = imu.accelBiasX;
-          outFloat.num = imu.roll;
+          outFloat.num = imu.accelBiasX;
+          //outFloat.num = imu.roll;
           break;
         case 6:
-          //outFloat.num = rawY;
-          outFloat.num = imu.yaw;
+          outFloat.num = rawY;
+          //outFloat.num = imu.yaw;
           break;
         case 7:
-          //outFloat.num = imu.YEst;
-          outFloat.num = pitchSetPoint;
+          outFloat.num = imu.YEst;
+          //outFloat.num = pitchSetPoint;
+          //outFloat.num = scaledAccX;
           break;
         case 8:
-          //outFloat.num = imu.velY;
-          outFloat.num = rollSetPoint;
+          outFloat.num = imu.velY;
+          //outFloat.num = rollSetPoint;
+          //outFloat.num = scaledAccY;
           break;
         case 9:
-          //outFloat.num = imu.inertialY;
-          outFloat.num = yawSetPoint;
+          outFloat.num = imu.inertialY;
+          //outFloat.num = yawSetPoint;
+          //outFloat.num = scaledAccZ;
           break;
         case 10:
-          outFloat.num = imu.accelBiasY;
+          //outFloat.num = imu.accelBiasY;
+          outFloat.num = smoothAccX;
           break;
         case 11:
-          outFloat.num = d.v.lattitude;
+          //outFloat.num = d.v.lattitude;
+          outFloat.num = smoothAccY;
           break;
         case 12:
-          outFloat.num = d.v.longitude;
+          //outFloat.num = d.v.longitude;
+          outFloat.num = smoothAccZ;
           break;
         case 13:
           outFloat.num = (float)GPSFlag;
