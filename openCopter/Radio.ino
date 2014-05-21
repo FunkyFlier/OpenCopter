@@ -15,104 +15,286 @@ void TuningTransmitter(){
       radio.write(numOfItems);
       outputSum += numOfItems;
       outputDoubleSum += outputSum;
-
+      //2
       for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
+       switch (itemBuffer[i]){
+       case 0:
+       outFloat.num = millis();
+       break;
+       case 1:
+       outFloat.num = rawZ;
+       //outFloat.num = degreeGyroX;
+       break;
+       case 2:
+       outFloat.num = imu.ZEst;
+       //outFloat.num = degreeGyroY;
+       break;
+       case 3:
+       outFloat.num = imu.velZ;
+       //outFloat.num = degreeGyroZ;
+       break;
+       case 4:
+       outFloat.num = imu.inertialZ;
+       //outFloat.num = imu.pitch;
+       break;
+       case 5:
+       outFloat.num = imu.accelBiasZ;
+       //outFloat.num = imu.roll;
+       break;
+       case 6:
+       outFloat.num = targetAltitude;
+       //outFloat.num = imu.yaw;
+       break;
+       case 7:
+       outFloat.num = actualAltitude;
+       //outFloat.num = pitchSetPoint;
+       //outFloat.num = scaledAccX;
+       break;
+       case 8:
+       outFloat.num = targetVelAlt;
+       //outFloat.num = rollSetPoint;
+       //outFloat.num = scaledAccY;
+       break;
+       case 9:
+       outFloat.num = throttleAdjustment;
+       //outFloat.num = yawSetPoint;
+       //outFloat.num = scaledAccZ;
+       break;
+       case 10:
+       //outFloat.num = imu.accelBiasY;
+       outFloat.num = imu.pitch;
+       break;
+       case 11:
+       //outFloat.num = d.v.lattitude;
+       outFloat.num = imu.roll;
+       break;
+       case 12:
+       //outFloat.num = d.v.longitude;
+       outFloat.num = imu.yaw;
+       break;
+       case 13:
+       outFloat.num = (float)GPSFlag;
+       if (GPSFlag == true){
+       GPSFlag = false;
+       }
+       break;
+       case 14:
+       outFloat.num = drPosX;
+       break;
+       case 15:
+       outFloat.num = drVelX;
+       break;
+       case 16:
+       outFloat.num = drPosY;
+       break;
+       case 17:
+       outFloat.num = drVelY;
+       break;
+       case 18:
+       outFloat.num = gps.hdop();
+       break;
+       case 19:
+       outFloat.num = gps.satellites();
+       break;
+       case 20:
+       outFloat.num = positionError;
+       break;
+       case 21:
+       outFloat.num = (float)drFlag;
+       break;
+       case 22:
+       outFloat.num = (float)GPSDenial;
+       break;
+       case 23:
+       outFloat.num = homeBase.coord.lat;
+       break;
+       case 24:
+       outFloat.num = homeBase.coord.lon;
+       break;
+       case 25:
+       outFloat.num = accCircle;
+       break;
+       case 26:
+       outFloat.num = 0;
+       break;
+       
+       default:
+       break;
+       
+       }
+
+      //1
+      /*for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
+       switch (itemBuffer[i]){
+       case 0:
+       outFloat.num = millis();
+       break;
+       case 1:
+       outFloat.num = rawX;
+       break;
+       case 2:
+       outFloat.num = imu.XEst;
+       break;
+       case 3:
+       outFloat.num = imu.velX;
+       break;
+       case 4:
+       outFloat.num = imu.inertialX;
+       break;
+       case 5:
+       outFloat.num = setPointX;
+       break;
+       case 6:
+       outFloat.num = rawY;
+       break;
+       case 7:
+       outFloat.num = imu.YEst;
+       break;
+       case 8:
+       outFloat.num = imu.velY;
+       break;
+       case 9:
+       outFloat.num = imu.inertialY;
+       break;
+       case 10:
+       outFloat.num = setPointY;
+       break;
+       case 11:
+       outFloat.num = d.v.lattitude;
+       break;
+       case 12:
+       outFloat.num = d.v.longitude;
+       break;
+       case 13:
+       outFloat.num = (float)GPSFlag;
+       if (GPSFlag == true){
+       GPSFlag = false;
+       }
+       break;
+       case 14:
+       outFloat.num = pitchSetPoint;
+       break;
+       case 15:
+       outFloat.num = velSetPointX;
+       break;
+       case 16:
+       outFloat.num = rollSetPoint;
+       break;
+       case 17:
+       outFloat.num = velSetPointY;
+       break;
+       case 18:
+       outFloat.num = gps.hdop();
+       break;
+       case 19:
+       outFloat.num = gps.satellites();
+       break;
+       case 20:
+       outFloat.num = positionError;
+       break;
+       case 21:
+       outFloat.num = (float)drFlag * 5;
+       break;
+       case 22:
+       outFloat.num = (float)GPSDenial * 5;
+       break;
+       case 23:
+       outFloat.num = xTarget;
+       break;
+       case 24:
+       outFloat.num = yTarget;
+       break;
+       case 25:
+       outFloat.num = accCircle;
+       break;
+       case 26:
+       outFloat.num = denialCause;
+       break;
+       
+       default:
+       break;
+       
+       }*/
+       //3
+      /*for (uint8_t i = 0; i < numOfItems; i++){
         switch (itemBuffer[i]){
         case 0:
           outFloat.num = millis();
           break;
         case 1:
-          outFloat.num = rawX;
-          //outFloat.num = degreeGyroX;
+          outFloat.num = imu.XEst;
           break;
         case 2:
-          outFloat.num = imu.XEst;
-          //outFloat.num = degreeGyroY;
+          outFloat.num = xTarget;
           break;
         case 3:
           outFloat.num = imu.velX;
-          //outFloat.num = degreeGyroZ;
           break;
         case 4:
-          outFloat.num = imu.inertialX;
-          //outFloat.num = imu.pitch;
+          outFloat.num = velSetPointX;
           break;
         case 5:
-          outFloat.num = imu.accelBiasX;
-          //outFloat.num = imu.roll;
+          outFloat.num = setPointX;
           break;
         case 6:
-          outFloat.num = rawY;
-          //outFloat.num = imu.yaw;
+          outFloat.num = imu.YEst;
           break;
         case 7:
-          outFloat.num = imu.YEst;
-          //outFloat.num = pitchSetPoint;
-          //outFloat.num = scaledAccX;
+          outFloat.num = yTarget;
           break;
         case 8:
           outFloat.num = imu.velY;
-          //outFloat.num = rollSetPoint;
-          //outFloat.num = scaledAccY;
           break;
         case 9:
-          outFloat.num = imu.inertialY;
-          //outFloat.num = yawSetPoint;
-          //outFloat.num = scaledAccZ;
+          outFloat.num = velSetPointY;
           break;
         case 10:
-          //outFloat.num = imu.accelBiasY;
-          outFloat.num = smoothAccX;
+          outFloat.num = setPointY;
           break;
         case 11:
-          //outFloat.num = d.v.lattitude;
-          outFloat.num = smoothAccY;
+          outFloat.num = rawX;
           break;
         case 12:
-          //outFloat.num = d.v.longitude;
-          outFloat.num = smoothAccZ;
+          outFloat.num = rawY;
           break;
         case 13:
-          outFloat.num = (float)GPSFlag;
-          if (GPSFlag == true){
-            GPSFlag = false;
-          }
+          outFloat.num = imu.pitch;
           break;
         case 14:
-          outFloat.num = drPosX;
+          outFloat.num = imu.roll;
           break;
         case 15:
-          outFloat.num = drVelX;
+          outFloat.num = imu.yaw;
           break;
         case 16:
-          outFloat.num = drPosY;
-          break;
-        case 17:
-          outFloat.num = drVelY;
-          break;
-        case 18:
           outFloat.num = gps.hdop();
           break;
-        case 19:
+        case 17:
           outFloat.num = gps.satellites();
           break;
-        case 20:
+        case 18:
           outFloat.num = positionError;
           break;
+        case 19:
+          outFloat.num = (float)drFlag * 5;
+          break;
+        case 20:
+          outFloat.num = (float)GPSDenial * 5;
+          break;
         case 21:
-          outFloat.num = (float)drFlag;
+          outFloat.num = denialCause;
           break;
         case 22:
-          outFloat.num = (float)GPSDenial;
+          outFloat.num = imu.pitchOffset;
           break;
         case 23:
-          outFloat.num = homeBase.coord.lat;
+          outFloat.num = imu.rollOffset;
           break;
         case 24:
-          outFloat.num = homeBase.coord.lon;
+          outFloat.num = 0;
           break;
         case 25:
-          outFloat.num = accCircle;
+          outFloat.num = 0;
           break;
         case 26:
           outFloat.num = 0;
@@ -121,8 +303,7 @@ void TuningTransmitter(){
         default:
           break;
 
-        }
-
+        }*/
         /* for (uint8_t i = 0; i < numOfItems; i++){//comp filter tuning
          switch (itemBuffer[i]){
          case 0x00:
@@ -2006,6 +2187,7 @@ void WayPointHandler(){
     break;
   }
 }
+
 
 
 

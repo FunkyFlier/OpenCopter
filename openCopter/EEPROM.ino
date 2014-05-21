@@ -523,8 +523,8 @@ void SetDefaultGains(){
   d.v.kd_waypoint_velocity = 1.0;
   d.v.fc_waypoint_velocity = 0.0001;
 
-  d.v.kp_cross_track = 0;
-  d.v.ki_cross_track = 0.5;
+  d.v.kp_cross_track = 1;
+  d.v.ki_cross_track = 0.0;
   d.v.kd_cross_track = 0.06;
   d.v.fc_cross_track = 0.04;
 

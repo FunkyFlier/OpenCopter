@@ -803,9 +803,9 @@ void openIMU::AHRSupdate() {
 }
 
 void openIMU::GetEuler(void){
-  roll= ToDeg(FastAtan2(2 * (q0 * q1 + q2 * q3),1 - 2 * (q1 * q1 + q2 * q2))) - ROLL_OFFSET;
+  roll= ToDeg(FastAtan2(2 * (q0 * q1 + q2 * q3),1 - 2 * (q1 * q1 + q2 * q2))) - rollOffset;//ROLL_OFFSET;
 
-  pitch = ToDeg(asin(2 * (q0 * q2 - q3 * q1))) - PITCH_OFFSET;
+  pitch = ToDeg(asin(2 * (q0 * q2 - q3 * q1))) - pitchOffset;//PITCH_OFFSET;
 
   yaw = ToDeg(FastAtan2(2 * (q0 * q3 + q1 * q2) , 1 - 2* (q2 * q2 + q3 * q3)));
   yaw -= DECLINATION;
@@ -816,11 +816,11 @@ void openIMU::GetEuler(void){
 
 }
 void openIMU::GetPitch(void){
-  pitch = ToDeg(asin(2 * (q0 * q2 - q3 * q1))) - PITCH_OFFSET;
+  pitch = ToDeg(asin(2 * (q0 * q2 - q3 * q1))) - pitchOffset;//PITCH_OFFSET;
 }
 
 void openIMU::GetRoll(void){
-  roll= ToDeg(FastAtan2(2 * (q0 * q1 + q2 * q3),1 - 2 * (q1 * q1 + q2 * q2))) - ROLL_OFFSET;
+  roll= ToDeg(FastAtan2(2 * (q0 * q1 + q2 * q3),1 - 2 * (q1 * q1 + q2 * q2))) - rollOffset;//ROLL_OFFSET;
 }
 
 void openIMU::GetYaw(void){

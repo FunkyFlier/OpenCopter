@@ -32,9 +32,16 @@
 #define w3Z 0.0001f
 
 #define LAG_SIZE 20
+//#1
+//#define PITCH_OFFSET 1
+//#define ROLL_OFFSET 2.3
+//#2
+//#define PITCH_OFFSET 2.2
+//#define ROLL_OFFSET 2.0
+//#4
+//#define PITCH_OFFSET 0
+//#define ROLL_OFFSET 0
 
-#define PITCH_OFFSET 0
-#define ROLL_OFFSET 0
 
 class openIMU{
 public:
@@ -79,6 +86,7 @@ public:
   float* betaAcc;
   float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];//,ZEstHist[LAG_SIZE_Z];
   uint8_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;  
+  float pitchOffset,rollOffset;
 private:
 
 

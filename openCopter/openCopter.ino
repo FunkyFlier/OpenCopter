@@ -549,18 +549,18 @@ PID RollRate(&rateSetPointX,&degreeGyroX,&adjustmentX,&integrate,&d.v.kp_roll_ra
 PID YawRate(&rateSetPointZ,&degreeGyroZ,&adjustmentZ,&integrate,&d.v.kp_yaw_rate,&d.v.ki_yaw_rate,&d.v.kd_yaw_rate,&d.v.fc_yaw_rate,&rateDT,400,400);
 
 
-PID AltHoldPosition(&targetAltitude,&actualAltitude,&targetVelAlt,&integrate,&d.v.kp_altitude_position,&d.v.ki_altitude_position,&d.v.kd_altitude_position,&d.v.fc_altitude_position,&imuDT,3,3);
+PID AltHoldPosition(&targetAltitude,&imu.ZEst,&targetVelAlt,&integrate,&d.v.kp_altitude_position,&d.v.ki_altitude_position,&d.v.kd_altitude_position,&d.v.fc_altitude_position,&imuDT,3,3);
 //PID AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_altitude_rate,&d.v.ki_altitude_rate,&d.v.kd_altitude_rate,&d.v.fc_altitude_rate,&imuDT,800,800);
-ALT AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_altitude_rate,&d.v.ki_altitude_rate,&d.v.kd_altitude_rate,&d.v.fc_altitude_rate,&imuDT,800,800,&d.v.kp_waypoint_position);
+ALT AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_altitude_rate,&d.v.ki_altitude_rate,&d.v.kd_altitude_rate,&d.v.fc_altitude_rate,&imuDT,800,800,&d.v.kp_cross_track);
 
 PID WayPointPosition(&zero,&distToWayPoint,&targetVelWayPoint,&integrate,&d.v.kp_waypoint_position,&d.v.ki_waypoint_position,&d.v.kd_waypoint_position,&d.v.fc_waypoint_position,&GPSDT,10,10);
 PID WayPointRate(&targetVelWayPoint,&speed2D_MPS,&pitchSetPoint,&integrate,&d.v.kp_waypoint_velocity,&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&imuDT,45,45);
 //PID CrossTrack - include P
 //2D speed from GPS best idea where or use the vel from the estimator?
 
-PID LoiterXPosition(&xTarget,&imu.XEst,&velSetPointX,&integrate,&d.v.kp_loiter_pos_x,&d.v.ki_loiter_pos_x,&d.v.kd_loiter_pos_x,&d.v.fc_loiter_pos_x,&imuDT,3,3);
+PID LoiterXPosition(&xTarget,&imu.XEst,&velSetPointX,&integrate,&d.v.kp_loiter_pos_x,&d.v.ki_loiter_pos_x,&d.v.kd_loiter_pos_x,&d.v.fc_loiter_pos_x,&imuDT,1,1);
 PID LoiterXRate(&velSetPointX,&imu.velX,&setPointX,&integrate,&d.v.kp_loiter_rate_x,&d.v.ki_loiter_rate_x,&d.v.kd_loiter_rate_x,&d.v.fc_loiter_rate_x,&imuDT,25,25);
-PID LoiterYPosition(&yTarget,&imu.YEst,&velSetPointY,&integrate,&d.v.kp_loiter_pos_y,&d.v.ki_loiter_pos_y,&d.v.kd_loiter_pos_y,&d.v.fc_loiter_pos_y,&imuDT,3,3);
+PID LoiterYPosition(&yTarget,&imu.YEst,&velSetPointY,&integrate,&d.v.kp_loiter_pos_y,&d.v.ki_loiter_pos_y,&d.v.kd_loiter_pos_y,&d.v.fc_loiter_pos_y,&imuDT,1,1);
 PID LoiterYRate(&velSetPointY,&imu.velY,&setPointY,&integrate,&d.v.kp_loiter_rate_y,&d.v.ki_loiter_rate_y,&d.v.kd_loiter_rate_y,&d.v.fc_loiter_rate_y,&imuDT,25,25);
 
 //x and y setpoints are rotated into pitch and roll set points
@@ -587,9 +587,9 @@ volatile boolean gpsUpdate = false;
 uint32_t gpsFixAge;
 
 float startingX,startingY,jumpDistX,jumpDistY,homeBaseXOffset=0,homeBaseYOffset=0;
-#define POSITION_ERROR_LIMIT 1.5f
-#define ACC_RATE 1.035f
-#define DR_PERIOD 1.0 * 1000000 
+#define POSITION_ERROR_LIMIT 2.5f
+#define ACC_RATE 1.1f
+#define DR_PERIOD 0.9 * 1000000 
 #define DR_FS_PERIOD 5 * 1000000 
 float drTimer;
 float positionError,accCircle=POSITION_ERROR_LIMIT;
@@ -598,6 +598,8 @@ float drVelX,drVelY,drPosX,drPosY;
 float halfDTSq;
 boolean GPSDenial = false;
 uint32_t gpsUpdateTimer;
+uint8_t denialCause = 0;
+boolean offsetFlag = false;
 
 
 /*int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
@@ -660,6 +662,7 @@ void setup(){
 
   digitalWrite(RED,LOW);
   digitalWrite(YELLOW,HIGH);
+  digitalWrite(GREEN,HIGH);
   AccInit();
   MagInit();
   GyroInit();
@@ -667,74 +670,78 @@ void setup(){
   ACC_OFFSET_X = 0;
   ACC_OFFSET_Y = 0;
   ACC_OFFSET_Z = 0;
-  
+
 
   //#1
   /*accXScalePos = 0.0379844;
-  accXScaleNeg = 0.0404958;
+   accXScaleNeg = 0.0404958;
+   
+   accYScalePos = 0.0378378;
+   accYScaleNeg = 0.0371212;
+   
+   accZScalePos = 0.0362962;
+   accZScaleNeg = 0.0413502;*/
 
-  accYScalePos = 0.0378378;
-  accYScaleNeg = 0.0371212;
-
-  accZScalePos = 0.0362962;
-  accZScaleNeg = 0.0413502;*/
-  
   //#2
   /*accXScalePos = 0.0378378;
-  accXScaleNeg = 0.0393574;
+   accXScaleNeg = 0.0393574;
+   
+   accYScalePos = 0.04;
+   accYScaleNeg = 0.0368421;
+   
+   accZScalePos = 0.0375478;
+   accZScaleNeg = 0.0403292;*/
 
-  accYScalePos = 0.04;
-  accYScaleNeg = 0.0368421;
-
-  accZScalePos = 0.0375478;
-  accZScaleNeg = 0.0403292;*/
-  
   //#3
   /*accXScalePos = 0.0368421;
-  accXScaleNeg = 0.0396761;
+   accXScaleNeg = 0.0396761;
+   
+   accYScalePos = 0.0387351;
+   accYScaleNeg = 0.0376923;
+   
+   accZScalePos = 0.0378378;
+   accZScaleNeg = 0.04083;*/
 
-  accYScalePos = 0.0387351;
-  accYScaleNeg = 0.0376923;
-
-  accZScalePos = 0.0378378;
-  accZScaleNeg = 0.04083;*/
-  
   //#4
-  /*accXScalePos = 0.0365671;
+  accXScalePos = 0.0365671;
   accXScaleNeg = 0.0401639;
 
   accYScalePos = 0.0382812;
   accYScaleNeg = 0.0379844;
 
   accZScalePos = 0.0362962;
-  accZScaleNeg = 0.0411764;*/
-  
+  accZScaleNeg = 0.0411764;
+
   //#5
   /*accXScalePos = 0.0384313;
-  accXScaleNeg = 0.0384313;
+   accXScaleNeg = 0.0384313;
+   
+   accYScalePos = 0.0398373;
+   accYScaleNeg = 0.0372623;
+   
+   accZScalePos = 0.0358974;
+   accZScaleNeg = 0.0426086;*/
 
-  accYScalePos = 0.0398373;
-  accYScaleNeg = 0.0372623;
+  //#6
+  /*accXScalePos = 0.0357664;
+   accXScaleNeg = 0.04;
+   
+   accYScalePos = 0.03828125;
+   accYScaleNeg = 0.03828125;
+   
+   accZScalePos = 0.0369811;
+   accZScaleNeg = 0.0408333;*/
 
-  accZScalePos = 0.0358974;
-  accZScaleNeg = 0.0426086;*/
-  
-    //#6
-  accXScalePos = 0.0357664;
-  accXScaleNeg = 0.04;
-
-  accYScalePos = 0.03828125;
-  accYScaleNeg = 0.03828125;
-
-  accZScalePos = 0.0369811;
-  accZScaleNeg = 0.0408333;
-  
   /*accXScalePos = 0.03828125;
    accYScalePos = 0.03828125;
    accZScalePos = 0.03828125;
    accXScaleNeg = 0.03828125;
    accYScaleNeg = 0.03828125;
    accZScaleNeg = 0.03828125;*/
+  //--------------------
+  accCircle = d.v.kp_waypoint_position;
+
+
   CalcGravityOffSet();
 
   BaroInit();
@@ -753,14 +760,14 @@ void setup(){
 void loop(){
   _400HzTask();
   if ( micros() - imuTimer >= 16666){  
-    D24High();
+    //D24High();
     imuDT = (micros() - imuTimer) * 0.000001;
     imuTimer = micros();
     _400HzTask();
     //loopCount++;
     //to do break into functions 
 
-    D22High();
+    //D22High();
     GetMag();
     _400HzTask();
     accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
@@ -769,7 +776,7 @@ void loop(){
     imu.AHRSStart();
     _400HzTask();
     imu.AHRSEnd();
-    D22Low();
+    //D22Low();
     /*if (loopCount % 4 == 0){
      D22High();
      GetMag();
@@ -793,8 +800,9 @@ void loop(){
      }*/
     _400HzTask();
     if (drFlag == false){
-      digitalWrite(GREEN,HIGH);
-      if (imuTimer - drTimer > DR_PERIOD ){
+      digitalWrite(GREEN,LOW);
+      //if (imuTimer - drTimer > DR_PERIOD ){
+      if (imuTimer - drTimer > d.v.ki_waypoint_position ){
         drTimer = imuTimer;
         drVelX = imu.velX;
         drPosX = imu.XEst;
@@ -813,7 +821,7 @@ void loop(){
       }      
     }
     else{
-      digitalWrite(GREEN,LOW);
+      digitalWrite(GREEN,HIGH);
       halfDTSq = 0.5 * imuDT * imuDT;
       drVelX += imu.inertialX * imuDT + imu.accelBiasX * imuDT;
       drPosX += drVelX * imuDT + imu.inertialX * halfDTSq + imu.accelBiasX * halfDTSq;
@@ -828,6 +836,7 @@ void loop(){
       imu.velY = drVelY;
       if (imuTimer - drTimer > DR_FS_PERIOD ){
         GPSDenial = true;
+        denialCause = 1;
         digitalWrite(YELLOW,HIGH);
       }
     }
@@ -900,10 +909,10 @@ void loop(){
     tuningTrasnmitOK = true;
 
     _400HzTask();
-    D24Low();
     gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
     if (gpsFixAge > 500){
       GPSDenial = true;
+      denialCause = 2;
     }
 
   }
@@ -945,28 +954,31 @@ void loop(){
 
     DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
     //imu.GPSKalUpdate();
-    if (gps.satellites() <= 6 || gps.hdop() >= 215){
+    if (gps.satellites() < 6  || gps.hdop() >= 250){
       digitalWrite(RED,HIGH);
       GPSDenial = true;
+      denialCause = 3;
     }
     //
     positionError = sqrt( sq(rawX - drPosX)  + sq(rawY - drPosY)  );
-    if (positionError > POSITION_ERROR_LIMIT && drFlag == false){
+
+    //---------------------------------
+    if (positionError > d.v.kp_waypoint_position/*POSITION_ERROR_LIMIT*/ && drFlag == false){
       drFlag = true;
       startingX = drPosX;
       startingY = drPosY;
       imu.velX = drVelX;
       imu.velY = drVelY;
 
-      accCircle = POSITION_ERROR_LIMIT;
+      accCircle = d.v.kp_waypoint_position/*POSITION_ERROR_LIMIT*/;
       drTimer = micros();
     }
     if (drFlag == false){
       imu.GPSKalUpdate();
     }
     else{
-      accCircle *= ACC_RATE;
-      if (positionError < POSITION_ERROR_LIMIT){
+      accCircle *= d.v.kd_waypoint_position /*ACC_RATE*/;
+      if (positionError < d.v.kp_waypoint_position/*POSITION_ERROR_LIMIT*/){
         drFlag = false;
       }
       else{
@@ -1041,9 +1053,9 @@ void loop(){
     Motor6WriteMicros(1000);
     Motor7WriteMicros(1000);
     Motor8WriteMicros(1000);
-    if (failSafe == true){
-      digitalWrite(RED,HIGH);
-    }
+    /*if (failSafe == true){
+     digitalWrite(RED,HIGH);
+     }*/
     while(1){
 
       digitalWrite(YELLOW,HIGH);
@@ -1095,8 +1107,13 @@ void FlightSM(){
       digitalWrite(RED,HIGH);
       digitalWrite(YELLOW,HIGH);
       digitalWrite(GREEN,HIGH);
+      offsetFlag = false;
 
-
+    }
+    if (rcCommands.values.aux3 > 1500 && offsetFlag == false){
+      offsetFlag = true;
+      imu.pitchOffset = imu.pitch;
+      imu.rollOffset = imu.roll;
     }
     if (newRC == true){
       if (rcCommands.values.gear > 1500){
@@ -1115,8 +1132,8 @@ void FlightSM(){
       throttleAdjustment = 0;
       enterState = false;
       //digitalWrite(13,HIGH);
-      //digitalWrite(RED,LOW);
-      digitalWrite(YELLOW,LOW);
+      digitalWrite(RED,LOW);
+      digitalWrite(YELLOW,HIGH);
       //digitalWrite(GREEN,LOW);
     }
     if (newRC == true){
@@ -1132,11 +1149,31 @@ void FlightSM(){
       if (rcCommands.values.aux1 < 1500 && rcCommands.values.aux2 < 1500 && rcCommands.values.aux3 < 1500){
         headFreeOK = true;
       }
+      if (rcCommands.values.aux3 > 1500){
+        //reset DR stuff
+        GPSDenial = false;
+        drFlag = false;
+        drTimer = 0;
+        denialCause = 0;
+        positionError = 0;
+        imu.currentEstIndex = 0;
+        imu.lagIndex = 1;
+        imu.XEst = rawX;
+        imu.YEst = rawY;
+        imu.velX = 0;
+        imu.velY = 0;
+        accCircle = d.v.kp_waypoint_position /*d.v.POSITION_ERROR_LIMIT*/;
+        digitalWrite(13,LOW);
+        for (uint8_t resetIndex = 0; resetIndex< LAG_SIZE; resetIndex++){
+          imu.XEstHist[resetIndex] = rawX;
+          imu.YEstHist[resetIndex] = rawY;
+        }
+      }
       if (rcCommands.values.aux1 > 1500 && headFreeOK == true && GPSDetected == true && GPSDenial == false){
         activeOK = false;
         headFreeOK = false;
-        d.v.flightMode = HEAD_FREE; 
-        //d.v.flightMode = LOITER;
+        //d.v.flightMode = HEAD_FREE; 
+        d.v.flightMode = LOITER;
         enterState = true;
         //headingFreeInitial = imu.yaw; //add later
       }
@@ -1193,8 +1230,8 @@ void FlightSM(){
       enterState = false;
       //startingThrottle = rcCommands.values.throttle; //will this bue used or will we do simple controls like up down?
       digitalWrite(13,LOW);
-      digitalWrite(RED,LOW);
-      digitalWrite(YELLOW,HIGH);
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,LOW);
       digitalWrite(GREEN,LOW);
       targetAltitude = imu.ZEst;
       //tempAltitude = targetAltitude;
@@ -1206,6 +1243,10 @@ void FlightSM(){
     //HeadingFree();
     //gps.DistBearing(&latTarget,&lonTarget,&gps.data.vars.lat,&gps.data.vars.lon,&rawX,&rawY,&beeLineDist,&beeLineHeading);
     //incorrect pace the rawX and rawY should be calculated when the GPS comes in
+    if (rcCommands.values.aux2 > 1500){
+      GPSDenial = true;
+      denialCause = 4;
+    }
     if (GPSDenial == false){
       LoiterXPosition.calculate();
       LoiterYPosition.calculate();
@@ -1218,8 +1259,10 @@ void FlightSM(){
       AltHoldRate.calculate();
     }
     else{
-      pitchSetPoint = 0;
-      rollSetPoint = 0;
+      pitchSetPoint = pitchSetPointTX;
+      rollSetPoint = rollSetPointTX;
+      //pitchSetPoint = 0;
+      //rollSetPoint = 0;
       targetVelAlt = -1.0;
       actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
       AltHoldRate.calculate();
@@ -1306,6 +1349,10 @@ void FlightSM(){
     break;
   }
 }
+
+
+
+
 
 
 

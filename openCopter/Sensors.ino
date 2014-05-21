@@ -197,9 +197,11 @@ void GPSStart(){
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,HIGH);
         digitalWrite(GREEN,LOW);
+        //Serial<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
         if (gpsUpdate == true){
+          //Serial<<"*\r\n";
           gpsUpdate = false;
-          if (gps.hdop() < 200 && gps.satellites() >= 8){
+          if (gps.hdop() < 200 && gps.satellites() >= 6){
             gpsStartState = 2;
             generalPurposeTimer = millis();
           }
@@ -212,7 +214,7 @@ void GPSStart(){
         digitalWrite(GREEN,LOW);
         if (gpsUpdate == true){
           gpsUpdate = false;
-          if (gps.hdop() > 200 || gps.satellites() < 8){
+          if (gps.hdop() > 200 || gps.satellites() < 6){
             gpsStartState = 1;
           }
         }
@@ -231,7 +233,7 @@ void GPSStart(){
         digitalWrite(GREEN,HIGH);
         if (gpsUpdate == true){
           gpsUpdate = false;
-          if (gps.hdop() > 200 || gps.satellites() < 8){
+          if (gps.hdop() > 200 || gps.satellites() < 6){
             gpsStartState = 1;
           }
         }
