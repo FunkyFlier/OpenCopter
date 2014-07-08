@@ -1,546 +1,610 @@
 #include "AUXMATH.h"
 
-/*void DEBUG_DUMP(){
-  Serial<< _FLOAT(ACC_OFFSET_X,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_OFFSET_Y,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_OFFSET_Z,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_00,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_01,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_02,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_10,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_11,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_12,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_20,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_21,7) <<"\r\n";
-  Serial<< _FLOAT(ACC_W_INV_22,7) <<"\r\n";
+void AssignPointerArray(){
+  floatPointerArray[GYRO_X_DEG] = &degreeGyroX;
+  floatPointerArray[GYRO_Y_DEG] = &degreeGyroY;
+  floatPointerArray[GYRO_Z_DEG] = &degreeGyroZ;
+  floatPointerArray[ACC_X_FILT] = &filtAccX;
+  floatPointerArray[ACC_Y_FILT] = &filtAccY;
+  floatPointerArray[ACC_Z_FILT] = &filtAccZ;
+  floatPointerArray[MAG_X_CALIB] = &calibMagX;
+  floatPointerArray[MAG_Y_CALIB] = &calibMagY;
+  floatPointerArray[MAG_Z_CALIB] = &calibMagZ;
+  floatPointerArray[RAW_X] = &rawX;
+  floatPointerArray[RAW_Y] = &rawY;
+  floatPointerArray[RAW_Z] = &rawZ;
+  floatPointerArray[PITCH_] = &imu.pitch;
+  floatPointerArray[ROLL_] = &imu.roll;
+  floatPointerArray[YAW_] = &imu.yaw;
+  floatPointerArray[QUAT_0] = &imu.q0;
+  floatPointerArray[QUAT_1] = &imu.q1;
+  floatPointerArray[QUAT_2] = &imu.q2;
+  floatPointerArray[QUAT_3] = &imu.q3;
+  floatPointerArray[X_EST] = &imu.XEst;
+  floatPointerArray[Y_EST] = &imu.YEst;
+  floatPointerArray[Z_EST] = &imu.ZEst;
+  floatPointerArray[VEL_X] = &imu.velX;
+  floatPointerArray[VEL_Y] = &imu.velY;
+  floatPointerArray[VEL_Z] = &imu.velZ;
+  floatPointerArray[KP_PITCH_RATE_] = &kp_pitch_rate;
+  floatPointerArray[KI_PITCH_RATE_] = &ki_pitch_rate;
+  floatPointerArray[KD_PITCH_RATE_] = &kd_pitch_rate;
+  floatPointerArray[FC_PITCH_RATE_] = &fc_pitch_rate;
+  floatPointerArray[KP_ROLL_RATE_] = &kp_roll_rate;
+  floatPointerArray[KI_ROLL_RATE_] = &ki_roll_rate;
+  floatPointerArray[KD_ROLL_RATE_] = &kd_roll_rate;
+  floatPointerArray[FC_ROLL_RATE_] = &fc_roll_rate;
+  floatPointerArray[KP_YAW_RATE_] = &kp_yaw_rate;
+  floatPointerArray[KI_YAW_RATE_] = &ki_yaw_rate;
+  floatPointerArray[KD_YAW_RATE_] = &kd_yaw_rate;
+  floatPointerArray[FC_YAW_RATE_] = &fc_yaw_rate;
+  floatPointerArray[KP_PITCH_ATT_] = &kp_pitch_attitude;
+  floatPointerArray[KI_PITCH_ATT_] = &ki_pitch_attitude;
+  floatPointerArray[KD_PITCH_ATT_] = &kd_pitch_attitude;
+  floatPointerArray[FC_PITCH_ATT_] = &fc_pitch_attitude;
+  floatPointerArray[KP_ROLL_ATT_] = &kp_roll_attitude;
+  floatPointerArray[KI_ROLL_ATT_] = &ki_roll_attitude;
+  floatPointerArray[KD_ROLL_ATT_] = &kd_roll_attitude;
+  floatPointerArray[FC_ROLL_ATT_] = &fc_roll_attitude;
 
-  Serial<< _FLOAT(MAG_OFFSET_X,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_OFFSET_Y,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_OFFSET_Z,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_00,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_01,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_02,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_10,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_11,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_12,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_20,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_21,7) <<"\r\n";
-  Serial<< _FLOAT(MAG_W_INV_22,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_pitch_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_pitch_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_pitch_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_pitch_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_roll_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_roll_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_roll_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_roll_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_yaw_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_yaw_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_yaw_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_yaw_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_pitch_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_pitch_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_pitch_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_pitch_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_roll_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_roll_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_roll_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_roll_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_yaw_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_yaw_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_yaw_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_yaw_attitude,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_altitude_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_altitude_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_altitude_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_altitude_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_altitude_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_altitude_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_altitude_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_altitude_rate,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_loiter_pos_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_loiter_pos_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_loiter_pos_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_loiter_pos_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_loiter_rate_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_loiter_rate_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_loiter_rate_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_loiter_rate_x,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_loiter_pos_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_loiter_pos_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_loiter_pos_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_loiter_pos_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_loiter_rate_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_loiter_rate_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_loiter_rate_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_loiter_rate_y,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_waypoint_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_waypoint_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_waypoint_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_waypoint_position,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_waypoint_velocity,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_waypoint_velocity,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_waypoint_velocity,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_waypoint_velocity,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kp_cross_track,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.ki_cross_track,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.kd_cross_track,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.fc_cross_track,7) <<"\r\n";
-  Serial<< _FLOAT(d.v.declination,7) <<"\r\n";
+  floatPointerArray[KP_YAW_ATT_] = &kp_yaw_attitude; 
+  floatPointerArray[KI_YAW_ATT_] = &ki_yaw_attitude;
+  floatPointerArray[KD_YAW_ATT_] = &kd_yaw_attitude;
+  floatPointerArray[FC_YAW_ATT_] = &fc_yaw_attitude;
 
-}*/
 
-void LEDIndicators(){
-  calibrationFlags = EEPROM.read(0x00);
-  generalPurposeTimer = millis();
+  floatPointerArray[KP_ALT_POS_] = &kp_altitude_position;
+  floatPointerArray[KI_ALT_POS_] = &ki_altitude_position;
+  floatPointerArray[KD_ATL_POS_] = &kd_altitude_position;
+  floatPointerArray[FC_ALT_POS_] = &fc_altitude_position;
+  floatPointerArray[KP_ALT_VEL_] = &kp_altitude_velocity;
+  floatPointerArray[KI_ALT_VEL_] = &ki_altitude_velocity;
+  floatPointerArray[KD_ALT_VEL_] = &kd_altitude_velocity;
+  floatPointerArray[FC_ALT_VEL_] = &fc_altitude_velocity;
+  floatPointerArray[MUL_ALT_VEL_] = &mul_altitude_velocity;
 
-  digitalWrite(13,LOW);
-  digitalWrite(RED,LOW);
-  digitalWrite(YELLOW,LOW);
-  digitalWrite(GREEN,LOW);
-  while(millis() - generalPurposeTimer < 3000){
-    if ( ((calibrationFlags & (1<<ALL_DEF)) >>ALL_DEF) == 0x01 ){
-      digitalWrite(13,toggle);
-    }
-    if ( ((calibrationFlags & (1<<GAIN_DEF)) >>GAIN_DEF) == 0x01 ){
-      digitalWrite(RED,toggle);
-    }
-    if ( ((calibrationFlags & (1<<COMP_DEF)) >>COMP_DEF) == 0x01 ){
-      digitalWrite(YELLOW,toggle);
-    }
-    if ( ((calibrationFlags & (1<<ACC_DEF)) >>ACC_DEF) == 0x01 ){
-      digitalWrite(GREEN,toggle);
-    }
-    toggle = ~toggle;
-    delay(300);
-  }
-  digitalWrite(13,LOW);
-  digitalWrite(RED,LOW);
-  digitalWrite(YELLOW,LOW);
-  digitalWrite(GREEN,LOW);
+  floatPointerArray[KP_LOIT_X_POS_] = &kp_loiter_pos_x;
+  floatPointerArray[KI_LOIT_X_POS_] = &ki_loiter_pos_x;
+  floatPointerArray[KD_LOIT_X_POS_] = &kd_loiter_pos_x;
+  floatPointerArray[FC_LOIT_X_POS_] = &fc_loiter_pos_x;
+
+  floatPointerArray[KP_LOIT_X_VEL_] = &kp_loiter_velocity_x;
+  floatPointerArray[KI_LOIT_X_VEL_] = &ki_loiter_velocity_x;
+  floatPointerArray[KD_LOIT_X_VEL_] = &kd_loiter_velocity_x;
+  floatPointerArray[FC_LOIT_X_VEL_] = &fc_loiter_velocity_x;
+
+  floatPointerArray[KP_LOIT_Y_POS_] = &kp_loiter_pos_y;
+  floatPointerArray[KI_LOIT_Y_POS_] = &ki_loiter_pos_y;
+  floatPointerArray[KD_LOIT_Y_POS_] = &kd_loiter_pos_y;
+  floatPointerArray[FC_LOIT_Y_POS_] = &fc_loiter_pos_y;
+  floatPointerArray[KP_LOIT_Y_VEL_] = &kp_loiter_velocity_y;
+  floatPointerArray[KI_LOIT_Y_VEL_] = &ki_loiter_velocity_y;
+  floatPointerArray[KD_LOIT_Y_VEL_] = &kd_loiter_velocity_y;
+  floatPointerArray[FC_LOIT_Y_VEL_] = &fc_loiter_velocity_y;
+
+  floatPointerArray[KP_WP_POS_] = &kp_waypoint_position;
+  floatPointerArray[KI_WP_POS_] = &ki_waypoint_position;
+  floatPointerArray[KD_WP_POS_] = &kd_waypoint_position;
+  floatPointerArray[FC_WP_POS_] = &fc_waypoint_position;
+
+  floatPointerArray[KP_WP_VEL_] = &kp_waypoint_velocity;
+  floatPointerArray[KI_WP_VEL_] = &ki_waypoint_velocity;
+  floatPointerArray[KD_WP_VEL_] = &kd_waypoint_velocity;
+  floatPointerArray[FC_WP_VEL_] = &fc_waypoint_velocity;
+
+  floatPointerArray[KP_CT_] = &kp_cross_track;
+  floatPointerArray[KI_CT_] = &ki_cross_track;
+  floatPointerArray[KD_CT_] = &kd_cross_track;
+  floatPointerArray[FC_CT_] = &fc_cross_track;
+
+  floatPointerArray[MAG_DEC_] = &imu.declination;
+
+  floatPointerArray[RATE_SP_X] = &rateSetPointX;
+  floatPointerArray[RATE_SP_Y] = &rateSetPointY;
+  floatPointerArray[RATE_SP_Z] = &rateSetPointZ;
+  floatPointerArray[ADJ_X] = &adjustmentX;
+  floatPointerArray[ADJ_Y] = &adjustmentY;
+  floatPointerArray[ADJ_Z] = &adjustmentZ;
+  floatPointerArray[PITCH_SP] = &pitchSetPoint;
+  floatPointerArray[ROLL_SP] = &rollSetPoint;
+  floatPointerArray[YAW_SP] = &yawSetPoint;
+  floatPointerArray[X_TARG] = &xTarget;
+  floatPointerArray[Y_TARG] = &yTarget;
+  floatPointerArray[Z_TARG] = &zTarget;
+  floatPointerArray[VEL_SP_X] = &velSetPointX;
+  floatPointerArray[VEL_SP_Y] = &velSetPointY;
+  floatPointerArray[VEL_SP_Z] = &velSetPointZ;
+  floatPointerArray[TILT_X] = &tiltAngleX;
+  floatPointerArray[TILT_Y] = &tiltAngleY;
+  floatPointerArray[THRO_ADJ] = &throttleAdjustment;
+  floatPointerArray[PITCH_SP_TX] = &pitchSetPointTX;
+  floatPointerArray[ROLL_SP_TX] = &rollSetPointTX;
+  floatPointerArray[DIST_TO_WP] = &distToWayPoint;
+  
+  floatPointerArray[TARGET_VEL_WP] = &targetVelWayPoint;
+  floatPointerArray[POS_ERR] = &positionError;
+  floatPointerArray[ACC_CIR] = &accCircle;
+  floatPointerArray[DR_VEL_X] = &drVelX;
+  floatPointerArray[DR_VEL_Y] = &drVelY;
+  floatPointerArray[DR_POS_X] = &drPosX;
+  floatPointerArray[DR_POS_Y] = &drPosY;
+  floatPointerArray[MOTOR_CMD_1] = &motorCommand1;
+  floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
+  floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
+  floatPointerArray[MOTOR_CMD_4] = &motorCommand4;
+  floatPointerArray[PITCH_OFF] = &imu.pitchOffset;
+  floatPointerArray[ROLL_OFF] = &imu.rollOffset;
+  
+  floatPointerArray[INERTIAL_X] = &imu.inertialX;
+  floatPointerArray[INERTIAL_Y] = &imu.inertialY;
+  floatPointerArray[INERTIAL_Z] = &imu.inertialZ;
+  
+
+  int16PointerArray[GYRO_X] = &gyroX;
+  int16PointerArray[GYRO_Y] = &gyroY;
+  int16PointerArray[GYRO_Z] = &gyroZ;
+  int16PointerArray[ACC_X] = &accX;
+  int16PointerArray[ACC_Y] = &accY;
+  int16PointerArray[ACC_Z] = &accZ;
+  int16PointerArray[MAG_X] = &magX;
+  int16PointerArray[MAG_Y] = &magY;
+  int16PointerArray[MAG_Z] = &magZ;
+  int16PointerArray[NUM_SATS] = &numSats;
+
+
+  int32PointerArray[PRESSURE_] = &pressure;
+  int32PointerArray[HB_LAT] = &homeBase.lat;
+  int32PointerArray[HB_LON] = &homeBase.lon;
+  int32PointerArray[HB_ALT] = &homeBase.alt;
+  int32PointerArray[H_DOP] = &hDop;
+  int32PointerArray[LAT_] = &lattitude;
+  int32PointerArray[LON_] = &longitude;
+  
+  bytePointerArray[FLIGHT_MODE] = &flightMode;
+  bytePointerArray[RTB_STATE] = &RTBState;
+  bytePointerArray[Z_LOIT] = &ZLoiterState;
+  bytePointerArray[XY_LOIT] = &XYLoiterState;
+  bytePointerArray[GPS_FS] = &gpsFailSafe;
+  bytePointerArray[DR_FLAG] = &drFlag;
+  bytePointerArray[MOTOR_STATE] = &motorState;
+  
+
+
 }
+
+/*void DEBUG_DUMP(){
+ Port0<< _FLOAT(accXScalePos,7) <<"\r\n";
+ Port0<< _FLOAT(accYScalePos,7) <<"\r\n";
+ Port0<< _FLOAT(accZScalePos,7) <<"\r\n";
+ Port0<< _FLOAT(accXScaleNeg,7) <<"\r\n";
+ Port0<< _FLOAT(accYScaleNeg,7) <<"\r\n";
+ Port0<< _FLOAT(accZScaleNeg,7) <<"\r\n";
+ Port0<< _FLOAT(magOffSetX,7) <<"\r\n";
+ Port0<< _FLOAT(magOffSetY,7) <<"\r\n";
+ Port0<< _FLOAT(magOffSetZ,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv00,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv01,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv02,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv10,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv11,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv12,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv20,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv21,7) <<"\r\n";
+ Port0<< _FLOAT(magWInv22,7) <<"\r\n";
+ Port0<< _FLOAT(imu.pitchOffset.val,7) <<"\r\n";
+ Port0<< _FLOAT(imu.rollOffset.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_pitch_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_pitch_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_pitch_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_pitch_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_roll_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_roll_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_roll_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_roll_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_yaw_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_yaw_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_yaw_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_yaw_rate.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_pitch_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_pitch_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_pitch_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_pitch_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_roll_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_roll_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_roll_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_roll_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_yaw_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_yaw_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_yaw_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_yaw_attitude.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_altitude_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_altitude_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_altitude_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_altitude_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_altitude_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_altitude_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_altitude_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_altitude_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(mul_altitude_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_loiter_pos_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_loiter_pos_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_loiter_pos_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_loiter_pos_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_loiter_velocity_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_loiter_velocity_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_loiter_velocity_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_loiter_velocity_x.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_loiter_pos_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_loiter_pos_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_loiter_pos_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_loiter_pos_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_loiter_velocity_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_loiter_velocity_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_loiter_velocity_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_loiter_velocity_y.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_waypoint_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_waypoint_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_waypoint_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_waypoint_position.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_waypoint_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_waypoint_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_waypoint_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_waypoint_velocity.val,7) <<"\r\n";
+ Port0<< _FLOAT(kp_cross_track.val,7) <<"\r\n";
+ Port0<< _FLOAT(ki_cross_track.val,7) <<"\r\n";
+ Port0<< _FLOAT(kd_cross_track.val,7) <<"\r\n";
+ Port0<< _FLOAT(fc_cross_track.val,7) <<"\r\n";
+ Port0<< _FLOAT(imu.declination.val,7) <<"\r\n";
+ Port0<< minRCVal[THRO] <<"\r\n";
+ Port0<< minRCVal[GEAR] <<"\r\n";
+ Port0<< minRCVal[AUX1] <<"\r\n";
+ Port0<< minRCVal[AUX2] <<"\r\n";
+ Port0<< minRCVal[AUX3] <<"\r\n";
+ Port0<< centerRCVal[AILE] <<"\r\n";
+ Port0<< centerRCVal[ELEV] <<"\r\n";
+ Port0<< centerRCVal[RUDD] <<"\r\n";
+ Port0<< _FLOAT(RCScale[THRO],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[AILE],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[ELEV],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[RUDD],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[GEAR],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[AUX1],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[AUX2],7) <<"\r\n";
+ Port0<< _FLOAT(RCScale[AUX3],7) <<"\r\n";
+ 
+ 
+ }*/
 
 void ROMFlagsCheck(){
 
   calibrationFlags = EEPROM.read(0x00);
-
-  if (calibrationFlags == 0x00 || calibrationFlags == 0xFF){
-    //0xFF is what is in an unwritten ROM cell and will never be a correct setting for the flag byte
-    SetDefaultGains();
-    SetDefaultCompassCal();
-    SetDefaultAcc();
-    EEPROM.write(0x00,0xF0);  
-    LEDIndicators();
+  if ( ((calibrationFlags & (1<<RC_FLAG)) >> RC_FLAG) == 0x01 || ((calibrationFlags & (1<<ACC_FLAG)) >> ACC_FLAG) == 0x01 || ((calibrationFlags & (1<<MAG_FLAG)) >> MAG_FLAG) == 0x01 ){
+    while(1){
+      if ( ((calibrationFlags & (1<<RC_FLAG)) >> RC_FLAG) == 0x01 ){
+        digitalWrite(RED,toggle);
+      }
+      if ( ((calibrationFlags & (1<<ACC_FLAG)) >> ACC_FLAG) == 0x01 ){
+        digitalWrite(YELLOW,toggle);
+      }
+      if ( ((calibrationFlags & (1<<MAG_FLAG)) >> MAG_FLAG) == 0x01 ){
+        digitalWrite(GREEN,toggle);
+      }
+      toggle = ~toggle;
+      delay(300);
+    }
   }
 
-  if ( calibrationFlags  == 0x0F){
-    //all calibrated and gains set
-    LoadROM();
-    allCalibrated = true;
-    return;
-  }
-
-  if ( calibrationFlags  == 0xF0){
-    //defaults loaded
-    LoadROM();
-    LEDIndicators();
-    return;
-  }
-
-  if ( ( ((calibrationFlags & 1<<GAIN_DEF) >> GAIN_DEF == 0x01) && ((calibrationFlags & 1<<GAIN_CAL) >> GAIN_CAL == 0x01) ) 
-    || ( ((calibrationFlags & 1<<GAIN_CAL) >> GAIN_CAL == 0x00) && ((calibrationFlags & 1<<GAIN_DEF) >> GAIN_DEF == 0x00)) ){
-    //both flags are either set or cleared
+  if ( ((calibrationFlags & (1<<GAINS_FLAG)) >> GAINS_FLAG) == 0x01 ){
     SetDefaultGains();
   }
-
-  if ( ( ((calibrationFlags & 1<<COMP_DEF) >> COMP_DEF == 0x01) && ((calibrationFlags & 1<<COMP_CAL) >> COMP_CAL == 0x01) ) 
-    || ( ((calibrationFlags & 1<<COMP_CAL) >> COMP_CAL == 0x00) && ((calibrationFlags & 1<<COMP_DEF) >> COMP_DEF == 0x00)) ){
-    //both flags are either set or cleared
-    SetDefaultCompassCal();
-  }
-
-  if ( ( ((calibrationFlags & 1<<ACC_DEF) >> ACC_DEF == 0x01) && ((calibrationFlags & 1<<ACC_CAL) >> ACC_CAL == 0x01) ) 
-    || ( ((calibrationFlags & 1<<ACC_CAL) >> ACC_CAL == 0x00) && ((calibrationFlags & 1<<ACC_DEF) >> ACC_DEF == 0x00)) ){
-    //both flags are either set or cleared
-    SetDefaultAcc();
-  }
-
   LoadROM();
-  LEDIndicators();
-
-}
-
-void LoadROM(){
-  outFloatIndex = 0;
-  for (uint16_t i = 0x01; i <= 0x30; i++){//load acc values
-    outFloat.buffer[outFloatIndex] = EEPROM.read(i);
-    outFloatIndex++;
-    switch (i){
-    case 0x04:
-      ACC_OFFSET_X = outFloat.num;
-      outFloatIndex = 0;
-      break;
-    case 0x08:
-      ACC_OFFSET_Y = outFloat.num;
-      outFloatIndex = 0;
-      break;
-    case 0x0C:
-      ACC_OFFSET_Z = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x10:
-      ACC_W_INV_00 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x14:
-      ACC_W_INV_01 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x18:
-      ACC_W_INV_02 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x1C:
-      ACC_W_INV_10 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x20:
-      ACC_W_INV_11 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x24:
-      ACC_W_INV_12 = outFloat.num;
-      outFloatIndex = 0;
-      break; 
-    case 0x28:
-      ACC_W_INV_20 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x2C:
-      ACC_W_INV_21 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x30:
-      ACC_W_INV_22 = outFloat.num;
-      outFloatIndex = 0;
-      break;       
-    default:
-      break;
-    }
-  }
-
-  outFloatIndex = 0;
-  for (uint16_t i = 0x31; i <= 0x60; i++){//load the compass values
-    outFloat.buffer[outFloatIndex] = EEPROM.read(i);
-    outFloatIndex++;
-    switch (i){
-    case 0x34:
-      MAG_OFFSET_X = outFloat.num; 
-      outFloatIndex = 0;
-      break;
-    case 0x38:
-      MAG_OFFSET_Y = outFloat.num;
-      outFloatIndex = 0;
-      break;
-    case 0x3C:
-      MAG_OFFSET_Z = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x40:
-      MAG_W_INV_00 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x44:
-      MAG_W_INV_01 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x48:
-      MAG_W_INV_02 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x4C:
-      MAG_W_INV_10 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x50:
-      MAG_W_INV_11 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x54:
-      MAG_W_INV_12 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x58:
-      MAG_W_INV_20 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x5C:
-      MAG_W_INV_21 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    case 0x60:
-      MAG_W_INV_22 = outFloat.num;
-      outFloatIndex = 0;
-      break;  
-    default:
-      break;
-    }
-  }
-  //load the gains  
-  for (uint16_t i = 0x61; i <= 0x154; i++){
-    d.buffer[(i - 45)] = EEPROM.read(i);
-  }
-
-}
-
-void SetDefaultAcc(){
-
-  ACC_OFFSET_X = 8.466008;
-  ACC_OFFSET_Y = -0.685062;
-  ACC_OFFSET_Z = 9.408270;
-  ACC_W_INV_00 = 0.038806;
-  ACC_W_INV_01 = -0.000011;
-  ACC_W_INV_02 = 0.000064;
-  ACC_W_INV_10 = -0.000011;
-  ACC_W_INV_11 = 0.038142;
-  ACC_W_INV_12 = -0.000280;
-  ACC_W_INV_20 = 0.000064;
-  ACC_W_INV_21 = -0.000280;
-  ACC_W_INV_22 = 0.038950;
-  for (uint16_t i = 0x01; i <= 0x30; i++){
-    switch (i){
-    case 0x01:
-      outFloat.num = ACC_OFFSET_X;
-      outFloatIndex = 0;
-      break;
-    case 0x05:
-      outFloat.num = ACC_OFFSET_Y;
-      outFloatIndex = 0;
-      break;
-    case 0x09:
-      outFloat.num = ACC_OFFSET_Z;
-      outFloatIndex = 0;
-      break;  
-    case 0x0D:
-      outFloat.num = ACC_W_INV_00;
-      outFloatIndex = 0;
-      break;  
-    case 0x11:
-      outFloat.num = ACC_W_INV_01;
-      outFloatIndex = 0;
-      break;  
-    case 0x15:
-      outFloat.num = ACC_W_INV_02;
-      outFloatIndex = 0;
-      break;  
-    case 0x19:
-      outFloat.num = ACC_W_INV_10;
-      outFloatIndex = 0;
-      break;  
-    case 0x1D:
-      outFloat.num = ACC_W_INV_11;
-      outFloatIndex = 0;
-      break;  
-    case 0x21:
-      outFloat.num = ACC_W_INV_12;
-      outFloatIndex = 0;
-      break; 
-    case 0x25:
-      outFloat.num = ACC_W_INV_20;
-      outFloatIndex = 0;
-      break;  
-    case 0x29:
-      outFloat.num = ACC_W_INV_21;
-      outFloatIndex = 0;
-      break;  
-    case 0x2D:
-      outFloat.num = ACC_W_INV_22;
-      outFloatIndex = 0;
-      break;       
-    default:
-      break;
-    }
-    EEPROM.write(i,outFloat.buffer[outFloatIndex]);
-    outFloatIndex++;
-  }
-
-  calibrationFlags = EEPROM.read(0x00);
-  calibrationFlags |= (1<<ACC_DEF);
-  calibrationFlags &= ~(1<<ACC_CAL);
-  calibrationFlags &= ~(1<<ALL_CAL);
-  EEPROM.write(0x00,calibrationFlags);  
-
-}
-
-void SetDefaultCompassCal(){
-
-  MAG_OFFSET_X =10.370532;
-  MAG_OFFSET_Y = 90.317025;
-  MAG_OFFSET_Z = -16.633857;
-  MAG_W_INV_00 = 0.956960;
-  MAG_W_INV_01 = -0.004750;
-  MAG_W_INV_02 = -0.011861;
-  MAG_W_INV_10 = -0.004750;
-  MAG_W_INV_11 = 0.950338;
-  MAG_W_INV_12 = -0.005574;
-  MAG_W_INV_20 = -0.011861;
-  MAG_W_INV_21 = -0.005574;
-  MAG_W_INV_22 = 1.170783;
-  for (uint16_t i = 0x31; i <= 0x60; i++){
-    switch (i){
-    case 0x31:
-      outFloat.num = MAG_OFFSET_X;
-      outFloatIndex = 0;
-      break;
-    case 0x35:
-      outFloat.num = MAG_OFFSET_Y;
-      outFloatIndex = 0;
-      break;
-    case 0x39:
-      outFloat.num = MAG_OFFSET_Z;
-      outFloatIndex = 0;
-      break;  
-    case 0x3D:
-      outFloat.num = MAG_W_INV_00;
-      outFloatIndex = 0;
-      break;  
-    case 0x41:
-      outFloat.num = MAG_W_INV_01;
-      outFloatIndex = 0;
-      break;  
-    case 0x45:
-      outFloat.num = MAG_W_INV_02;
-      outFloatIndex = 0;
-      break;  
-    case 0x49:
-      outFloat.num = MAG_W_INV_10;
-      outFloatIndex = 0;
-      break;  
-    case 0x4D:
-      outFloat.num = MAG_W_INV_11;
-      outFloatIndex = 0;
-      break;  
-    case 0x51:
-      outFloat.num = MAG_W_INV_12;
-      outFloatIndex = 0;
-      break;  
-    case 0x55:
-      outFloat.num = MAG_W_INV_20;
-      outFloatIndex = 0;
-      break;  
-    case 0x59:
-      outFloat.num = MAG_W_INV_21;
-      outFloatIndex = 0;
-      break;  
-    case 0x5D:
-      outFloat.num = MAG_W_INV_22;
-      outFloatIndex = 0;
-      break;  
-    default:
-      break;
-    }
-    EEPROM.write(i,outFloat.buffer[outFloatIndex]);
-    outFloatIndex++;
-  }
-
-  calibrationFlags = EEPROM.read(0x00);
-  calibrationFlags |= (1<<COMP_DEF);
-  calibrationFlags &= ~(1<<COMP_CAL);
-  calibrationFlags &= ~(1<<ALL_CAL);
-  EEPROM.write(0x00,calibrationFlags);
-
 
 
 }
 void SetDefaultGains(){
-  d.v.kp_pitch_rate = 0.4125;
-  d.v.ki_pitch_rate = 2.9049296;
-  d.v.kd_pitch_rate = 0.03905;
-  d.v.fc_pitch_rate = 50.0;
 
-  d.v.kp_roll_rate = 0.4125;
-  d.v.ki_roll_rate = 2.9049296;
-  d.v.kd_roll_rate = 0.03905;
-  d.v.fc_roll_rate = 50.0;
+  uint16_t j;
 
-  d.v.kp_yaw_rate = 2.25;
-  d.v.ki_yaw_rate = 0.25;
-  d.v.kd_yaw_rate = 0.01;
-  d.v.fc_yaw_rate = 50.0;
 
-  d.v.kp_pitch_attitude = 5.35;
-  d.v.ki_pitch_attitude = 0;
-  d.v.kd_pitch_attitude = 0.075;
-  d.v.fc_pitch_attitude = 75.0;
+  kp_pitch_rate.val = 0.792;
+  ki_pitch_rate.val = 6.89;
+  kd_pitch_rate.val = 0.0607;
+  fc_pitch_rate.val = 50.0;
 
-  d.v.kp_roll_attitude = 5.35;
-  d.v.ki_roll_attitude = 0;
-  d.v.kd_roll_attitude = 0.075;
-  d.v.fc_roll_attitude = 75.0;
+  kp_roll_rate.val = 0.792;
+  ki_roll_rate.val = 6.89;
+  kd_roll_rate.val = 0.0607;
+  fc_roll_rate.val = 50.0;
 
-  d.v.kp_yaw_attitude = 3.0;
-  d.v.ki_yaw_attitude = 0;
-  d.v.kd_yaw_attitude = 0.01;
-  d.v.fc_yaw_attitude = 50.0;
+  kp_yaw_rate.val = 7.0;
+  ki_yaw_rate.val = 0.0;
+  kd_yaw_rate.val = 0.1;
+  fc_yaw_rate.val = 50.0;
 
-  d.v.kp_altitude_position = 1.5;
-  d.v.ki_altitude_position = 0;
-  d.v.kd_altitude_position = 0;
-  d.v.fc_altitude_position = 0;
+  kp_pitch_attitude.val = 5.25;
+  ki_pitch_attitude.val = 0;
+  kd_pitch_attitude.val = 0.06;
+  fc_pitch_attitude.val = 50.0;
 
-  d.v.kp_altitude_rate = 90;
-  d.v.ki_altitude_rate = 35;
-  d.v.kd_altitude_rate = 0.05;
-  d.v.fc_altitude_rate = 50;
+  kp_roll_attitude.val = 5.25;
+  ki_roll_attitude.val = 0;
+  kd_roll_attitude.val = 0.06;
+  fc_roll_attitude.val = 50;
 
-  d.v.kp_loiter_pos_x = 0;
-  d.v.ki_loiter_pos_x = 0;
-  d.v.kd_loiter_pos_x = 0;
-  d.v.fc_loiter_pos_x = 0;
+  kp_yaw_attitude.val = 3.0;
+  ki_yaw_attitude.val = 0;
+  kd_yaw_attitude.val = 0.0;
+  fc_yaw_attitude.val = 50.0;
 
-  d.v.kp_loiter_rate_x = 0;
-  d.v.ki_loiter_rate_x = 0;
-  d.v.kd_loiter_rate_x = 0;
-  d.v.fc_loiter_rate_x = 0;
+  kp_altitude_position.val = 1.0;
+  ki_altitude_position.val = 0;
+  kd_altitude_position.val = -0.0001;
+  fc_altitude_position.val = 50;
 
-  d.v.kp_loiter_pos_y = 0;
-  d.v.ki_loiter_pos_y = 0;
-  d.v.kd_loiter_pos_y = 0;
-  d.v.fc_loiter_pos_y = 0;
+  kp_altitude_velocity.val = 65;
+  ki_altitude_velocity.val = 15;
+  kd_altitude_velocity.val = 0.0002;
+  fc_altitude_velocity.val = 50;
+  mul_altitude_velocity.val = 1.15;
 
-  d.v.kp_loiter_rate_y = 0;
-  d.v.ki_loiter_rate_y = 0;
-  d.v.kd_loiter_rate_y = 0;
-  d.v.fc_loiter_rate_y = 0;
+  kp_loiter_pos_x.val = 0.5;
+  ki_loiter_pos_x.val = 0;
+  kd_loiter_pos_x.val = -0.0003;
+  fc_loiter_pos_x.val = 50;
 
-  d.v.kp_waypoint_position = 10;
-  d.v.ki_waypoint_position = 0;
-  d.v.kd_waypoint_position = 0;
-  d.v.fc_waypoint_position = 0;
+  kp_loiter_velocity_x.val = 4.9;
+  ki_loiter_velocity_x.val = 0.1;
+  kd_loiter_velocity_x.val = 0.0075;
+  fc_loiter_velocity_x.val = 50;
 
-  d.v.kp_waypoint_velocity = 1;
-  d.v.ki_waypoint_velocity = 2.0;
-  d.v.kd_waypoint_velocity = 1.0;
-  d.v.fc_waypoint_velocity = 0.0001;
+  kp_loiter_pos_y.val = 0.5;
+  ki_loiter_pos_y.val = 0;
+  kd_loiter_pos_y.val = -0.0003;
+  fc_loiter_pos_y.val = 50;
 
-  d.v.kp_cross_track = 1;
-  d.v.ki_cross_track = 0.0;
-  d.v.kd_cross_track = 0.06;
-  d.v.fc_cross_track = 0.04;
+  kp_loiter_velocity_y.val = 4.9;
+  ki_loiter_velocity_y.val = 0.1;
+  kd_loiter_velocity_y.val = 0.0075;
+  fc_loiter_velocity_y.val = 50;
 
-  d.v.declination = 3.66;
+  kp_waypoint_position.val = 0;
+  ki_waypoint_position.val = 0;
+  kd_waypoint_position.val = 0;
+  fc_waypoint_position.val = 0;
 
-  for (uint16_t i = 0x61; i <= 0x154; i++){
-    EEPROM.write(i,d.buffer[(i - 45)]);
+  kp_waypoint_velocity.val = 0;
+  ki_waypoint_velocity.val = 0;
+  kd_waypoint_velocity.val = 0;
+  fc_waypoint_velocity.val = 0;
+
+  kp_cross_track.val = 0;
+  ki_cross_track.val = 0;
+  kd_cross_track.val = 0;
+  fc_cross_track.val = 0;
+
+  imu.declination.val = 3.66;
+  j = 81;
+  for(uint16_t i = KP_PITCH_RATE_; i <= MAG_DEC_; i++){
+    EEPROM.write(j++,(*floatPointerArray[i]).buffer[0]); 
+    EEPROM.write(j++,(*floatPointerArray[i]).buffer[1]); 
+    EEPROM.write(j++,(*floatPointerArray[i]).buffer[2]); 
+    EEPROM.write(j++,(*floatPointerArray[i]).buffer[3]); 
   }
 
-  calibrationFlags = EEPROM.read(0x00);
-  calibrationFlags |= (1<<GAIN_DEF);//in two places - make a choice************
-  calibrationFlags &= ~(1<<GAIN_CAL);
-  calibrationFlags &= ~(1<<ALL_CAL);
-  EEPROM.write(0x00,calibrationFlags);
 
 }
+
+
+void LoadROM(){
+  uint16_t j;
+
+
+  int16_u outShort;
+  j = 0;
+  for(uint16_t i = 329; i <= 344; i++){
+    outShort.buffer[j] = EEPROM.read(i);
+    j++;
+    switch(i){
+    case 330:
+      minRCVal[THRO] = outShort.val;
+      j = 0;
+      break;
+    case 332:
+      minRCVal[GEAR] = outShort.val;
+      j = 0;
+      break;
+    case 334:
+      minRCVal[AUX1] = outShort.val;
+      j = 0;
+      break;
+    case 336:
+      minRCVal[AUX2] = outShort.val;
+      j = 0;
+      break;
+    case 338:
+      minRCVal[AUX3] = outShort.val;
+      j = 0;
+      break;
+    case 340:
+      centerRCVal[AILE] = outShort.val;
+      j = 0;
+      break;
+    case 342:
+      centerRCVal[ELEV] = outShort.val;
+      j = 0;
+      break;
+    case 344:
+      centerRCVal[RUDD] = outShort.val;
+      j = 0;
+      break;
+    }
+  }
+
+  outFloatIndex = 0;
+  for(uint16_t i = 345; i <= 376; i++){
+    outFloat.buffer[outFloatIndex] = EEPROM.read(i);
+    outFloatIndex++;
+    switch (i){
+    case 348:
+      RCScale[THRO] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 352:
+      RCScale[AILE] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 356:
+      RCScale[ELEV] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 360:
+      RCScale[RUDD] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 364:
+      RCScale[GEAR] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 368:
+      RCScale[AUX1] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 372:
+      RCScale[AUX2] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 376:
+      RCScale[AUX3] = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    }
+  }
+
+  outFloatIndex = 0;
+  for (uint16_t i = 1; i <= 24; i++){//load acc values
+    outFloat.buffer[outFloatIndex] = EEPROM.read(i);
+    outFloatIndex++;
+    switch (i){
+    case 4:
+      accXScalePos = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 8:
+      accYScalePos = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 12:
+      accZScalePos = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 16:
+      accXScaleNeg = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 20:
+      accYScaleNeg = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 24:
+      accZScaleNeg = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    default:
+      break;
+    }
+  }
+
+  outFloatIndex = 0;
+  for (uint16_t i = 25; i <= 72; i++){//load the compass values
+    outFloat.buffer[outFloatIndex] = EEPROM.read(i);
+    outFloatIndex++;
+    switch (i){
+    case 28:
+      magOffSetX = outFloat.val; 
+      outFloatIndex = 0;
+      break;
+    case 32:
+      magOffSetY = outFloat.val;
+      outFloatIndex = 0;
+      break;
+    case 36:
+      magOffSetZ = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 40:
+      magWInv00 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 44:
+      magWInv01 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 48:
+      magWInv02 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 52:
+      magWInv10 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 56:
+      magWInv11 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 60:
+      magWInv12 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 64:
+      magWInv20 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 68:
+      magWInv21 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    case 72:
+      magWInv22 = outFloat.val;
+      outFloatIndex = 0;
+      break;  
+    default:
+      break;
+    }
+  }
+  j = 81;
+  for (uint16_t i = KP_PITCH_RATE_; i <= FC_CT_; i++){//gains
+    (*floatPointerArray[i]).buffer[0] = EEPROM.read(j++); 
+    (*floatPointerArray[i]).buffer[1] = EEPROM.read(j++); 
+    (*floatPointerArray[i]).buffer[2] = EEPROM.read(j++); 
+    (*floatPointerArray[i]).buffer[3] = EEPROM.read(j++); 
+  }
+  j = 73;
+  for (uint16_t i = PITCH_OFF; i <= ROLL_OFF; i++){//pitch and roll offsets
+    (*floatPointerArray[i]).buffer[0] = EEPROM.read(j++); 
+    (*floatPointerArray[i]).buffer[1] = EEPROM.read(j++); 
+    (*floatPointerArray[i]).buffer[2] = EEPROM.read(j++); 
+    (*floatPointerArray[i]).buffer[3] = EEPROM.read(j++); 
+  }
+  j = 325;
+  (*floatPointerArray[MAG_DEC_]).buffer[0] = EEPROM.read(j++); 
+  (*floatPointerArray[MAG_DEC_]).buffer[1] = EEPROM.read(j++); 
+  (*floatPointerArray[MAG_DEC_]).buffer[2] = EEPROM.read(j++); 
+  (*floatPointerArray[MAG_DEC_]).buffer[3] = EEPROM.read(j++); 
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
 
 
 

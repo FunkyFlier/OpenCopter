@@ -1,7 +1,7 @@
 void CalcGravityOffSet(){
   imuTimer = micros();
 
-  for (int i =0; i < 500; i++){
+  for (int i =0; i < 250; i++){
 
     while (micros() - imuTimer < 10000){
     }
@@ -17,20 +17,11 @@ void CalcGravityOffSet(){
   for (int i = 0; i < 50; i++){
     GetAcc();
     gravSum += imu.GetGravOffset();
-    imu.GetInertial();
     delayMicroseconds(2500);
   }
   gravAvg = gravSum / 50.0;
   imu.gravityOffSet = gravAvg;
-  /*for (int i = 0; i < 50; i++){
-   GetAcc();
-   gravSum += -1.0*sqrt(scaledAccX * scaledAccX + scaledAccY * scaledAccY + scaledAccZ * scaledAccZ );
-   //Serial<<imu.GetGravOffset()<<"\r\n";;
-   delayMicroseconds(2500);
-   }
-   //imu.gravityOffSet = -1.0*sqrt(scaledAccX * scaledAccX + scaledAccY * scaledAccY + scaledAccZ * scaledAccZ );
-   gravAvg = gravSum / 50.0;
-   imu.gravityOffSet = gravAvg;*/
+
 }
 
 
@@ -42,87 +33,184 @@ void CalibrateSensors(){
       generalPurposeTimer = millis();
       GetAcc();
       GetMag();
-      SendCalData();
-
+      if (sendCalibrationData == true){
+        SendCalData();
+      }
     }
     Radio();
-    watchDogFailSafeCounter = 0;
   }
 }
 
 void SendCalData(){
-  outputSum = 0;
-  outputDoubleSum = 0;
-  radio.write(0xAA);
-  radio.write(0x0D);
+  int16_u temp;
 
-  radio.write(0x00);
+  txSum = 0;
+  txDoubleSum = 0;
+  radioPrint->write(0xAA);
+  switch(cmdNum){
+  case 0:
+    radioPrint->write(7);
 
-  temp = (acc.v.x & 0x00FF);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
 
-  temp = (acc.v.x >> 8);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write((uint8_t)0x00);
+    txSum += 0;
+    txDoubleSum += txSum;
 
-  temp = (acc.v.y & 0x00FF);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(magX.buffer[0]);
+    txSum += magX.buffer[0];
+    txDoubleSum += txSum;
 
-  temp = (acc.v.y >> 8);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(magX.buffer[1]);
+    txSum += magX.buffer[1];
+    txDoubleSum += txSum;
 
-  temp = (acc.v.z & 0x00FF);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(magY.buffer[0]);
+    txSum += magY.buffer[0];
+    txDoubleSum += txSum;
 
-  temp = (acc.v.z >> 8);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(magY.buffer[1]);
+    txSum += magY.buffer[1];
+    txDoubleSum += txSum;
 
-  temp = (mag.v.x & 0x00FF);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(magZ.buffer[0]);
+    txSum += magZ.buffer[0];
+    txDoubleSum += txSum;
 
-  temp = (mag.v.x >> 8);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(magZ.buffer[1]);
+    txSum += magZ.buffer[1];
+    txDoubleSum += txSum;
 
-  temp = (mag.v.y & 0x00FF);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(txSum);
+    radioPrint->write(txDoubleSum);
 
-  temp = (mag.v.y >> 8);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    break;
+  case 1:
+    radioPrint->write(7);
 
-  temp = (mag.v.z & 0x00FF);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
 
-  temp = (mag.v.z >> 8);
-  radio.write(temp);
-  outputSum += temp;
-  outputDoubleSum +=outputSum;
+    radioPrint->write(1);
+    txSum += 1;
+    txDoubleSum += txSum;
 
-  radio.write(outputSum);
-  radio.write(outputDoubleSum);
+    radioPrint->write(accX.buffer[0]);
+    txSum += accX.buffer[0];
+    txDoubleSum += txSum;
+
+    radioPrint->write(accX.buffer[1]);
+    txSum += accX.buffer[1];
+    txDoubleSum += txSum;
+
+    radioPrint->write(accY.buffer[0]);
+    txSum += accY.buffer[0];
+    txDoubleSum += txSum;
+
+    radioPrint->write(accY.buffer[1]);
+    txSum += accY.buffer[1];
+    txDoubleSum += txSum;
+
+    radioPrint->write(accZ.buffer[0]);
+    txSum += accZ.buffer[0];
+    txDoubleSum += txSum;
+
+    radioPrint->write(accZ.buffer[1]);
+    txSum += accZ.buffer[1];
+    txDoubleSum += txSum;
+
+    radioPrint->write(txSum);
+    radioPrint->write(txDoubleSum);
+    break;
+  case 2:
+    radioPrint->write(17);
+
+    radioPrint->write(2);
+    txSum += 2;
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[THRO];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[AILE];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[ELEV];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[RUDD];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[GEAR];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[AUX1];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[AUX2];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    temp.val = rawRCVal[AUX3];
+    radioPrint->write(temp.buffer[0]);
+    txSum += temp.buffer[0];
+    txDoubleSum += txSum;
+    radioPrint->write(temp.buffer[1]);
+    txSum += temp.buffer[1];
+    txDoubleSum += txSum;
+
+    radioPrint->write(txSum);
+    radioPrint->write(txDoubleSum);
+
+
+    break;
+  }
 }
 
-//gpsUpdate
+void StartUpAHRSRun(){
+  if ( micros() - imuTimer >= 16666){  
+    imuDT = (micros() - imuTimer) * 0.000001;
+    imuTimer = micros();
+    GetAcc();
+    GetMag();
+    GetGyro();
+    imu.AHRSupdate();
+  } 
+}
+
+
+
 void GPSStart(){
   uint8_t gpsStartState;
   unsigned long chars;
@@ -131,27 +219,12 @@ void GPSStart(){
 
   gpsPort.begin(115200);
 
-  GPSDetected = false;
-  gpsStartState = 0;
-  GPSDetected = false;
-  generalPurposeTimer = millis();
-
-
-  //first make sure there is data on the GPS port
-  while ((millis() - generalPurposeTimer < 1000) && (GPSDetected == false)){
-    digitalWrite(13,HIGH);
-    digitalWrite(RED,LOW);
-    digitalWrite(YELLOW,LOW);
-    digitalWrite(GREEN,LOW);
-    if (gpsPort.available() > 0){
-      GPSDetected = true;
-    }
-  }
 
   //make sure that the data is gps data
   GPSDetected = false;
   generalPurposeTimer = millis();
-  while ((millis() - generalPurposeTimer < 1000) ){
+  while ((millis() - generalPurposeTimer < 1000 && GPSDetected == false) ){
+    StartUpAHRSRun();
     digitalWrite(13,HIGH);
     digitalWrite(RED,LOW);
     digitalWrite(YELLOW,HIGH);
@@ -162,7 +235,6 @@ void GPSStart(){
       if (inByte == '$'){//consider switching to validate that the reciver is recieving GPGGA
         GPSDetected = true;
       }
-      //gpsUpdate = gps.encode(gpsPort.read());
     }
   }
 
@@ -173,10 +245,10 @@ void GPSStart(){
 
   //wait for a good gps fix
   while(GPSDetected == false){
-
+    StartUpAHRSRun();
     while(gpsPort.available() > 0){
       gpsUpdate = gps.encode(gpsPort.read());
-      gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+      gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
       if (gpsFixAge > 500){
         gpsStartState = 0;
         gpsUpdate = false;
@@ -197,11 +269,9 @@ void GPSStart(){
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,HIGH);
         digitalWrite(GREEN,LOW);
-        //Serial<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
         if (gpsUpdate == true){
-          //Serial<<"*\r\n";
           gpsUpdate = false;
-          if (gps.hdop() < 200 && gps.satellites() >= 6){
+          if (gps.hdop() < 200 && gps.satellites() >= 8){
             gpsStartState = 2;
             generalPurposeTimer = millis();
           }
@@ -214,14 +284,14 @@ void GPSStart(){
         digitalWrite(GREEN,LOW);
         if (gpsUpdate == true){
           gpsUpdate = false;
-          if (gps.hdop() > 200 || gps.satellites() < 6){
+          if (gps.hdop() > 200 || gps.satellites() < 8){
             gpsStartState = 1;
           }
         }
         if (millis() - generalPurposeTimer > 15000){
-          gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
-          homeBase.coord.lat = d.v.lattitude;
-          homeBase.coord.lon = d.v.longitude;
+          gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
+          homeBase.lat.val = lattitude.val;
+          homeBase.lon.val = longitude.val;
           gpsStartState = 3;
           generalPurposeTimer = millis();
         }
@@ -233,20 +303,21 @@ void GPSStart(){
         digitalWrite(GREEN,HIGH);
         if (gpsUpdate == true){
           gpsUpdate = false;
-          if (gps.hdop() > 200 || gps.satellites() < 6){
+          if (gps.hdop() > 200 || gps.satellites() < 8){
             gpsStartState = 1;
           }
         }
         if (millis() - generalPurposeTimer > 15000){
-          gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
-          DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
-          if ( sqrt( sq(rawX) + sq(rawY)) <= 3 ){
-            imu.XEst = rawX;
-            imu.YEst = rawY;
-            homeBaseXOffset = rawX;
-            homeBaseYOffset = rawY;
-            drPosX = rawX;
-            drPosY = rawY;
+          StartUpAHRSRun();
+          gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
+          DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
+          if ( sqrt( sq(rawX.val) + sq(rawY.val)) <= 10 ){
+            imu.XEst.val = rawX.val;
+            imu.YEst.val = rawY.val;
+            homeBaseXOffset = rawX.val;
+            homeBaseYOffset = rawY.val;
+            drPosX.val = rawX.val;
+            drPosY.val = rawY.val;
             GPSDetected = true;
           }
           else{
@@ -261,120 +332,6 @@ void GPSStart(){
   }
 
 }
-
-
-
-/*  if (GPSDetected == true){
- gpsUpdate = false;
- while(gpsUpdate == false){
- Serial<<"2\r\n";
- while(gpsPort.available() > 0){
- gpsUpdate = gps.encode(gpsPort.read());
- if (millis() - generalPurposeTimer > 500){
- generalPurposeTimer = millis();
- LEDState++;
- if (LEDState == 4){
- LEDState = 0;
- }
- }
- switch (LEDState){
- case 0:
- digitalWrite(13,HIGH);
- digitalWrite(RED,LOW);
- digitalWrite(YELLOW,LOW);
- digitalWrite(GREEN,LOW);
- break;
- case 1:
- digitalWrite(13,LOW);
- digitalWrite(RED,HIGH);
- digitalWrite(YELLOW,LOW);
- digitalWrite(GREEN,LOW);
- break;
- case 2:
- digitalWrite(13,LOW);
- digitalWrite(RED,LOW);
- digitalWrite(YELLOW,HIGH);
- digitalWrite(GREEN,LOW);
- break;
- case 3:
- digitalWrite(13,LOW);
- digitalWrite(RED,LOW);
- digitalWrite(YELLOW,LOW);
- digitalWrite(GREEN,HIGH);
- break;
- }
- }
- }
- //Serial<<"1\r\n";
- while (gps.satellites() < 8 || gps.hdop() >= 200){
- gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
- Serial<<gps.satellites()<<","<<gps.hdop()<<","<<d.v.lattitude<<","<<d.v.longitude<<","<<gpsFixAge<<"\r\n";
- while(gpsPort.available() > 0){
- gpsUpdate = gps.encode(gpsPort.read());
- }
- if (millis() - generalPurposeTimer > 500){
- generalPurposeTimer = millis();
- LEDState++;
- if (LEDState == 4){
- LEDState = 0;
- }
- }
- switch (LEDState){
- case 0:
- digitalWrite(13,HIGH);
- digitalWrite(RED,LOW);
- digitalWrite(YELLOW,LOW);
- digitalWrite(GREEN,LOW);
- break;
- case 1:
- digitalWrite(13,HIGH);
- digitalWrite(RED,HIGH);
- digitalWrite(YELLOW,LOW);
- digitalWrite(GREEN,LOW);
- break;
- case 2:
- digitalWrite(13,HIGH);
- digitalWrite(RED,LOW);
- digitalWrite(YELLOW,HIGH);
- digitalWrite(GREEN,LOW);
- break;
- case 3:
- digitalWrite(13,HIGH);
- digitalWrite(RED,LOW);
- digitalWrite(YELLOW,LOW);
- digitalWrite(GREEN,HIGH);
- break;
- }
- }
- generalPurposeTimer = millis();
- while(millis() - generalPurposeTimer < 10000){
- Serial<<"4\r\n";
- digitalWrite(13,HIGH);
- while(gpsPort.available() > 0){
- gpsUpdate = gps.encode(gpsPort.read());
- }
- gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
- Serial<<gpsFixAge<<"\r\n";
- if (gps.satellites() < 8 || gps.hdop() >= 200 || gpsFixAge > 300){
- Serial<<"******************\r\n";
- gpsUpdate = false;
- }
- }
- Serial<<"5\r\n";
- gpsUpdate = false;
- while(gpsUpdate == false){
- while(gpsPort.available() > 0){
- gpsUpdate = gps.encode(gpsPort.read());
- }
- }
- Serial<<"6\r\n";
- digitalWrite(13,LOW);
- gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
- homeBase.coord.lat = d.v.lattitude;
- homeBase.coord.lon = d.v.longitude;
- //Serial<<homeBase.coord.lat<<","<<homeBase.coord.lon<<"\r\n";
- gpsUpdate = false;
- }  */
 
 void GetAltitude(long *press,long *pressInit, float *alti){
   pressureRatio = (float) *press / (float) *pressInit;
@@ -402,7 +359,7 @@ void PollPressure(void){
       if (millis() - baroTimer > CONV_TIME){
         up = ReadUP();
         temperature = Temperature(ut);
-        pressure = Pressure(up);
+        pressure.val = Pressure(up);
         pressureState = 0;
         newBaro = true;
         baroPollTimer = millis();
@@ -481,7 +438,6 @@ unsigned long ReadUP(void){
 }
 
 void BaroInit(void){
-  //pinMode(READY_PIN,INPUT);
   pressureState = 0;
   newBaro = false;
   I2c.read(BMP085_ADDRESS,0xAA,22);
@@ -537,7 +493,7 @@ void BaroInit(void){
     if (newBaro == true){
       newBaro = false;
       baroCount++;
-      baroSum += pressure;
+      baroSum += pressure.val;
     }    
   }
   pressureInitial = baroSum / 10;    
@@ -579,34 +535,34 @@ void AccInit(){
 
   GetAcc();
 
-  if (acc.v.x > 0){
-    scaledAccX = acc.v.x * accXScalePos;
+  if (accX.val > 0){
+    scaledAccX = accX.val * accXScalePos;
   }
   else{
-    scaledAccX = acc.v.x * accXScaleNeg;
+    scaledAccX = accX.val * accXScaleNeg;
   }
-  if (acc.v.y > 0){
-    scaledAccY = acc.v.y  * accYScalePos;
-  }
-  else{
-    scaledAccY = acc.v.y  * accYScaleNeg;
-  }
-  if (acc.v.z > 0){
-    scaledAccZ = acc.v.z * accZScalePos;
+  if (accY.val > 0){
+    scaledAccY = accY.val  * accYScalePos;
   }
   else{
-    scaledAccZ = acc.v.z * accZScaleNeg;
+    scaledAccY = accY.val  * accYScaleNeg;
   }
-  smoothAccX = scaledAccX;
-  smoothAccY = scaledAccY;
-  smoothAccZ = scaledAccZ;  
+  if (accZ.val > 0){
+    scaledAccZ = accZ.val * accZScalePos;
+  }
+  else{
+    scaledAccZ = accZ.val * accZScaleNeg;
+  }
+  filtAccX.val = scaledAccX;
+  filtAccY.val = scaledAccY;
+  filtAccZ.val = scaledAccZ;  
   for (uint8_t i = 0; i < 3 ; i++){
-    inBufferX[i] = smoothAccX;
-    inBufferY[i] = smoothAccY;
-    inBufferZ[i] = smoothAccZ;
-    outBufferX[i] = smoothAccX;
-    outBufferY[i] = smoothAccY;
-    outBufferZ[i] = smoothAccZ;
+    inBufferX[i] = filtAccX.val;
+    inBufferY[i] = filtAccY.val;
+    inBufferZ[i] = filtAccZ.val;
+    outBufferX[i] = filtAccX.val;
+    outBufferY[i] = filtAccY.val;
+    outBufferZ[i] = filtAccZ.val;
   }
   for (uint16_t i = 0;i < 100; i++){
     GetAcc();
@@ -620,7 +576,6 @@ void GyroInit(){
   GyroSSLow();
   SPI.transfer(L3G_CTRL_REG2 | WRITE | SINGLE);
   SPI.transfer(0x00); //high pass filter disabled
-  //SPI.transfer(0x04);
   GyroSSHigh();
 
   GyroSSLow();
@@ -645,9 +600,9 @@ void GyroInit(){
   GyroSSHigh();
   //this section takes an average of 500 samples to calculate the offset
   //if this step is skipped the IMU will still work, but this simple step gives better results
-  offsetX = 0;
-  offsetY = 0;
-  offsetZ = 0;
+  gyroOffsetX = 0;
+  gyroOffsetY = 0;
+  gyroOffsetZ = 0;
   gyroSumX = 0;
   gyroSumY = 0;
   gyroSumZ = 0;
@@ -657,54 +612,58 @@ void GyroInit(){
   }
   for (uint16_t j = 0; j < 500; j ++){
     GetGyro();
-    gyroSumX += gyro.v.x;
-    gyroSumY += gyro.v.y;
-    gyroSumZ += gyro.v.z;
+    gyroSumX += gyroX.val;
+    gyroSumY += gyroY.val;
+    gyroSumZ += gyroZ.val;
     delay(3);
   }
-  offsetX = gyroSumX / 500;
-  offsetY = gyroSumY / 500;
-  offsetZ = gyroSumZ / 500;
+  gyroOffsetX = gyroSumX / 500;
+  gyroOffsetY = gyroSumY / 500;
+  gyroOffsetZ = gyroSumZ / 500;
   GetGyro();
 
 }
 
 void GetMag(){
   I2c.read(MAG_ADDRESS,LSM303_OUT_X_H,6);
-  mag.buffer[1] = I2c.receive();//X
-  mag.buffer[0] = I2c.receive();
-  mag.buffer[5] = I2c.receive();//Z
-  mag.buffer[4] = I2c.receive();
-  mag.buffer[3] = I2c.receive();//Y
-  mag.buffer[2] = I2c.receive();
+  magX.buffer[1] = I2c.receive();//X
+  magX.buffer[0] = I2c.receive();
+  magZ.buffer[1] = I2c.receive();//Z
+  magZ.buffer[0] = I2c.receive();
+  magY.buffer[1] = I2c.receive();//Y
+  magY.buffer[0] = I2c.receive();
 
-  mag.v.y *= -1;
-  mag.v.z *= -1;
-  shiftedMagX  = mag.v.x - MAG_OFFSET_X;
-  shiftedMagY  = mag.v.y - MAG_OFFSET_Y;
-  shiftedMagZ  = mag.v.z - MAG_OFFSET_Z;
+  magY.val *= -1;
+  magZ.val *= -1;
+  shiftedMagX  = magX.val - magOffSetX;
+  shiftedMagY  = magY.val - magOffSetY;
+  shiftedMagZ  = magZ.val - magOffSetZ;
 
-  floatMagX = MAG_W_INV_00 * shiftedMagX + MAG_W_INV_01 * shiftedMagY + MAG_W_INV_02 * shiftedMagZ;
-  floatMagY = MAG_W_INV_10 * shiftedMagX + MAG_W_INV_11 * shiftedMagY + MAG_W_INV_12 * shiftedMagZ;
-  floatMagZ = MAG_W_INV_20 * shiftedMagX + MAG_W_INV_21 * shiftedMagY + MAG_W_INV_22 * shiftedMagZ;
+  calibMagX.val = magWInv00 * shiftedMagX + magWInv01 * shiftedMagY + magWInv02 * shiftedMagZ;
+  calibMagY.val = magWInv10 * shiftedMagX + magWInv11 * shiftedMagY + magWInv12 * shiftedMagZ;
+  calibMagZ.val = magWInv20 * shiftedMagX + magWInv21 * shiftedMagY + magWInv22 * shiftedMagZ;
 }
 
 void GetGyro(){
   SPI.setDataMode(SPI_MODE0);
   GyroSSLow();
   SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
-  for (uint8_t i = 0; i < 6; i++){//the endianness matches as does the axis order
-    gyro.buffer[i] = SPI.transfer(0x00);
-  }
+  gyroX.buffer[0] = SPI.transfer(0x00);
+  gyroX.buffer[1] = SPI.transfer(0x00);
+  gyroY.buffer[0] = SPI.transfer(0x00);
+  gyroY.buffer[1] = SPI.transfer(0x00);
+  gyroZ.buffer[0] = SPI.transfer(0x00);
+  gyroZ.buffer[1] = SPI.transfer(0x00);
+
   GyroSSHigh();
 
-  degreeGyroX = (gyro.v.x - offsetX) * 0.07;
-  degreeGyroY = -1.0 * ((gyro.v.y - offsetY) * 0.07);
-  degreeGyroZ = -1.0 * ((gyro.v.z - offsetZ) * 0.07);
+  degreeGyroX.val = (gyroX.val - gyroOffsetX) * 0.07;
+  degreeGyroY.val = -1.0 * ((gyroY.val - gyroOffsetY) * 0.07);
+  degreeGyroZ.val = -1.0 * ((gyroZ.val - gyroOffsetZ) * 0.07);
 
-  radianGyroX = ToRad(degreeGyroX);
-  radianGyroY = ToRad(degreeGyroY);
-  radianGyroZ = ToRad(degreeGyroZ);
+  radianGyroX = ToRad(degreeGyroX.val);
+  radianGyroY = ToRad(degreeGyroY.val);
+  radianGyroZ = ToRad(degreeGyroZ.val);
 
 
 }
@@ -712,88 +671,40 @@ void GetAcc(){
   SPI.setDataMode(SPI_MODE3);
   AccSSLow();
   SPI.transfer(DATAX0 | READ | MULTI);
-  for (uint8_t i = 0; i < 6; i++){//the endianness matches as does the axis order
-    acc.buffer[i] = SPI.transfer(0x00);
-  }
+  accX.buffer[0] = SPI.transfer(0x00);
+  accX.buffer[1] = SPI.transfer(0x00);
+  accY.buffer[0] = SPI.transfer(0x00);
+  accY.buffer[1] = SPI.transfer(0x00);
+  accZ.buffer[0] = SPI.transfer(0x00);
+  accZ.buffer[1] = SPI.transfer(0x00);
   AccSSHigh();  
 
-  acc.v.y *= -1;
-  acc.v.z *= -1;
+  accY.val *= -1;
+  accZ.val *= -1;
 
 
-  //Filter(&acc.v.x,&acc.v.y,&acc.v.z,&smoothAccX,&smoothAccY,&smoothAccZ);
-
-  /*shiftedAccX = (smoothAccX - ACC_OFFSET_X);
-   shiftedAccY = (smoothAccY - ACC_OFFSET_Y);
-   shiftedAccZ = (smoothAccZ - ACC_OFFSET_Z);*/
-  if (acc.v.x > 0){
-    scaledAccX = acc.v.x * accXScalePos;
+  if (accX.val > 0){
+    scaledAccX = accX.val * accXScalePos;
   }
   else{
-    scaledAccX = acc.v.x * accXScaleNeg;
+    scaledAccX = accX.val * accXScaleNeg;
   }
-  if (acc.v.y > 0){
-    scaledAccY = acc.v.y  * accYScalePos;
-  }
-  else{
-    scaledAccY = acc.v.y  * accYScaleNeg;
-  }
-  if (acc.v.z > 0){
-    scaledAccZ = acc.v.z * accZScalePos;
+  if (accY.val > 0){
+    scaledAccY = accY.val  * accYScalePos;
   }
   else{
-    scaledAccZ = acc.v.z * accZScaleNeg;
+    scaledAccY = accY.val  * accYScaleNeg;
   }
-  Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&smoothAccX,&smoothAccY,&smoothAccZ);
+  if (accZ.val > 0){
+    scaledAccZ = accZ.val * accZScalePos;
+  }
+  else{
+    scaledAccZ = accZ.val * accZScaleNeg;
+  }
+  Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&filtAccX.val,&filtAccY.val,&filtAccZ.val);
 
-  /*scaledAccX = shiftedAccX * ACC_W_INV_00;
-   scaledAccY = shiftedAccY * ACC_W_INV_01;
-   scaledAccZ = shiftedAccZ * ACC_W_INV_02;*/
-  /*scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
-   scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
-   scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);*/
-  /*if (imu.feedBack == false){
-   accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-   accToFilterY = -1.0 * smoothAccY;
-   accToFilterZ = -1.0 * smoothAccZ;
-   }*/
-
-
-  //------------------------------------------------------------------------------------------------------------------------------
-
-
-  /*shiftedAccX = ((float)acc.v.x - ACC_OFFSET_X) ;
-   shiftedAccY = ((float)acc.v.y - ACC_OFFSET_Y) ;
-   shiftedAccZ = ((float)acc.v.z - ACC_OFFSET_Z);
-   
-   scaledAccX = (ACC_W_INV_00 * shiftedAccX + ACC_W_INV_01 * shiftedAccY + ACC_W_INV_02 * shiftedAccZ);
-   scaledAccY = (ACC_W_INV_10 * shiftedAccX + ACC_W_INV_11 * shiftedAccY + ACC_W_INV_12 * shiftedAccZ);
-   scaledAccZ = (ACC_W_INV_20 * shiftedAccX + ACC_W_INV_21 * shiftedAccY + ACC_W_INV_22 * shiftedAccZ);
-   
-   Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&smoothAccX,&smoothAccY,&smoothAccZ);
-   
-   accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-   accToFilterY = -1.0 * smoothAccY;
-   accToFilterZ = -1.0 * smoothAccZ;*/
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
