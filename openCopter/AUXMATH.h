@@ -2,8 +2,7 @@
 #define AUXMATH_h
 
 #include <Arduino.h>
-#include "SerialPort.h"
-//#include <Streaming.h>
+#include <Streaming.h>
 
 #define ToRad(x) ((x)*0.01745329252)  // *pi/180
 #define ToDeg(x) ((x)*57.2957795131)  // *180/pi
@@ -47,35 +46,13 @@
 #define F  (float)(3.0 - a_ * _2bydt1 - b_ * _2bydt2 + 3.0 * c_ * _2bydt3)
 #define G  (float)(1.0 - a_ * _2bydt1 + b_ * _2bydt2 - c_ * _2bydt3)
 
-typedef union{
-  float val;
-  uint8_t buffer[4];
-}
-float_u;
-
-typedef union{
-  int32_t val;
-  uint8_t buffer[4];
-}
-int32_u;
-
-typedef union{
-  uint32_t val;
-  uint8_t buffer[4];
-}
-uint32_u;
-
-typedef union{
-  int16_t val;
-  uint8_t buffer[2];
-}
-int16_u;
-
 static int8_t n1,n2,n3;
+//static int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
 static float inBufferX[3],inBufferY[3],inBufferZ[3];
 static float outBufferX[3],outBufferY[3],outBufferZ[3];
 static int8_t filterIndex;
 
+static char hex[17]="0123456789ABCDEF";
 
 static float FastAtan2( float y, float x)
 {
@@ -122,8 +99,31 @@ static float InvSqrt(float number) {
   return y;
 }
 
+/*static void SmoothingACC(  int16_t *raw,  float *smooth){
+ *smooth = (*raw * (0.25)) + (*smooth * 0.75);
+ //*smooth = (float)*raw;
+ }*/
+ static void SmoothingBaro(  float *raw,  float *smooth){
+   *smooth = (*raw * (0.12)) + (*smooth * 0.88);
+ 
+ }
 
+//static void Filter( int16_t *rawX, int16_t *rawY, int16_t *rawZ, float *smoothX, float *smoothY, float *smoothZ){
 static void Filter( float *rawX, float *rawY, float *rawZ, float *smoothX, float *smoothY, float *smoothZ){
+
+  /*n1 = filterIndex;
+   n2 = filterIndex-1;
+   n3 = filterIndex-2;
+   if (n2 < 0 ){
+   n2 += 3;
+   }
+   if (n3 < 0){
+   n3 += 3;
+   }
+   
+   *smoothX = ( (float)*rawX + 3.0 * (float)inBufferX[n1] + 3.0 * (float)inBufferX[n2] + (float)inBufferX[n3] - E * outBufferX[n1] - F * outBufferX[n2] - G * outBufferX[n3] ) / D;
+   *smoothY = ( (float)*rawY + 3.0 * (float)inBufferY[n1] + 3.0 * (float)inBufferY[n2] + (float)inBufferY[n3] - E * outBufferY[n1] - F * outBufferY[n2] - G * outBufferY[n3] ) / D;
+   *smoothZ = ( (float)*rawZ + 3.0 * (float)inBufferZ[n1] + 3.0 * (float)inBufferZ[n2] + (float)inBufferZ[n3] - E * outBufferZ[n1] - F * outBufferZ[n2] - G * outBufferZ[n3] ) / D;*/
 
   *smoothX = ( *rawX + 3.0 * inBufferX[0] + 3.0 * inBufferX[1] + inBufferX[2] - E * outBufferX[0] - F * outBufferX[1] - G * outBufferX[2] ) / D;
   *smoothY = ( *rawY + 3.0 * inBufferY[0] + 3.0 * inBufferY[1] + inBufferY[2] - E * outBufferY[0] - F * outBufferY[1] - G * outBufferY[2] ) / D;
@@ -153,12 +153,30 @@ static void Filter( float *rawX, float *rawY, float *rawZ, float *smoothX, float
   outBufferZ[1] = outBufferZ[0];  
   outBufferZ[0] = *smoothZ;  
 
+
+
+  /*filterIndex++;
+   if (filterIndex == 3){
+   filterIndex = 0;
+   }  
+   
+   inBufferX[filterIndex] = *rawX;
+   inBufferY[filterIndex] = *rawY;
+   inBufferZ[filterIndex] = *rawZ;
+   
+   outBufferX[filterIndex] = *smoothX;
+   outBufferY[filterIndex] = *smoothY;
+   outBufferZ[filterIndex] = *smoothZ;*/
 }
 
-static void MapVar (volatile int16_t *x, float *y, float in_min, float in_max, float out_min, float out_max){
+static void MapVar (volatile uint16_t *x, volatile float *y, float in_min, float in_max, float out_min, float out_max){
   *y = (*x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
+static void ShowHex(byte convertByte){
+  Serial << hex[(convertByte >>4) & 0x0F];
+  Serial << hex[convertByte & 0x0F]<<"\r\n";
+}
 
 
 #endif 

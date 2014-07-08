@@ -10,20 +10,21 @@
 
 #include <Arduino.h>
 
-//#define DECLINATION 3.66f
+#define DECLINATION 3.66f
 
 
 
-#define betaMag 0.04f
-#define betaAcc 0.04f
-
+//#define betaMag 0.0125f
+//#define betaAcc 0.035f
+//#define betaMag 0.038f
+//#define betaAcc 0.027f
 
 #define vXY 2.0f
 #define vZ 2.5f
 
-#define w1XY 2.0f
-#define w2XY 1.0f
-#define w3XY 0.0001f
+/*#define w1XY 1.4f
+#define w2XY 0.9f
+#define w3XY 0.0001f*/
 
 
 #define w1Z 0.5f
@@ -31,12 +32,22 @@
 #define w3Z 0.0001f
 
 #define LAG_SIZE 20
+//#1
+//#define PITCH_OFFSET 1
+//#define ROLL_OFFSET 2.3
+//#2
+//#define PITCH_OFFSET 2.2
+//#define ROLL_OFFSET 2.0
+//#4
+//#define PITCH_OFFSET 0
+//#define ROLL_OFFSET 0
+
 
 class openIMU{
 public:
   openIMU(float*, float*, float*, float*, float*, 
   float*, float*, float*, float*, float*, 
-  float*, float*, float* , float*, float*, float*);
+  float*, float*, float* , float*, float*, float*, float*,float*,float*,float*,float*,float*);
   
   void AHRSupdate(void);
   void GetEuler(void);
@@ -57,21 +68,25 @@ public:
   void AHRSEnd(void);
   void IMUupdate(void);
   
-  float_u q0,q1,q2,q3;
-  float_u pitch,roll,yaw;
-  float_u XEst,YEst,ZEst;
-  float_u velX,velY,velZ;
+  float q0,q1,q2,q3;
+  float pitch,roll,yaw;
+  float XEst,YEst,ZEst;
+  float velX,velY,velZ;
   float accelBiasX,accelBiasY,accelBiasZ;
-  float_u inertialX,inertialY,inertialZ;
+  float inertialX,inertialY,inertialZ;
   float inertialZ_Grav;
   float gravityOffSet;
+  float* declination;
   boolean feedBack;
   float xError,yError;
-  float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];
+  float* w1XY;
+  float* w2XY;
+  float* w3XY;
+  float* betaMag;
+  float* betaAcc;
+  float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];//,ZEstHist[LAG_SIZE_Z];
   uint8_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;  
-  float_u rawPitch,rawRoll;
-  float_u pitchOffset,rollOffset;
-  float_u declination;
+  float pitchOffset,rollOffset;
 private:
 
 
