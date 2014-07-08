@@ -448,7 +448,7 @@ float rateSetPointZ;
 float adjustmentX;
 float adjustmentY;
 float adjustmentZ; 
-float altitudeSetPoint;
+//float altitudeSetPoint;
 float throttleAdjustment;    
 float velSetPointX,velSetPointY;
 float targetAltitude,targetVelAlt,actualAltitude,distToAlt;
@@ -703,14 +703,14 @@ void setup(){
    accZScaleNeg = 0.04083;*/
 
   //#4
-  accXScalePos = 0.0365671;
+  /*accXScalePos = 0.0365671;
   accXScaleNeg = 0.0401639;
 
   accYScalePos = 0.0382812;
   accYScaleNeg = 0.0379844;
 
   accZScalePos = 0.0362962;
-  accZScaleNeg = 0.0411764;
+  accZScaleNeg = 0.0411764;*/
 
   //#5
   /*accXScalePos = 0.0384313;
@@ -723,14 +723,14 @@ void setup(){
    accZScaleNeg = 0.0426086;*/
 
   //#6
-  /*accXScalePos = 0.0357664;
+  accXScalePos = 0.0357664;
    accXScaleNeg = 0.04;
    
    accYScalePos = 0.03828125;
    accYScaleNeg = 0.03828125;
    
    accZScalePos = 0.0369811;
-   accZScaleNeg = 0.0408333;*/
+   accZScaleNeg = 0.0408333;
 
   /*accXScalePos = 0.03828125;
    accYScalePos = 0.03828125;

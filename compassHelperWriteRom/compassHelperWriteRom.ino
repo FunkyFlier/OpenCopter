@@ -45,65 +45,65 @@ void loop(){
 
 void SetDefaultCompassCal(){
 
-  MAG_OFFSET_X = 7.218511;
-  MAG_OFFSET_Y = 48.940489;
-  MAG_OFFSET_Z = -7.922210;
-  W_INV_00 = 0.994517;
-  W_INV_01 = 0.051270;
-  W_INV_02 = -0.030916;
-  W_INV_10 = 0.051270;
-  W_INV_11 = 0.922016;
-  W_INV_12 = 0.044415;
-  W_INV_20 = -0.030916;
-  W_INV_21 = 0.044415;
-  W_INV_22 = 1.124646;
-  for (uint16_t i = 0x19; i <= 0x48; i++){
+  MAG_OFFSET_X = 2.469721;
+  MAG_OFFSET_Y = 93.204543;
+  MAG_OFFSET_Z = -3.020533;
+  W_INV_00 = 0.995896;
+  W_INV_01 = -0.002183;
+  W_INV_02 = 0.003579;
+  W_INV_10 = -0.002183;
+  W_INV_11 = 1.013013;
+  W_INV_12 = -0.003179;
+  W_INV_20 = 0.003579;
+  W_INV_21 = -0.003179;
+  W_INV_22 = 1.056729;
+  for (uint16_t i = 25; i <= 72; i++){
     switch (i){
-    case 0x19:
+    case 25:
       outFloat.num = MAG_OFFSET_X;
       outFloatIndex = 0;
       break;
-    case 0x1D:
+    case 29:
       outFloat.num = MAG_OFFSET_Y;
       outFloatIndex = 0;
       break;
-    case 0x21:
+    case 33:
       outFloat.num = MAG_OFFSET_Z;
       outFloatIndex = 0;
       break;  
-    case 0x25:
+    case 37:
       outFloat.num = W_INV_00;
       outFloatIndex = 0;
       break;  
-    case 0x29:
+    case 41:
       outFloat.num = W_INV_01;
       outFloatIndex = 0;
       break;  
-    case 0x2D:
+    case 45:
       outFloat.num = W_INV_02;
       outFloatIndex = 0;
       break;  
-    case 0x31:
+    case 49:
       outFloat.num = W_INV_10;
       outFloatIndex = 0;
       break;  
-    case 0x35:
+    case 53:
       outFloat.num = W_INV_11;
       outFloatIndex = 0;
       break;  
-    case 0x39:
+    case 57:
       outFloat.num = W_INV_12;
       outFloatIndex = 0;
       break;  
-    case 0x3D:
+    case 61:
       outFloat.num = W_INV_20;
       outFloatIndex = 0;
       break;  
-    case 0x41:
+    case 65:
       outFloat.num = W_INV_21;
       outFloatIndex = 0;
       break;  
-    case 0x45:
+    case 69:
       outFloat.num = W_INV_22;
       outFloatIndex = 0;
       break;  
@@ -114,11 +114,6 @@ void SetDefaultCompassCal(){
     outFloatIndex++;
   }
 
-  calibrationFlags = EEPROM.read(0x00);
-  calibrationFlags |= (1<<COMP_CAL);
-  calibrationFlags &= ~(1<<COMP_DEF);
-  calibrationFlags &= ~(1<<ALL_DEF);
-  EEPROM.write(0x00,calibrationFlags);
 
 
 
