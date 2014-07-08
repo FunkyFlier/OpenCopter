@@ -1,30 +1,35 @@
 //
-#include <MemoryFree.h>
+//#include <MemoryFree.h>
 #include <EEPROM.h>
 #include <SPI.h>
-#include <I2C.h>
+#include "I2CL.h"
 #include "openIMUL.h"
-#include "PIDL.h"//the L is for local in case there is already a library by that name
+#include "PID.h"
+#include "SerialPort.h"
 #include <Streaming.h>
 #include <AUXMATH.h>
 #include <TinyGPS.h>
 
+
 #define RADIUS_EARTH 6372795
 
-
+#define LAND_VEL -0.3
 //LED defines
 #define RED 38
 #define YELLOW 40
 #define GREEN 42
 //ROM defines
-#define ALL_DEF 7
-#define GAIN_DEF 6
-#define COMP_DEF 5
-#define ACC_DEF 4 
-#define ALL_CAL 3
-#define GAIN_CAL 2
-#define COMP_CAL 1
-#define ACC_CAL 0
+enum CalibrationFlags {
+  RC_FLAG,
+  ACC_FLAG,
+  MAG_FLAG,
+  GAINS_FLAG
+};
+
+
+#define CLIMB 0
+#define TRAVEL 1
+#define DESCEND 2
 
 
 //general SPI defines
@@ -57,7 +62,7 @@
 
 //barometer defines
 #define BMP085_ADDRESS 0x77
-#define POLL_RATE 50
+#define POLL_RATE 0
 /*#define OSS 0x00
  #define CONV_TIME 5*/
 /*#define OSS 0x01
@@ -68,78 +73,69 @@
 #define CONV_TIME 26
 
 //however digitalWrite will work when using SPI 
-#define GyroSSOutput() DDRL |= 1<<0 //this is the same as pinMode(49,OUTPUT)
-#define GyroSSHigh() PORTL |= 1<<0 //this is like digitalWrite(49,HIGH) but faster
+#define GyroSSOutput() DDRL |= 1<<0 
+#define GyroSSHigh() PORTL |= 1<<0 
 #define GyroSSLow() PORTL &= ~(1<<0)
 
-#define D22Output() DDRA |= 1<<0 //this is the same as pinMode(49,OUTPUT)
-#define D22High() PORTA |= 1<<0 //this is like digitalWrite(49,HIGH) but faster
+#define D22Output() DDRA |= 1<<0 
+#define D22High() PORTA |= 1<<0 
 #define D22Low() PORTA &= ~(1<<0)
 #define D22Toggle() PORTA ^= (1<<0);
 
-#define D23Output() DDRA |= 1<<1 //this is the same as pinMode(49,OUTPUT)
-#define D23High() PORTA |= 1<<1 //this is like digitalWrite(49,HIGH) but faster
+#define D23Output() DDRA |= 1<<1 
+#define D23High() PORTA |= 1<<1 
 #define D23Low() PORTA &= ~(1<<1)
 #define D23Toggle() PORTA ^= (1<<1);
 
-#define D24Output() DDRA |= 1<<2 //this is the same as pinMode(49,OUTPUT)
-#define D24High() PORTA |= 1<<2 //this is like digitalWrite(49,HIGH) but faster
+#define D24Output() DDRA |= 1<<2 
+#define D24High() PORTA |= 1<<2 
 #define D24Low() PORTA &= ~(1<<2)
 #define D24Toggle() PORTA ^= (1<<2);
 
-#define D25Output() DDRA |= 1<<3 //this is the same as pinMode(49,OUTPUT)
-#define D25High() PORTA |= 1<<3 //this is like digitalWrite(49,HIGH) but faster
+#define D25Output() DDRA |= 1<<3 
+#define D25High() PORTA |= 1<<3 
 #define D25Low() PORTA &= ~(1<<3)
 #define D25Toggle() PORTA ^= (1<<3);
 
-#define D26Output() DDRA |= 1<<4 //this is the same as pinMode(49,OUTPUT)
-#define D26High() PORTA |= 1<<4 //this is like digitalWrite(49,HIGH) but faster
+#define D26Output() DDRA |= 1<<4 
+#define D26High() PORTA |= 1<<4 
 #define D26Low() PORTA &= ~(1<<4)
 #define D26Toggle() PORTA ^= (1<<4);
 
-#define D27Output() DDRA |= 1<<5 //this is the same as pinMode(49,OUTPUT)
-#define D27High() PORTA |= 1<<5 //this is like digitalWrite(49,HIGH) but faster
+#define D27Output() DDRA |= 1<<5 
+#define D27High() PORTA |= 1<<5 
 #define D27Low() PORTA &= ~(1<<5)
 #define D27Toggle() PORTA ^= (1<<5);
 
-#define D28Output() DDRA |= 1<<6 //this is the same as pinMode(49,OUTPUT)
-#define D28High() PORTA |= 1<<6 //this is like digitalWrite(49,HIGH) but faster
+#define D28Output() DDRA |= 1<<6 
+#define D28High() PORTA |= 1<<6 
 #define D28Low() PORTA &= ~(1<<6)
 #define D28Toggle() PORTA ^= (1<<6);
 
-#define D29Output() DDRA |= 1<<7 //this is the same as pinMode(49,OUTPUT)
-#define D29High() PORTA |= 1<<7 //this is like digitalWrite(49,HIGH) but faster
+#define D29Output() DDRA |= 1<<7 
+#define D29High() PORTA |= 1<<7 
 #define D29Low() PORTA &= ~(1<<7)
 #define D29Toggle() PORTA ^= (1<<7);
 
-#define AccSSOutput() DDRL |= 1<<1 //this is the same as pinMode(48,OUTPUT)
-#define AccSSHigh() PORTL |= 1<<1 //this is like digitalWrite(48,HIGH) but faster
+#define AccSSOutput() DDRL |= 1<<1 
+#define AccSSHigh() PORTL |= 1<<1 
 #define AccSSLow() PORTL &= ~(1<<1)
 
 //control defines 
-#define TAKEOFF 0 
-#define HH_ON 1
-#define HH_OFF 2
-#define LAND 3
-#define LIFTOFF 1175 //3s
+#define HH_ON 0
+#define HH_OFF 1
 
-#define ACTIVE 0
-#define STABLE 1
-#define HEAD_FREE 2
-#define LOITER 3
-#define WAYPOINT 4
-#define RTB 5
 
-#define WP_HOLD 0
-#define WP_TRAVEL 1
-#define WP_END 2
-#define WP_RTB 3
-#define WP_FAIL_RTB 4
+
+#define MAX_Z_RATE 3.0f
+#define MIN_Z_RATE -3.0f
+
 
 //motor defines
 #define FREQ 400
 #define PRESCALE 8
 #define PERIOD ((F_CPU/PRESCALE/FREQ) - 1)
+
 
 #define Motor1WriteMicros(x) OCR3B = x * 2//motor 1 is attached to pin2
 #define Motor2WriteMicros(x) OCR3C = x * 2//motor 2 is attached to pin3
@@ -152,38 +148,222 @@
 
 //radio control defines
 //RC defines
-#define DSM2 0//to do remove - DSM2 will not be supported
-#define DSMX 1
-#define SBUS 2
-#define RC 3
+enum RC_Types {
+  DSMX = 1, SBUS, RC};
 
-//telemetery defines
+enum motorControlStates{
+  HOLD,
+  TO,
+  FLIGHT,
+  LANDING,
+};
+
+enum RC_Chan {
+  THRO, AILE, ELEV, RUDD, GEAR, AUX1, AUX2, AUX3};
+
+enum loiterStates{
+  LOITERING,
+  RCINPUT,
+  LAND,
+  WAIT};
+
+enum FlightStates {
+  RATE,
+  ATT,
+  L0,
+  L1,
+  L2,
+  FOLLOW,
+  WP,
+  RTB
+};
+
+enum Int16s {
+  GYRO_X,
+  GYRO_Y,
+  GYRO_Z,
+  ACC_X,
+  ACC_Y,
+  ACC_Z,
+  MAG_X,
+  MAG_Y,
+  MAG_Z,
+  NUM_SATS
+};
+
+enum BYTES {
+  FLIGHT_MODE,
+  RTB_STATE,
+  Z_LOIT,
+  XY_LOIT,
+  GPS_FS,
+  DR_FLAG,
+  MOTOR_STATE
+
+
+};
+
+enum Int32s {
+  PRESSURE_,
+  HB_LAT,
+  HB_LON,
+  HB_ALT,
+  H_DOP,
+  LAT_,
+  LON_
+
+};
+
+enum Floats {
+  GYRO_X_DEG,
+  GYRO_Y_DEG,
+  GYRO_Z_DEG,
+  ACC_X_FILT,
+  ACC_Y_FILT,
+  ACC_Z_FILT,
+  MAG_X_CALIB,
+  MAG_Y_CALIB,
+  MAG_Z_CALIB,
+  RAW_X,
+  RAW_Y,
+  RAW_Z,
+  PITCH_,
+  ROLL_,
+  YAW_,
+  QUAT_0,
+  QUAT_1,
+  QUAT_2,
+  QUAT_3,
+  X_EST,
+  Y_EST,
+  Z_EST,
+  VEL_X,
+  VEL_Y,
+  VEL_Z,
+  KP_PITCH_RATE_,
+  KI_PITCH_RATE_,
+  KD_PITCH_RATE_,
+  FC_PITCH_RATE_,
+  KP_ROLL_RATE_,
+  KI_ROLL_RATE_,
+  KD_ROLL_RATE_,
+  FC_ROLL_RATE_,
+  KP_YAW_RATE_,
+  KI_YAW_RATE_,
+  KD_YAW_RATE_,
+  FC_YAW_RATE_,
+  KP_PITCH_ATT_,
+  KI_PITCH_ATT_,
+  KD_PITCH_ATT_,
+  FC_PITCH_ATT_,
+  KP_ROLL_ATT_,
+  KI_ROLL_ATT_,
+  KD_ROLL_ATT_,
+  FC_ROLL_ATT_,
+  KP_YAW_ATT_,
+  KI_YAW_ATT_,
+  KD_YAW_ATT_,
+  FC_YAW_ATT_,
+  KP_ALT_POS_,
+  KI_ALT_POS_,
+  KD_ATL_POS_,
+  FC_ALT_POS_,
+  KP_ALT_VEL_,
+  KI_ALT_VEL_,
+  KD_ALT_VEL_,
+  FC_ALT_VEL_,
+  MUL_ALT_VEL_,
+  KP_LOIT_X_POS_,
+  KI_LOIT_X_POS_,
+  KD_LOIT_X_POS_,
+  FC_LOIT_X_POS_,
+  KP_LOIT_X_VEL_,
+  KI_LOIT_X_VEL_,
+  KD_LOIT_X_VEL_,
+  FC_LOIT_X_VEL_,
+  KP_LOIT_Y_POS_,
+  KI_LOIT_Y_POS_,
+  KD_LOIT_Y_POS_,
+  FC_LOIT_Y_POS_,
+  KP_LOIT_Y_VEL_,
+  KI_LOIT_Y_VEL_,
+  KD_LOIT_Y_VEL_,
+  FC_LOIT_Y_VEL_,
+  KP_WP_POS_,
+  KI_WP_POS_,
+  KD_WP_POS_,
+  FC_WP_POS_,
+  KP_WP_VEL_,
+  KI_WP_VEL_,
+  KD_WP_VEL_,
+  FC_WP_VEL_,
+  KP_CT_,
+  KI_CT_,
+  KD_CT_,
+  FC_CT_,
+  MAG_DEC_,
+  RATE_SP_X,
+  RATE_SP_Y,
+  RATE_SP_Z,
+  ADJ_X,
+  ADJ_Y,
+  ADJ_Z,
+  PITCH_SP,
+  ROLL_SP,
+  YAW_SP,
+  X_TARG,
+  Y_TARG,
+  Z_TARG,
+  VEL_SP_X,
+  VEL_SP_Y,
+  VEL_SP_Z,
+  TILT_X,
+  TILT_Y,
+  THRO_ADJ,
+  PITCH_SP_TX,
+  ROLL_SP_TX,
+  DIST_TO_WP,
+  TARGET_VEL_WP,
+  POS_ERR,
+  ACC_CIR,
+  DR_VEL_X,
+  DR_VEL_Y,
+  DR_POS_X,
+  DR_POS_Y,
+  MOTOR_CMD_1,
+  MOTOR_CMD_2,
+  MOTOR_CMD_3,
+  MOTOR_CMD_4,
+  PITCH_OFF,
+  ROLL_OFF,
+  INERTIAL_X,
+  INERTIAL_Y,
+  INERTIAL_Z
+
+};
+
+
+SerialPort<0,254,254> Port0;
+SerialPort<1,254,254> RCSigPort;
+SerialPort<2,254,254> Port2;
+SerialPort<3,254,254> gpsPort;
+
 #define RADIO_BUF_SIZE 256
-//#define radio Serial
-#define radio Serial2
 #define NUM_WAY_POINTS 0x14
-#define gpsPort Serial3
 
-//to do - move these vars to appropriate headers 
+float_u *floatPointerArray[125];
 
-//sensor related vars
-typedef union{
-  struct{
-    int16_t x;
-    int16_t y;
-    int16_t z;
-  }
-  v;
-  uint8_t buffer[6];
-}
-Sensor_t;
+int16_u *int16PointerArray[10];
 
-Sensor_t gyro;
-Sensor_t acc;
-Sensor_t mag;
+int32_u *int32PointerArray[7];
+
+uint8_t *bytePointerArray[6];
+
+int16_u gyroX,gyroY,gyroZ,accX,accY,accZ,magX,magY,magZ;
+
 
 //barometer variables
-long pressure;
+int32_u pressure;
 short temperature;
 uint32_t baroTimer;
 int pressureState;
@@ -221,24 +401,21 @@ long pressureInitial;
 
 //IMU related vars
 int32_t gyroSumX,gyroSumY,gyroSumZ;
-int16_t offsetX,offsetY,offsetZ;
+int16_t gyroOffsetX,gyroOffsetY,gyroOffsetZ;
 float radianGyroX,radianGyroY,radianGyroZ;
-float degreeGyroX,degreeGyroY,degreeGyroZ;
-float smoothAccX,smoothAccY,smoothAccZ;
-float floatMagX,floatMagY,floatMagZ;//needs to be a float so the vector can be normalized
+float_u degreeGyroX,degreeGyroY,degreeGyroZ;
+float_u filtAccX,filtAccY,filtAccZ;
+float_u calibMagX,calibMagY,calibMagZ;//needs to be a float so the vector can be normalized
 float shiftedMagX,shiftedMagY,shiftedMagZ;
 float scaledAccX,scaledAccY,scaledAccZ;
 float accToFilterX,accToFilterY,accToFilterZ;
 
+
 //GPS related vars
-typedef union{
-  struct{
-    int32_t lat;
-    int32_t lon;
-    int32_t alt;
-  }
-  coord;
-  uint8_t buffer[12];
+typedef struct{
+  int32_u lat;
+  int32_u lon;
+  int32_u alt;
 }
 WayPoint_t;
 
@@ -246,13 +423,14 @@ WayPoint_t homeBase;
 WayPoint_t wayPoints[20];
 WayPoint_t loiterWP;//rename
 
-float rawX,rawY,rawZ;
+float_u rawX,rawY,rawZ;
 
 //UBLOX gps;
 TinyGPS gps;
 volatile boolean GPSDetected;
-float beeLineDist;
-float beeLineHeading;
+float distToCraft;
+float headingToCraft;
+
 
 //RC related vars
 uint8_t readState,inByte,byteCount,channelNumber;
@@ -265,27 +443,11 @@ boolean frameValid = false;
 
 uint8_t spekBuffer[14];
 
-int bufferIndex=0;
+uint16_t bufferIndex=0;
 
-typedef union{
-  struct{
-    uint16_t aileron;//A8
-    uint16_t aux1;//A9
-    uint16_t elevator;//A10
-    uint16_t gear;//A11
-    uint16_t rudder;//A12
-    uint16_t aux2;//A13
-    uint16_t throttle;//A14
-    uint16_t aux3;//A15 only for futaba or standard RC
-  }
-  values;
-  byte buffer[16];
-  uint16_t standardRCBuffer[8];
-}
-RadioControl_t;
+volatile int16_t rawRCVal[8];
+static uint16_t throttleCommand;
 
-volatile RadioControl_t rcCommands;
-volatile uint16_t throttleCommand;
 
 uint8_t currentPinState = 0;
 uint8_t previousPinState = 0;
@@ -294,8 +456,13 @@ uint8_t lastPinState = 0;
 uint16_t currentTime = 0;
 uint16_t timeDifference = 0;
 uint16_t changeTime[8];
-int16_t offsetAileron,offsetElevator,offsetRudder = 0;
 uint8_t sBusData[25];
+
+int16_t minRCVal[8],centerRCVal[8];
+volatile int16_t RCValue[8];
+int16_t RCOffset[8];
+float RCScale[8];
+
 
 //timers and DTs
 uint32_t imuTimer,GPSTimer;
@@ -303,191 +470,131 @@ uint32_t generalPurposeTimer;
 float imuDT,GPSDT;
 
 //protocol related vars 
-typedef union{
-  struct{
-    float pitch;//0
-    float roll;//4
-    float yaw;//8
-    int32_t lattitude;//12
-    int32_t longitude;//16
-    float baroAltitude;//20
-    int32_t gpsAltitude;//24
-    int32_t velN;//28
-    int32_t velE;//32
-    int32_t velD;//36
-    int32_t gpsHeading;//40
-    uint32_t _3DSpeed;//44
-    uint32_t groundSpeed;//48
 
-    float kp_pitch_rate;//52
-    float ki_pitch_rate;//56
-    float kd_pitch_rate;//60
-    float fc_pitch_rate;//64
+int32_u lattitude;//12
+int32_u longitude;//16
 
-    float kp_roll_rate;//68
-    float ki_roll_rate;//72
-    float kd_roll_rate;//76
-    float fc_roll_rate;//80
+float_u kp_pitch_rate;//52
+float_u ki_pitch_rate;//56
+float_u kd_pitch_rate;//60
+float_u fc_pitch_rate;//64
 
-    float kp_yaw_rate;//84
-    float ki_yaw_rate;//88
-    float kd_yaw_rate;//92
-    float fc_yaw_rate;//96
+float_u kp_roll_rate;//68
+float_u ki_roll_rate;//72
+float_u kd_roll_rate;//76
+float_u fc_roll_rate;//80
 
-    float kp_pitch_attitude;//100
-    float ki_pitch_attitude;//104
-    float kd_pitch_attitude;//108
-    float fc_pitch_attitude;//112
+float_u kp_yaw_rate;//84
+float_u ki_yaw_rate;//88
+float_u kd_yaw_rate;//92
+float_u fc_yaw_rate;//96
 
-    float kp_roll_attitude;//116
-    float ki_roll_attitude;//120
-    float kd_roll_attitude;//124
-    float fc_roll_attitude;//128
+float_u kp_pitch_attitude;//100
+float_u ki_pitch_attitude;//104
+float_u kd_pitch_attitude;//108
+float_u fc_pitch_attitude;//112
 
-    float kp_yaw_attitude;//132
-    float ki_yaw_attitude;//136
-    float kd_yaw_attitude;//140
-    float fc_yaw_attitude;//144
+float_u kp_roll_attitude;//116
+float_u ki_roll_attitude;//120
+float_u kd_roll_attitude;//124
+float_u fc_roll_attitude;//128
 
-    float kp_altitude_position;//148
-    float ki_altitude_position;//152
-    float kd_altitude_position;//156
-    float fc_altitude_position;//160
+float_u kp_yaw_attitude;//132
+float_u ki_yaw_attitude;//136
+float_u kd_yaw_attitude;//140
+float_u fc_yaw_attitude;//144
 
-    float kp_altitude_rate;//164
-    float ki_altitude_rate;//168
-    float kd_altitude_rate;//172
-    float fc_altitude_rate;///176
+float_u kp_altitude_position;//148
+float_u ki_altitude_position;//152
+float_u kd_altitude_position;//156
+float_u fc_altitude_position;//160
 
-    float kp_loiter_pos_x;//180
-    float ki_loiter_pos_x;//184
-    float kd_loiter_pos_x;//188
-    float fc_loiter_pos_x;//192
+float_u kp_altitude_velocity;//164
+float_u ki_altitude_velocity;//168
+float_u kd_altitude_velocity;//172
+float_u fc_altitude_velocity;///176
+float_u mul_altitude_velocity;
 
-    float kp_loiter_rate_x;//196
-    float ki_loiter_rate_x;//200
-    float kd_loiter_rate_x;//204
-    float fc_loiter_rate_x;//208
+float_u kp_loiter_pos_x;//180
+float_u ki_loiter_pos_x;//184
+float_u kd_loiter_pos_x;//188
+float_u fc_loiter_pos_x;//192
 
-    float kp_loiter_pos_y;//212
-    float ki_loiter_pos_y;//216
-    float kd_loiter_pos_y;//220
-    float fc_loiter_pos_y;//224
+float_u kp_loiter_velocity_x;//196
+float_u ki_loiter_velocity_x;//200
+float_u kd_loiter_velocity_x;//204
+float_u fc_loiter_velocity_x;//208
 
-    float kp_loiter_rate_y;//228
-    float ki_loiter_rate_y;//232
-    float kd_loiter_rate_y;//236
-    float fc_loiter_rate_y;//240
+float_u kp_loiter_pos_y;//212
+float_u ki_loiter_pos_y;//216
+float_u kd_loiter_pos_y;//220
+float_u fc_loiter_pos_y;//224
 
-    float kp_waypoint_position;//244
-    float ki_waypoint_position;//248
-    float kd_waypoint_position;//252
-    float fc_waypoint_position;//256
+float_u kp_loiter_velocity_y;//228
+float_u ki_loiter_velocity_y;//232
+float_u kd_loiter_velocity_y;//236
+float_u fc_loiter_velocity_y;//240
 
-    float kp_waypoint_velocity;//260
-    float ki_waypoint_velocity;//264
-    float kd_waypoint_velocity;//268
-    float fc_waypoint_velocity;//272
+float_u kp_waypoint_position;//244
+float_u ki_waypoint_position;//248
+float_u kd_waypoint_position;//252
+float_u fc_waypoint_position;//256
 
-    float kp_cross_track;//276
-    float ki_cross_track;//280
-    float kd_cross_track;//284
-    float fc_cross_track;//288
+float_u kp_waypoint_velocity;//260
+float_u ki_waypoint_velocity;//264
+float_u kd_waypoint_velocity;//268
+float_u fc_waypoint_velocity;//272
 
-    float declination;//292
+float_u kp_cross_track;//276
+float_u ki_cross_track;//280
+float_u kd_cross_track;//284
+float_u fc_cross_track;//288
 
-    uint8_t gpsFix;//296
-    uint8_t flightMode;//297
+//float_u declination;//292
+
+uint8_t gpsFix;//296
+uint8_t flightMode;//297
 
 
-  }
-  v;
-  uint8_t buffer[300];
-}
-FC_Data_type;//think of better name
 
-FC_Data_type d;
-
-uint8_t numBytesIn,numBytesOut,inByteCount,inByteRadio,parseIndex=0,cmdIndex=0,cmdState=0,cmdBuffer[64];
-volatile uint8_t inBuffer[RADIO_BUF_SIZE];
-volatile uint16_t bufferIndexRadio=0;
-uint16_t varIndex=0;
-volatile boolean newRadio = false;
-uint32_t radioTimer;
-uint8_t inputSum=0,inputDoubleSum=0,outputSum=0,outputDoubleSum=0,packetTemp[2];
-uint16_t packetNumberLocalOrdered,packetNumberRemoteOrdered,packetNumberLocalUn,packetNumberRemoteUn;
-boolean ordered = false;
-volatile boolean handShake = false;
-uint8_t temp;
-boolean tuningTransmit = false;
-uint8_t numOfItems;
-uint8_t itemBuffer[30];
-uint32_t refreshMillis;
-uint32_t tuningTimer;
-boolean tuningTrasnmitOK = false;
-
-typedef union{
-  float num;
-  uint8_t buffer[4];
-}
-Float_Union_t;
-
-Float_Union_t outFloat;
-
-uint8_t lenOfTuningDataPacket;
-uint8_t refreshRate;
+float_u outFloat;
 
 
 //control related vars
-float pitchSetPoint;
-float rollSetPoint;
-float yawSetPoint;
-float rateSetPointX;    
-float rateSetPointY;
-float rateSetPointZ;
-float adjustmentX;
-float adjustmentY;
-float adjustmentZ; 
-//float altitudeSetPoint;
-float throttleAdjustment;    
-float velSetPointX,velSetPointY;
-float targetAltitude,targetVelAlt,actualAltitude,distToAlt;
+float_u pitchSetPoint;
+float_u rollSetPoint;
+float_u yawSetPoint;
+float_u rateSetPointX;    
+float_u rateSetPointY;
+float_u rateSetPointZ;
+float_u adjustmentX;
+float_u adjustmentY;
+float_u adjustmentZ; 
+float_u throttleAdjustment;    
+float_u velSetPointX,velSetPointY;
+float_u zTarget,velSetPointZ,actualAltitude;
 float yawInput;
 float zero = 0.0;
-float pitchSetPointTX,rollSetPointTX;
-float distToWayPoint,targetVelWayPoint;
+float_u pitchSetPointTX,rollSetPointTX;
+float_u distToWayPoint,targetVelWayPoint;
 float speed2D_MPS;
-float setPointX,setPointY;
-uint8_t HHState = 3;
-float motorCommand1,motorCommand2,motorCommand3,motorCommand4;
+float_u tiltAngleX,tiltAngleY;
+uint8_t HHState = 1;
+float_u motorCommand1,motorCommand2,motorCommand3,motorCommand4;
 
 boolean integrate = false;
-boolean throttleHold = true;
 boolean enterState = true;
 
-uint8_t currentWayPointNumber = 0, inputWayPointNumber = 0,wayPointState = 0;
-boolean startFlight = false;
-int32_t latTarget,lonTarget;//check to make sure this is correct for loiter
-boolean endOfWPCheck = false; 
-boolean RTBFailSafe = false;
-boolean RTBFlag = false;
-
-float altitudeDifference; 
-boolean GPSPID = false;//needed?
-uint32_t endOfWPTimer;
 boolean calcYaw;
-
-boolean headFreeOK = false,activeOK = false,loiterOK = false;
 
 
 //failsafe related vars
-boolean failSafe = false;
+volatile boolean failSafe = false;
 boolean toggle;
-boolean watchDogStartCount;
-uint32_t watchDogFailSafeCounter,RCFailSafeCounter;
+volatile boolean watchDogStartCount;
+volatile uint32_t watchDogFailSafeCounter,RCFailSafeCounter;
 
-//figure out where to put later--------------------
-float xTarget,yTarget;
+float_u xTarget,yTarget;
 uint8_t calibrationFlags;
 
 uint8_t outFloatIndex;
@@ -495,124 +602,122 @@ uint8_t outFloatIndex;
 boolean allCalibrated = false;
 boolean calibrationMode = false;
 
+float magOffSetX;
+float magOffSetY;
+float magOffSetZ;
+float magWInv00;
+float magWInv01;
+float magWInv02;
+float magWInv10;
+float magWInv11;
+float magWInv12;
+float magWInv20;
+float magWInv21;
+float magWInv22;
+float accXScalePos, accYScalePos, accZScalePos, accXScaleNeg, accYScaleNeg, accZScaleNeg;
 
-float ACC_OFFSET_X;
-float ACC_OFFSET_Y;
-float ACC_OFFSET_Z;
-float ACC_W_INV_00;
-float ACC_W_INV_01;
-float ACC_W_INV_02;
-float ACC_W_INV_10;
-float ACC_W_INV_11;
-float ACC_W_INV_12;
-float ACC_W_INV_20;
-float ACC_W_INV_21;
-float ACC_W_INV_22;
-
-
-//magnetometer calibration values
-float MAG_OFFSET_X;
-float MAG_OFFSET_Y;
-float MAG_OFFSET_Z;
-float MAG_W_INV_00;
-float MAG_W_INV_01;
-float MAG_W_INV_02;
-float MAG_W_INV_10;
-float MAG_W_INV_11;
-float MAG_W_INV_12;
-float MAG_W_INV_20;
-float MAG_W_INV_21;
-float MAG_W_INV_22;
-
-//uint32_t _200HzTimer;
 float rateDT;
 
 float gravSum;
 float gravAvg;
 float shiftedAccX,shiftedAccY,shiftedAccZ;
-float smoothAlt;
-
 
 //constructors //fix the dts
-openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,
-&smoothAccX,&smoothAccY,&smoothAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&rawZ,&imuDT,&d.v.declination,
-&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&d.v.kd_cross_track,&d.v.fc_cross_track);
-//openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&scaledAccX,&scaledAccY,&scaledAccZ,&floatMagX,&floatMagY,&floatMagZ,&rawX,&rawY,&smoothAlt,&imuDT,&d.v.declination);
+openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&filtAccX.val,&filtAccY.val,&filtAccZ.val,&calibMagX.val,&calibMagY.val,&calibMagZ.val,&rawX.val,&rawY.val,&rawZ.val,&imuDT);
 
-PID PitchAngle(&pitchSetPoint,&imu.pitch,&rateSetPointY,&integrate,&d.v.kp_pitch_attitude,&d.v.ki_pitch_attitude,&d.v.kd_pitch_attitude,&d.v.fc_pitch_attitude,&imuDT,800,800);
-PID RollAngle(&rollSetPoint,&imu.roll,&rateSetPointX,&integrate,&d.v.kp_roll_attitude,&d.v.ki_roll_attitude,&d.v.kd_roll_attitude,&d.v.fc_roll_attitude,&imuDT,800,800);
-YAW YawAngle(&yawSetPoint,&imu.yaw,&rateSetPointZ,&integrate,&d.v.kp_yaw_attitude,&d.v.ki_yaw_attitude,&d.v.kd_yaw_attitude,&d.v.fc_yaw_attitude,&imuDT,800,800);
+PID PitchRate(&rateSetPointY.val,&degreeGyroY.val,&adjustmentY.val,&integrate,&kp_pitch_rate.val,&ki_pitch_rate.val,&kd_pitch_rate.val,&fc_pitch_rate.val,&rateDT,400,400);
+PID RollRate(&rateSetPointX.val,&degreeGyroX.val,&adjustmentX.val,&integrate,&kp_roll_rate.val,&ki_roll_rate.val,&kd_roll_rate.val,&fc_roll_rate.val,&rateDT,400,400);
+PID YawRate(&rateSetPointZ.val,&degreeGyroZ.val,&adjustmentZ.val,&integrate,&kp_yaw_rate.val,&ki_yaw_rate.val,&kd_yaw_rate.val,&fc_yaw_rate.val,&rateDT,400,400);
 
+PID PitchAngle(&pitchSetPoint.val,&imu.pitch.val,&rateSetPointY.val,&integrate,&kp_pitch_attitude.val,&ki_pitch_attitude.val,&kd_pitch_attitude.val,&fc_pitch_attitude.val,&imuDT,800,800);
+PID RollAngle(&rollSetPoint.val,&imu.roll.val,&rateSetPointX.val,&integrate,&kp_roll_attitude.val,&ki_roll_attitude.val,&kd_roll_attitude.val,&fc_roll_attitude.val,&imuDT,800,800);
+YAW YawAngle(&yawSetPoint.val,&imu.yaw.val,&rateSetPointZ.val,&integrate,&kp_yaw_attitude.val,&ki_yaw_attitude.val,&kd_yaw_attitude.val,&fc_yaw_attitude.val,&imuDT,800,800);
 
-PID PitchRate(&rateSetPointY,&degreeGyroY,&adjustmentY,&integrate,&d.v.kp_pitch_rate,&d.v.ki_pitch_rate,&d.v.kd_pitch_rate,&d.v.fc_pitch_rate,&rateDT,400,400);
-PID RollRate(&rateSetPointX,&degreeGyroX,&adjustmentX,&integrate,&d.v.kp_roll_rate,&d.v.ki_roll_rate,&d.v.kd_roll_rate,&d.v.fc_roll_rate,&rateDT,400,400);
-PID YawRate(&rateSetPointZ,&degreeGyroZ,&adjustmentZ,&integrate,&d.v.kp_yaw_rate,&d.v.ki_yaw_rate,&d.v.kd_yaw_rate,&d.v.fc_yaw_rate,&rateDT,400,400);
+PID LoiterXPosition(&xTarget.val,&imu.XEst.val,&velSetPointX.val,&integrate,&kp_loiter_pos_x.val,&ki_loiter_pos_x.val,&kd_loiter_pos_x.val,&fc_loiter_pos_x.val,&imuDT,2,2);
+PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,25,25);
 
+PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_loiter_pos_y.val,&ki_loiter_pos_y.val,&kd_loiter_pos_y.val,&fc_loiter_pos_y.val,&imuDT,2,2);
+PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,25,25);
 
-PID AltHoldPosition(&targetAltitude,&imu.ZEst,&targetVelAlt,&integrate,&d.v.kp_altitude_position,&d.v.ki_altitude_position,&d.v.kd_altitude_position,&d.v.fc_altitude_position,&imuDT,3,3);
-//PID AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_altitude_rate,&d.v.ki_altitude_rate,&d.v.kd_altitude_rate,&d.v.fc_altitude_rate,&imuDT,800,800);
-ALT AltHoldRate(&targetVelAlt,&imu.velZ,&throttleAdjustment,&integrate,&d.v.kp_altitude_rate,&d.v.ki_altitude_rate,&d.v.kd_altitude_rate,&d.v.fc_altitude_rate,&imuDT,800,800,&d.v.kp_cross_track);
+PID AltHoldPosition(&zTarget.val,&imu.ZEst.val,&velSetPointZ.val,&integrate,&kp_altitude_position.val,&ki_altitude_position.val,&kd_altitude_position.val,&fc_altitude_position.val,&imuDT,1.5,1.5);
+ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,400,800,&mul_altitude_velocity.val);
 
-PID WayPointPosition(&zero,&distToWayPoint,&targetVelWayPoint,&integrate,&d.v.kp_waypoint_position,&d.v.ki_waypoint_position,&d.v.kd_waypoint_position,&d.v.fc_waypoint_position,&GPSDT,10,10);
-PID WayPointRate(&targetVelWayPoint,&speed2D_MPS,&pitchSetPoint,&integrate,&d.v.kp_waypoint_velocity,&d.v.ki_waypoint_velocity,&d.v.kd_waypoint_velocity,&d.v.fc_waypoint_velocity,&imuDT,45,45);
-//PID CrossTrack - include P
+PID WayPointPosition(&zero,&distToWayPoint.val,&targetVelWayPoint.val,&integrate,&kp_waypoint_position.val,&ki_waypoint_position.val,&kd_waypoint_position.val,&fc_waypoint_position.val,&GPSDT,10,10);
+PID WayPointRate(&targetVelWayPoint.val,&speed2D_MPS,&pitchSetPoint.val,&integrate,&kp_waypoint_velocity.val,&ki_waypoint_velocity.val,&kd_waypoint_velocity.val,&fc_waypoint_velocity.val,&imuDT,45,45);
+//PID CrossTrack 
 //2D speed from GPS best idea where or use the vel from the estimator?
 
-PID LoiterXPosition(&xTarget,&imu.XEst,&velSetPointX,&integrate,&d.v.kp_loiter_pos_x,&d.v.ki_loiter_pos_x,&d.v.kd_loiter_pos_x,&d.v.fc_loiter_pos_x,&imuDT,1,1);
-PID LoiterXRate(&velSetPointX,&imu.velX,&setPointX,&integrate,&d.v.kp_loiter_rate_x,&d.v.ki_loiter_rate_x,&d.v.kd_loiter_rate_x,&d.v.fc_loiter_rate_x,&imuDT,25,25);
-PID LoiterYPosition(&yTarget,&imu.YEst,&velSetPointY,&integrate,&d.v.kp_loiter_pos_y,&d.v.ki_loiter_pos_y,&d.v.kd_loiter_pos_y,&d.v.fc_loiter_pos_y,&imuDT,1,1);
-PID LoiterYRate(&velSetPointY,&imu.velY,&setPointY,&integrate,&d.v.kp_loiter_rate_y,&d.v.ki_loiter_rate_y,&d.v.kd_loiter_rate_y,&d.v.fc_loiter_rate_y,&imuDT,25,25);
+
 
 //x and y setpoints are rotated into pitch and roll set points
 
-//for debugging the protocol remove later
-//remove
 
-boolean baroFlag,GPSFlag;
-
-float inertialXSmooth;
-float inertialYSmooth;
-float inertialZSmooth;  
-float rGOutX,rGOutY,rGOutZ;
 uint32_t _400HzTimer;
-uint8_t LEDState;
-float accXScalePos, accYScalePos, accZScalePos, accXScaleNeg, accYScaleNeg, accZScaleNeg;
-float accXOffset,accYOffset;
-uint32_t loopCount;
+float controlBearing;
+uint8_t XYLoiterState,ZLoiterState;
+int16_t rcDifference;
+uint32_t waitTimer;
+uint8_t RTBState;
 
-//float xDifference,yDifference,predictedX,predictedY,positionError,expandingDist;
+
+
 volatile boolean gpsUpdate = false;
-//uint8_t debugFlag,updateCount;
-//float predVelX,predVelY;
 uint32_t gpsFixAge;
+
 
 float startingX,startingY,jumpDistX,jumpDistY,homeBaseXOffset=0,homeBaseYOffset=0;
 #define POSITION_ERROR_LIMIT 2.5f
-#define ACC_RATE 1.1f
-#define DR_PERIOD 0.9 * 1000000 
+#define ACC_RATE 1.098f
+#define DR_PERIOD 1.0 * 1000000 
 #define DR_FS_PERIOD 5 * 1000000 
 float drTimer;
-float positionError,accCircle=POSITION_ERROR_LIMIT;
+float_u positionError,accCircle;
 boolean drFlag = false;
-float drVelX,drVelY,drPosX,drPosY;
+float_u drVelX,drVelY,drPosX,drPosY;
 float halfDTSq;
 boolean GPSDenial = false;
 uint32_t gpsUpdateTimer;
-uint8_t denialCause = 0;
-boolean offsetFlag = false;
+int16_u numSats;
+int32_u hDop;
+
+//radio protocol vars
+uint16_t localPacketNumberOrdered,localPacketNumberUn,remotePacketNumberOrdered,remotePacketNumberUn,packetTemp[2];
+uint32_t radioTimer;
+boolean handShake;
+uint8_t handShakeState,rxSum,rxDoubleSum,txSum,txDoubleSum,radioByte,
+packetLength,numRXBytes,radioState,numRXbytes,typeNum,cmdNum,
+itemBuffer[255],itemIndex,temp,hsNumItems,lsNumItems,hsList[40],lsList[40],liveDataBuffer[200],hsRequestNumber,lsRequestNumber,hsListIndex,lsListIndex;
+uint32_t hsMillis,lsMillis,hsTXTimer,lsTXTimer;
+boolean offsetFlag,sendCalibrationData,hsTX,lsTX,tuningTrasnmitOK;
 
 
-/*int16_t inBufferX[3],inBufferY[3],inBufferZ[3];
- float outBufferX[3],outBufferY[3],outBufferZ[3];
- int8_t filterIndex = 0;
- */
-void pause(){
-  while(digitalRead(22)==0){
-  }//wait for the toggle
-  delay(500);
-}
+boolean gpsFailSafe,txFailSafe,telemFailSafe,battFailSafe;
 
+boolean trimMode,setTrim,trimComplete,throttleCheckFlag,autoMaticReady;
+boolean modeSelect = false;
+uint8_t switchPositions,clearTXRTB;
+uint8_t previousFlightMode,motorState;
+float initialYaw;
+uint32_t tuningItemIndex;
+uint32_t radioLimitTimer;
 
+Print* radioPrint;
+Stream* radioStream;
+
+boolean USBFlag = false,saveGainsFlag = false;
+uint16_t j_;
+/*void pause(){
+ while(digitalRead(22)==0){
+ }//wait for the toggle
+ delay(500);
+ }
+ 
+ char hex[17]="0123456789ABCDEF";
+ 
+ void ShowHex(byte convertByte){
+ Port0 << hex[(convertByte >>4) & 0x0F];
+ Port0 << hex[convertByte & 0x0F]<<"\r\n";
+ }*/
 
 
 void setup(){
@@ -621,6 +726,15 @@ void setup(){
   pinMode(GREEN,OUTPUT);
   //digitalWrite(RED,HIGH);
   pinMode(13,OUTPUT);
+  Port0.begin(115200);
+  AssignPointerArray();
+  //----------------------------
+  //Port0<<"start\r\n";
+  //ROMFlagsCheck();
+  //DEBUG_DUMP();
+  //while(1){}
+
+  //----------------------------  
   AccSSOutput();//this was moved from the init
   AccSSHigh();//if high isn't written to both devices befor config 
   GyroSSOutput();//the SPI bus will be addressing both devices 
@@ -635,13 +749,27 @@ void setup(){
   D28Output();
   D29Output();
 
-  Serial.begin(115200);
+
   DetectRC();
   _200HzISRConfig();
   MotorInit();
+  ROMFlagsCheck();
   CalibrateESC();//throttle high will trigger this reset after calibration
   delay(3500);//this allows the telemetry radios to connect before trying the handshake
+
+  Port2.begin(115200);
+  radioStream = &Port2;
+  radioPrint = &Port2;
   HandShake();
+
+  if (handShake == false){
+    USBFlag = true;
+    radioStream = &Port0;
+    radioPrint = &Port0;
+    HandShake();
+  }
+  
+
   I2c.begin();
   I2c.setSpeed(1);
   SPI.begin();
@@ -655,270 +783,72 @@ void setup(){
     MagInit();
     CalibrateSensors();  
   }
-  ROMFlagsCheck();
-  //DEBUG_DUMP();
-  digitalWrite(RED,HIGH);
+
+
+  ModeSelect();
   Arm();//move the rudder to the right to begin calibration
 
-  digitalWrite(RED,LOW);
-  digitalWrite(YELLOW,HIGH);
-  digitalWrite(GREEN,HIGH);
   AccInit();
   MagInit();
   GyroInit();
   imu.InitialQuat();
-  ACC_OFFSET_X = 0;
-  ACC_OFFSET_Y = 0;
-  ACC_OFFSET_Z = 0;
-
-
-  //#1
-  /*accXScalePos = 0.0379844;
-   accXScaleNeg = 0.0404958;
-   
-   accYScalePos = 0.0378378;
-   accYScaleNeg = 0.0371212;
-   
-   accZScalePos = 0.0362962;
-   accZScaleNeg = 0.0413502;*/
-
-  //#2
-  /*accXScalePos = 0.0378378;
-   accXScaleNeg = 0.0393574;
-   
-   accYScalePos = 0.04;
-   accYScaleNeg = 0.0368421;
-   
-   accZScalePos = 0.0375478;
-   accZScaleNeg = 0.0403292;*/
-
-  //#3
-  /*accXScalePos = 0.0368421;
-   accXScaleNeg = 0.0396761;
-   
-   accYScalePos = 0.0387351;
-   accYScaleNeg = 0.0376923;
-   
-   accZScalePos = 0.0378378;
-   accZScaleNeg = 0.04083;*/
-
-  //#4
-  /*accXScalePos = 0.0365671;
-  accXScaleNeg = 0.0401639;
-
-  accYScalePos = 0.0382812;
-  accYScaleNeg = 0.0379844;
-
-  accZScalePos = 0.0362962;
-  accZScaleNeg = 0.0411764;*/
-
-  //#5
-  /*accXScalePos = 0.0384313;
-   accXScaleNeg = 0.0384313;
-   
-   accYScalePos = 0.0398373;
-   accYScaleNeg = 0.0372623;
-   
-   accZScalePos = 0.0358974;
-   accZScaleNeg = 0.0426086;*/
-
-  //#6
-  accXScalePos = 0.0357664;
-   accXScaleNeg = 0.04;
-   
-   accYScalePos = 0.03828125;
-   accYScaleNeg = 0.03828125;
-   
-   accZScalePos = 0.0369811;
-   accZScaleNeg = 0.0408333;
-
-  /*accXScalePos = 0.03828125;
-   accYScalePos = 0.03828125;
-   accZScalePos = 0.03828125;
-   accXScaleNeg = 0.03828125;
-   accYScaleNeg = 0.03828125;
-   accZScaleNeg = 0.03828125;*/
-  //--------------------
-  accCircle = d.v.kp_waypoint_position;
-
 
   CalcGravityOffSet();
 
   BaroInit();
   GPSStart();
-  SafetyCheck();
-  digitalWrite(GREEN,HIGH);
-  delay(500);
-  digitalWrite(GREEN,LOW);
-
+  
+  CheckTXPositions();
   imuTimer = micros();
   _400HzTimer = micros();
   generalPurposeTimer = millis();
   watchDogStartCount = true;
+
+  accCircle.val = POSITION_ERROR_LIMIT;
+  digitalWrite(RED,LOW);
+  digitalWrite(YELLOW,LOW);
+  digitalWrite(GREEN,LOW);
+  digitalWrite(13,LOW);
+
 }
 
 void loop(){
+
   _400HzTask();
   if ( micros() - imuTimer >= 16666){  
-    //D24High();
     imuDT = (micros() - imuTimer) * 0.000001;
     imuTimer = micros();
-    _400HzTask();
-    //loopCount++;
-    //to do break into functions 
+    estimateAttitude();
+    estimatePositionVelocity();
+    getAngles();
 
-    //D22High();
-    GetMag();
-    _400HzTask();
-    accToFilterX = -1.0 * smoothAccX;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
-    accToFilterY = -1.0 * smoothAccY;
-    accToFilterZ = -1.0 * smoothAccZ;
-    imu.AHRSStart();
-    _400HzTask();
-    imu.AHRSEnd();
-    //D22Low();
-    /*if (loopCount % 4 == 0){
-     D22High();
-     GetMag();
-     //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
-     //imu.feedBack = false;
-     _400HzTask();
-     
-     imu.AHRSStart();
-     
-     _400HzTask();
-     //Serial<<imu.feedBack<<"\r\n";
-     imu.AHRSEnd();
-     D22Low();
-     
-     }
-     else{
-     D23High();
-     imu.IMUupdate();
-     D23Low();
-     //Serial<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-     }*/
-    _400HzTask();
-    if (drFlag == false){
-      digitalWrite(GREEN,LOW);
-      //if (imuTimer - drTimer > DR_PERIOD ){
-      if (imuTimer - drTimer > d.v.ki_waypoint_position ){
-        drTimer = imuTimer;
-        drVelX = imu.velX;
-        drPosX = imu.XEst;
 
-        drVelY = imu.velY;
-        drPosY = imu.YEst;      
-
-      }
-      else{
-        halfDTSq = 0.5 * imuDT * imuDT;
-        drVelX += imu.inertialX * imuDT + imu.accelBiasX * imuDT;
-        drPosX += drVelX * imuDT + imu.inertialX * halfDTSq + imu.accelBiasX * halfDTSq;
-
-        drVelY += imu.inertialY * imuDT + imu.accelBiasY * imuDT;
-        drPosY += drVelY * imuDT + imu.inertialY * halfDTSq + imu.accelBiasY * halfDTSq;
-      }      
-    }
-    else{
-      digitalWrite(GREEN,HIGH);
-      halfDTSq = 0.5 * imuDT * imuDT;
-      drVelX += imu.inertialX * imuDT + imu.accelBiasX * imuDT;
-      drPosX += drVelX * imuDT + imu.inertialX * halfDTSq + imu.accelBiasX * halfDTSq;
-
-      drVelY += imu.inertialY * imuDT + imu.accelBiasY * imuDT;
-      drPosY += drVelY * imuDT + imu.inertialY * halfDTSq + imu.accelBiasY * halfDTSq;
-
-      imu.XEst = drPosX;
-      imu.velX = drVelX;
-
-      imu.YEst = drPosY;
-      imu.velY = drVelY;
-      if (imuTimer - drTimer > DR_FS_PERIOD ){
-        GPSDenial = true;
-        denialCause = 1;
-        digitalWrite(YELLOW,HIGH);
-      }
-    }
-    /*GetMag();
-     
-     _400HzTask();
-     imu.AHRSStart();
-     
-     _400HzTask();
-     
-     imu.AHRSEnd();*/
-
+    FlightSM();
 
     _400HzTask();
 
-    imu.GetInertial();
-
-    _400HzTask();
-
-
-
-    imu.pUpateX();
-
-    _400HzTask();
-
-    imu.pUpateY();
-
-    _400HzTask();
-
-    imu.pUpateZ();
-
-    _400HzTask();
-
-    imu.UpdateLagIndex();
-
-    _400HzTask();
-
-    imu.GetPitch();
-
-    _400HzTask();
-
-    imu.GetRoll();
-
-    _400HzTask();
-
-    imu.GetYaw();
-
-    _400HzTask();
-
-    if (throttleHold == false){
-      FlightSM();
-    }
-
-    _400HzTask();
-
-    if (d.v.flightMode > 0){
+    if (flightMode > 0){
       PitchAngle.calculate();
       RollAngle.calculate();
-      if (calcYaw == true){//allows for input of yaw with HH processor
+      if (calcYaw == true){
         YawAngle.calculate();
       }
     }
-
     _400HzTask();
 
-    d.v.pitch = imu.pitch;
-    d.v.yaw = imu.yaw;
-    d.v.roll = imu.roll;
+
 
     tuningTrasnmitOK = true;
 
     _400HzTask();
-    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
+    gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
     if (gpsFixAge > 500){
       GPSDenial = true;
-      denialCause = 2;
+      gpsFailSafe = true;
     }
+  }
 
-  }
-  if (GPSDenial == true){
-    digitalWrite(13,HIGH);
-  }
+
   _400HzTask();
   if (handShake == true){
     Radio();
@@ -928,91 +858,71 @@ void loop(){
     }
   }
 
-  _400HzTask();
-  /*if (millis() - generalPurposeTimer >= 100){
-   generalPurposeTimer = millis();
-   //Serial<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-   //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<","<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<","<<gyro.v.x<<","<<gyro.v.y<<","<<gyro.v.z<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Serial<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
-   //Serial<<imu.inertialZ<<"\r\n";
-   //Serial<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Serial<<mag.v.x<<","<<mag.v.y<<","<<mag.v.z<<"\r\n";
-   //Serial<<generalPurposeTimer<<","<<imu.pitch<<","<<imu.roll<<","<<imu.yaw<<"\r\n";
-   //Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<"\r\n";
-   //Serial<<imu.accelBiasX<<","<<imu.accelBiasY<<","<<imu.accelBiasZ<<","<<imu.inertialX<<","<<imu.inertialY<<","<<imu.inertialZ<<"\r\n";
-   //gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
-   //Serial<<d.v.lattitude<<","<<d.v.longitude<<","<<gps.satellites()<<","<<gpsUpdate<<","<<gpsFixAge<<"\r\n";
-   }
-   _400HzTask();*/
-  if (gpsUpdate == true){
-    gpsUpdate = false;
-    GPSFlag = true;
-    gps.get_position(&d.v.lattitude,&d.v.longitude,&gpsFixAge);
 
-    DistBearing(&homeBase.coord.lat,&homeBase.coord.lon,&d.v.lattitude,&d.v.longitude,&rawX,&rawY,&beeLineDist,&beeLineHeading);
-    //imu.GPSKalUpdate();
-    if (gps.satellites() < 6  || gps.hdop() >= 250){
+  _400HzTask();
+
+  if (gpsUpdate == true){
+    D28High();
+    gpsUpdate = false;
+    //GPSFlag = true;
+    gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
+
+    DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
+    numSats.val = gps.satellites();
+    hDop.val = gps.hdop();
+    if (numSats.val <= 6 || hDop.val >= 215){
       digitalWrite(RED,HIGH);
       GPSDenial = true;
-      denialCause = 3;
+      gpsFailSafe = true;
     }
-    //
-    positionError = sqrt( sq(rawX - drPosX)  + sq(rawY - drPosY)  );
 
-    //---------------------------------
-    if (positionError > d.v.kp_waypoint_position/*POSITION_ERROR_LIMIT*/ && drFlag == false){
+    positionError.val = sqrt( sq(rawX.val - drPosX.val)  + sq(rawY.val - drPosY.val)  );
+
+    if (positionError.val > POSITION_ERROR_LIMIT && drFlag == false){
       drFlag = true;
-      startingX = drPosX;
-      startingY = drPosY;
-      imu.velX = drVelX;
-      imu.velY = drVelY;
+      startingX = drPosX.val;
+      startingY = drPosY.val;
+      imu.velX.val = drVelX.val;
+      imu.velY.val = drVelY.val;
 
-      accCircle = d.v.kp_waypoint_position/*POSITION_ERROR_LIMIT*/;
+      accCircle.val = POSITION_ERROR_LIMIT;
       drTimer = micros();
     }
     if (drFlag == false){
       imu.GPSKalUpdate();
     }
     else{
-      accCircle *= d.v.kd_waypoint_position /*ACC_RATE*/;
-      if (positionError < d.v.kp_waypoint_position/*POSITION_ERROR_LIMIT*/){
+      accCircle.val *= ACC_RATE;
+      if (positionError.val < POSITION_ERROR_LIMIT){
         drFlag = false;
       }
       else{
-        if (positionError < accCircle){
+        if (positionError.val < accCircle.val){
           drFlag = false;
-          jumpDistX = rawX - startingX;
-          jumpDistY = rawY - startingY;
-          xTarget += jumpDistX;
-          yTarget += jumpDistY;
-          drPosX = rawX;
-          drPosY = rawY;
+          jumpDistX = rawX.val - startingX;
+          jumpDistY = rawY.val - startingY;
+          xTarget.val += jumpDistX;
+          yTarget.val += jumpDistY;
+          drPosX.val = rawX.val;
+          drPosY.val = rawY.val;
           homeBaseXOffset += jumpDistX;
           homeBaseYOffset += jumpDistY;
           imu.currentEstIndex = 0;
           imu.lagIndex = 1;
-          imu.XEst = rawX;
-          imu.YEst = rawY;
+          imu.XEst.val = rawX.val;
+          imu.YEst.val = rawY.val;
           imu.velX = drVelX;
           imu.velY = drVelY;
           for (uint8_t resetIndex = 0; resetIndex< LAG_SIZE; resetIndex++){
-            imu.XEstHist[resetIndex] = rawX;
-            imu.YEstHist[resetIndex] = rawY;
+            imu.XEstHist[resetIndex] = rawX.val;
+            imu.YEstHist[resetIndex] = rawY.val;
           }
           drTimer = micros();
         }
       }
 
     }
-    /*if (gps.data.vars.gpsFix == 0x03 /*&& updateCount == 0 && gpsUpdate == true){
-     imu.GPSKalUpdate();
-     }
-     else{
-     //include action to take in event of fix loss
-     }*/
+    D28Low();
 
   }
 
@@ -1021,25 +931,38 @@ void loop(){
   _400HzTask();
   if (newBaro == true){
     newBaro = false;
-    baroFlag = true;
-    GetAltitude(&pressure,&pressureInitial,&rawZ);
-    //SmoothingBaro(&rawZ,&smoothAlt);
+    //baroFlag = true;
+    GetAltitude(&pressure.val,&pressureInitial,&rawZ.val);
     imu.BaroKalUpdate();
-    d.v.baroAltitude = imu.ZEst;
   }
   _400HzTask();
 
 
-
-
+  /*if (millis() - generalPurposeTimer >= 100){
+   generalPurposeTimer = millis();
+   //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
+   //Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
+   //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   //Port0<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
+   ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
+   //Port0<<imu.inertialZ<<"\r\n";
+   //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
+   <<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
+   <<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+   }
+   _400HzTask();*/
 
   if (newRC == true){
     newRC = false;
     ProcessChannels();
+    GetSwitchPositions();
+    SetFailSafeFlags();
     RCFailSafeCounter = 0;
   }  
   _400HzTask();
   if (RCFailSafeCounter >= 200 || failSafe == true){
+    txFailSafe = true;
     TIMSK5 = (0<<OCIE5A);
     digitalWrite(13,LOW);
     digitalWrite(RED,LOW);
@@ -1053,9 +976,9 @@ void loop(){
     Motor6WriteMicros(1000);
     Motor7WriteMicros(1000);
     Motor8WriteMicros(1000);
-    /*if (failSafe == true){
-     digitalWrite(RED,HIGH);
-     }*/
+    if (failSafe == true){
+      digitalWrite(RED,HIGH);
+    }
     while(1){
 
       digitalWrite(YELLOW,HIGH);
@@ -1066,7 +989,107 @@ void loop(){
   }
   _400HzTask();
   watchDogFailSafeCounter = 0;
-  //Serial.println(freeMemory());
+  if (gpsFailSafe == true){
+    digitalWrite(GREEN,LOW);
+    digitalWrite(YELLOW,HIGH);
+  }
+  //Port0.println(freeMemory());
+}
+
+void getAngles(){
+
+  imu.GetPitch();
+
+  _400HzTask();
+
+  imu.GetRoll();
+
+  _400HzTask();
+
+  imu.GetYaw();
+
+  _400HzTask();
+
+}
+
+void estimateAttitude(){
+  _400HzTask();
+
+  GetMag();
+
+  _400HzTask();
+
+  accToFilterX = -1.0 * filtAccX.val;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+  accToFilterY = -1.0 * filtAccY.val;
+  accToFilterZ = -1.0 * filtAccZ.val;
+  imu.AHRSStart();
+
+  _400HzTask();
+
+  imu.AHRSEnd();
+
+}
+
+void estimatePositionVelocity(){
+  if (drFlag == false){
+    if (imuTimer - drTimer > DR_PERIOD ){
+      drTimer = imuTimer;
+      drVelX.val = imu.velX.val;
+      drPosX.val = imu.XEst.val;
+
+      drVelY.val = imu.velY.val;
+      drPosY.val = imu.YEst.val;      
+
+    }
+    else{
+      halfDTSq = 0.5 * imuDT * imuDT;
+      drVelX.val += imu.inertialX.val * imuDT + imu.accelBiasX * imuDT;
+      drPosX.val += drVelX.val * imuDT + imu.inertialX.val * halfDTSq + imu.accelBiasX * halfDTSq;
+
+      drVelY.val += imu.inertialY.val * imuDT + imu.accelBiasY * imuDT;
+      drPosY.val += drVelY.val * imuDT + imu.inertialY.val * halfDTSq + imu.accelBiasY * halfDTSq;
+    }      
+  }
+  else{
+    halfDTSq = 0.5 * imuDT * imuDT;
+    drVelX.val += imu.inertialX.val * imuDT + imu.accelBiasX * imuDT;
+    drPosX.val += drVelX.val * imuDT + imu.inertialX.val * halfDTSq + imu.accelBiasX * halfDTSq;
+
+    drVelY.val += imu.inertialY.val * imuDT + imu.accelBiasY * imuDT;
+    drPosY.val += drVelY.val * imuDT + imu.inertialY.val * halfDTSq + imu.accelBiasY * halfDTSq;
+
+    imu.XEst.val = drPosX.val;
+    imu.velX.val = drVelX.val;
+
+    imu.YEst.val = drPosY.val;
+    imu.velY.val = drVelY.val;
+    if (imuTimer - drTimer > DR_FS_PERIOD ){
+      GPSDenial = true;
+      gpsFailSafe = true;
+    }
+  }
+
+  _400HzTask();
+
+  imu.GetInertial();
+
+  _400HzTask();
+
+  imu.pUpateX();
+
+  _400HzTask();
+
+  imu.pUpateY();
+
+  _400HzTask();
+
+  imu.pUpateZ();
+
+  _400HzTask();
+
+  imu.UpdateLagIndex();
+
+  _400HzTask();
 }
 
 void DistBearing(int32_t *lat1, int32_t *lon1, int32_t *lat2, int32_t *lon2,float *distX,float *distY,float *distDirect,float *bearing){
@@ -1085,6 +1108,7 @@ void DistBearing(int32_t *lat1, int32_t *lon1, int32_t *lat2, int32_t *lon2,floa
 
 void _400HzTask(){
   if (micros() - _400HzTimer >= 2500){
+    D23High();
     rateDT = (micros() - _400HzTimer) * 0.000001;
     _400HzTimer = micros();
     GetGyro();
@@ -1093,322 +1117,234 @@ void _400HzTask(){
     YawRate.calculate();
     MotorHandler();
     GetAcc();
+    D23Low();
   }
 }
 
-
 void FlightSM(){
-  switch (d.v.flightMode){
-  case ACTIVE://active
-    if (enterState == true){    
-      throttleAdjustment = 0;
+
+  switch(flightMode){
+  case RATE:
+    if (enterState == true){
       enterState = false;
+      if (previousFlightMode != RATE && previousFlightMode != ATT){
+        throttleCheckFlag = true;
+      }
       digitalWrite(13,HIGH);
       digitalWrite(RED,HIGH);
       digitalWrite(YELLOW,HIGH);
       digitalWrite(GREEN,HIGH);
-      offsetFlag = false;
+    }
+    TrimCheck();
 
-    }
-    if (rcCommands.values.aux3 > 1500 && offsetFlag == false){
-      offsetFlag = true;
-      imu.pitchOffset = imu.pitch;
-      imu.rollOffset = imu.roll;
-    }
-    if (newRC == true){
-      if (rcCommands.values.gear > 1500){
-        d.v.flightMode = STABLE;
-        enterState = true;
-        headFreeOK = false;
-        PitchAngle.reset();
-        RollAngle.reset();
-        YawAngle.reset();
-        HHState = HH_OFF;
-      }
-    }
     break;
-  case STABLE://stable
+  case ATT:
     if (enterState == true){
-      throttleAdjustment = 0;
+      if (previousFlightMode != RATE && previousFlightMode != ATT){
+        throttleCheckFlag = true;
+      }
       enterState = false;
-      //digitalWrite(13,HIGH);
+      digitalWrite(13,LOW);
+      digitalWrite(RED,LOW);
+      digitalWrite(YELLOW,LOW);
+      digitalWrite(GREEN,LOW);
+    }
+    HeadingHold();
+    TrimCheck();
+    break;
+  case L0:
+    if (enterState == true){
+      enterState = false;
+      InitLoiter();
+      digitalWrite(13,HIGH);
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,LOW);
+      digitalWrite(GREEN,LOW);
+    }
+    HeadingHold();
+    controlBearing = imu.yaw.val;
+    LoiterSM();
+    break;
+  case L1:
+    if (enterState == true){
+      enterState = false;
+      InitLoiter();
+      digitalWrite(13,HIGH);
       digitalWrite(RED,LOW);
       digitalWrite(YELLOW,HIGH);
-      //digitalWrite(GREEN,LOW);
-    }
-    if (newRC == true){
-      if (rcCommands.values.gear > 1500){
-        activeOK = true;
-      }
-
-      if (rcCommands.values.gear < 1500 && activeOK == true){
-        activeOK = false;
-        d.v.flightMode = ACTIVE; 
-        enterState = true;
-      }
-      if (rcCommands.values.aux1 < 1500 && rcCommands.values.aux2 < 1500 && rcCommands.values.aux3 < 1500){
-        headFreeOK = true;
-      }
-      if (rcCommands.values.aux3 > 1500){
-        //reset DR stuff
-        GPSDenial = false;
-        drFlag = false;
-        drTimer = 0;
-        denialCause = 0;
-        positionError = 0;
-        imu.currentEstIndex = 0;
-        imu.lagIndex = 1;
-        imu.XEst = rawX;
-        imu.YEst = rawY;
-        imu.velX = 0;
-        imu.velY = 0;
-        accCircle = d.v.kp_waypoint_position /*d.v.POSITION_ERROR_LIMIT*/;
-        digitalWrite(13,LOW);
-        for (uint8_t resetIndex = 0; resetIndex< LAG_SIZE; resetIndex++){
-          imu.XEstHist[resetIndex] = rawX;
-          imu.YEstHist[resetIndex] = rawY;
-        }
-      }
-      if (rcCommands.values.aux1 > 1500 && headFreeOK == true && GPSDetected == true && GPSDenial == false){
-        activeOK = false;
-        headFreeOK = false;
-        //d.v.flightMode = HEAD_FREE; 
-        d.v.flightMode = LOITER;
-        enterState = true;
-        //headingFreeInitial = imu.yaw; //add later
-      }
-    }
-    HeadingHold();
-    break;
-  case HEAD_FREE:
-    if (enterState == true){
-      throttleAdjustment = 0;
-      enterState = false;
-      //GPSState = MANUAL; // add once the decision is final regarding modes
-      digitalWrite(13,LOW);
-      digitalWrite(RED,HIGH);
-      digitalWrite(YELLOW,LOW);
       digitalWrite(GREEN,LOW);
-      targetAltitude = imu.ZEst;
-      //tempAltitude = targetAltitude;
-      AltHoldPosition.reset();
-      AltHoldRate.reset();
+      controlBearing = initialYaw;
+
     }
     HeadingHold();
-    //HeadingFree();
-    actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
-    AltHoldPosition.calculate();
-    AltHoldRate.calculate();
-    //Serial<<millis()<<","<<targetAltitude<<","<<imu.altitude<<","<<targetVelAlt<<","<<imu.velocityZ<<","<<throttleAdjustment<<","<<(gps.data.vars.height*0.001)<<"\r\n";
-    if (newRC == true){
-      if (rcCommands.values.aux1 < 1500){
-        d.v.flightMode = STABLE;
-        enterState = true;
-        //stableCause = 2;
-      }
-      if (rcCommands.values.aux2 < 1500){
-        loiterOK = true;
-      }
-      if (rcCommands.values.aux2 > 1500 && loiterOK == true && GPSDetected == true && rcCommands.values.aux3 < 1500){
-        d.v.flightMode = LOITER;
-        enterState = true;
-      }
-    }
+    LoiterSM();
     break;
-  case LOITER:
+  case L2:
     if (enterState == true){
-      LoiterXPosition.reset();
-      LoiterXRate.reset();
-      LoiterYPosition.reset();
-      LoiterYRate.reset();
-      //AltHoldPosition.reset();
-      //AltHoldRate.reset();//add back in after testing is complete
-      //latTarget = d.v.lattitude;
-      //lonTarget = d.v.lattitude;//not needed
-      xTarget = imu.XEst;
-      yTarget = imu.YEst;
-      enterState = false;
-      //startingThrottle = rcCommands.values.throttle; //will this bue used or will we do simple controls like up down?
-      digitalWrite(13,LOW);
-      digitalWrite(RED,HIGH);
-      digitalWrite(YELLOW,LOW);
-      digitalWrite(GREEN,LOW);
-      targetAltitude = imu.ZEst;
-      //tempAltitude = targetAltitude;
-      AltHoldPosition.reset();
-      AltHoldRate.reset();
-    }
-    HeadingHold();
-    //add in alt hold settings
-    //HeadingFree();
-    //gps.DistBearing(&latTarget,&lonTarget,&gps.data.vars.lat,&gps.data.vars.lon,&rawX,&rawY,&beeLineDist,&beeLineHeading);
-    //incorrect pace the rawX and rawY should be calculated when the GPS comes in
-    if (rcCommands.values.aux2 > 1500){
-      GPSDenial = true;
-      denialCause = 4;
-    }
-    if (GPSDenial == false){
-      LoiterXPosition.calculate();
-      LoiterYPosition.calculate();
-      LoiterXRate.calculate();
-      setPointX *= -1.0;
-      LoiterYRate.calculate();
-      RotatePitchRoll(&imu.yaw,&zero,&setPointX,&setPointY,&pitchSetPoint,&rollSetPoint);
-      actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
-      AltHoldPosition.calculate();
-      AltHoldRate.calculate();
-    }
-    else{
-      pitchSetPoint = pitchSetPointTX;
-      rollSetPoint = rollSetPointTX;
-      //pitchSetPoint = 0;
-      //rollSetPoint = 0;
-      targetVelAlt = -1.0;
-      actualAltitude = imu.ZEst;//switch PID loop to use imu.Zest?
-      AltHoldRate.calculate();
-      if (throttleCommand + throttleAdjustment < 0){
-        d.v.flightMode = STABLE;
-        enterState = true;
-        throttleHold = true;
-        Motor1WriteMicros(1000);
-        Motor2WriteMicros(1000);
-        Motor3WriteMicros(1000);
-        Motor4WriteMicros(1000); 
-
-      }
-
-    }
-
-    if (newRC == true){
-      if (rcCommands.values.aux1 < 1500){
-        d.v.flightMode = STABLE;
-        enterState = true;
-        loiterOK = false;
-      }
-      //if (abs(startingThrottle - rcCommands.values.throttle) > 50){//make this larger? adjust altitude set point?
-      //d.v.flightMode = HEAD_FREE; 
-      //enterState = true;
-      //loiterOK = false;
-      //}
-      /*if (rcCommands.values.aux2 < 1500){
-       d.v.flightMode = HEAD_FREE; 
-       enterState = true;
-       }
-       if (rcCommands.values.aux3 > 1500 && handShake == true && RTBFailSafe == false){
-       d.v.flightMode = WAYPOINT; 
-       WayPointPosition.reset();
-       WayPointRate.reset();
-       enterState = true;
-       calcYaw = true;
-       endOfWPCheck = false; 
-       
-       }*/
-    }
-    break;
-  case WAYPOINT:
-    if (enterState == true){
-      //GPSTimer = millis();
-      //altHoldTimer = GPSTimer;
-      enterState = false;
-      yawSetPoint = imu.yaw;
-      //targetAltitude = imu.altitude;
-      //altitudeDifference = (d.v.gpsAltitude * 0.001) - imu.altitude;
-      //latTarget = gps.data.vars.lat;
-      //lonTarget = gps.data.vars.lon;
-      wayPointState = WP_HOLD;
-      //startingThrottle = throttleCommand;
-      throttleAdjustment += throttleCommand;
-      throttleCommand = 0;
-      digitalWrite(13,LOW);
+      InitLoiter();
+      digitalWrite(13,HIGH);
       digitalWrite(RED,LOW);
       digitalWrite(YELLOW,LOW);
       digitalWrite(GREEN,HIGH);
+
+      enterState = false;
     }
-    WayPointControl();
-    if (newRC == true){
-      if (rcCommands.values.aux1 < 1500){
-        d.v.flightMode = STABLE;
-        enterState = true;
-        loiterOK = false;
-      }
-      if (rcCommands.values.aux2 < 1500){
-        d.v.flightMode = HEAD_FREE; 
-        enterState = true;
-      }
-      if (rcCommands.values.aux3 < 1500){
-        d.v.flightMode = LOITER;
-        enterState = true;
-        //throttleAdjustment -= startingThrottle;
-        //throttleCommand = startingThrottle;
-      }   
+    HeadingHold();
+    controlBearing = headingToCraft;
+    LoiterSM();
+    break;
+  case FOLLOW:
+    digitalWrite(13,LOW);
+    digitalWrite(RED,HIGH);
+    digitalWrite(YELLOW,LOW);
+    digitalWrite(GREEN,LOW);
+    if (enterState == true){
+      enterState = false;
     }
     break;
-  default:
-    failSafe = true;
-    //failsafeCause = 2;
+  case WP:
+    digitalWrite(13,LOW);
+    digitalWrite(RED,LOW);
+    digitalWrite(YELLOW,HIGH);
+    digitalWrite(GREEN,LOW);
+    if (enterState == true){
+      enterState = false;
+    }
     break;
+  case RTB:
+    digitalWrite(13,LOW);
+    digitalWrite(RED,LOW);
+    digitalWrite(YELLOW,LOW);
+    digitalWrite(GREEN,HIGH);
+    if (enterState == true){
+      enterState = false;
+      enterState = false;
+      xTarget.val = imu.XEst.val;
+      yTarget.val = imu.YEst.val;
+      zTarget.val = imu.ZEst.val + 5; 
+      if (zTarget.val > 30.0){
+        zTarget.val = 30.0;
+      }
+      RTBState = CLIMB;
+    }
+    HeadingHold();
+    RTBStateMachine();
+    break;
+
+  }
+
+}
+
+void TrimCheck(){
+  uint8_t j;
+  if (setTrim == true){
+    if (trimComplete == false){
+      trimComplete = true;
+      imu.pitchOffset.val = imu.rawPitch.val;
+      imu.rollOffset.val = imu.rawRoll.val;
+      j = 0;
+      for(uint8_t i = 73; i <=76; i++){
+        EEPROM.write(i,imu.rawPitch.buffer[j++]);
+      }
+      j = 0;
+      for(uint8_t i = 77; i <=80; i++){
+        EEPROM.write(i,imu.rawRoll.buffer[j++]);
+      }
+    }
   }
 }
 
+void InitLoiter(){
 
+  if (previousFlightMode != L1 && previousFlightMode != L2 && previousFlightMode != L0){
+    if (motorState == LANDING){
+      motorState = FLIGHT;
+    }
+    throttleCheckFlag = true;
+    throttleAdjustment.val = 0;
+    xTarget.val = imu.XEst.val;
+    yTarget.val = imu.YEst.val;
+    zTarget.val = imu.ZEst.val; 
+    if (zTarget.val < 1.0){
+      zTarget.val = 1.0;
+    } 
+    if (zTarget.val > 30.0){
+      zTarget.val = 30.0;
+    }
+    LoiterXPosition.reset();
+    LoiterXVelocity.reset();
+    LoiterYPosition.reset();
+    LoiterYVelocity.reset();
+    AltHoldPosition.reset();
+    AltHoldVelocity.reset();
+  }
 
+}
 
+void RTBStateMachine(){
+  if (motorState == HOLD || motorState == TO){
+    return;
+  }
+  switch(RTBState){
+  case CLIMB:
+    LoiterCalculations();
+    RotatePitchRoll(&imu.yaw.val,&zero,&tiltAngleX.val,&tiltAngleY.val,&pitchSetPoint.val,&rollSetPoint.val);
+    AltHoldPosition.calculate();
+    AltHoldVelocity.calculate();
+    if (imu.ZEst.val >= zTarget.val){
 
+      RTBState = TRAVEL;
+      xTarget.val = 0 + homeBaseXOffset;
+      yTarget.val = 0 + homeBaseYOffset;
+    }
+    if (gpsFailSafe == true){
+      velSetPointZ.val = LAND_VEL;
+      RTBState = DESCEND;
+    }
 
+    break;
+  case TRAVEL:
+    LoiterCalculations();
+    RotatePitchRoll(&imu.yaw.val,&zero,&tiltAngleX.val,&tiltAngleY.val,&pitchSetPoint.val,&rollSetPoint.val);
+    AltHoldPosition.calculate();
+    AltHoldVelocity.calculate();
+    if (fabs(imu.XEst.val - homeBaseXOffset) < 2 && fabs(imu.YEst.val - homeBaseYOffset) < 2){
+      velSetPointZ.val = LAND_VEL;
+      RTBState = DESCEND;
+    }
+    if (gpsFailSafe == true){
+      velSetPointZ.val = LAND_VEL;
+      RTBState = DESCEND;
+    }
+    break;
+  case DESCEND:
+    if (gpsFailSafe == true){
+      pitchSetPoint.val = pitchSetPointTX.val;
+      rollSetPoint.val = rollSetPointTX.val;
 
+      if (txFailSafe == true){
+        pitchSetPoint.val = 0;
+        rollSetPoint.val = 0;
+      }
+    }
+    else{
+      LoiterCalculations();
+      RotatePitchRoll(&imu.yaw.val,&zero,&tiltAngleX.val,&tiltAngleY.val,&pitchSetPoint.val,&rollSetPoint.val);
+    }
+    velSetPointZ.val = LAND_VEL;
+    AltHoldVelocity.calculate();
+    motorState = LANDING;
+    break;
+  }  
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+void LoiterCalculations(){
+  LoiterXPosition.calculate();
+  LoiterYPosition.calculate();
+  LoiterXVelocity.calculate();
+  tiltAngleX.val *= -1.0;
+  LoiterYVelocity.calculate();
+}
 
 
 
