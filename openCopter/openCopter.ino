@@ -13,7 +13,11 @@
 
 #define RADIUS_EARTH 6372795
 
-#define LAND_VEL -0.3
+#define CEILING 10
+#define FLOOR 3
+#define TAKE_OFF_ALT 3
+
+#define LAND_VEL -0.75
 //LED defines
 #define RED 38
 #define YELLOW 40
@@ -357,7 +361,7 @@ int16_u *int16PointerArray[10];
 
 int32_u *int32PointerArray[7];
 
-uint8_t *bytePointerArray[6];
+uint8_t *bytePointerArray[7];
 
 int16_u gyroX,gyroY,gyroZ,accX,accY,accZ,magX,magY,magZ;
 
@@ -633,11 +637,11 @@ PID PitchAngle(&pitchSetPoint.val,&imu.pitch.val,&rateSetPointY.val,&integrate,&
 PID RollAngle(&rollSetPoint.val,&imu.roll.val,&rateSetPointX.val,&integrate,&kp_roll_attitude.val,&ki_roll_attitude.val,&kd_roll_attitude.val,&fc_roll_attitude.val,&imuDT,800,800);
 YAW YawAngle(&yawSetPoint.val,&imu.yaw.val,&rateSetPointZ.val,&integrate,&kp_yaw_attitude.val,&ki_yaw_attitude.val,&kd_yaw_attitude.val,&fc_yaw_attitude.val,&imuDT,800,800);
 
-PID LoiterXPosition(&xTarget.val,&imu.XEst.val,&velSetPointX.val,&integrate,&kp_loiter_pos_x.val,&ki_loiter_pos_x.val,&kd_loiter_pos_x.val,&fc_loiter_pos_x.val,&imuDT,2,2);
-PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,25,25);
+PID LoiterXPosition(&xTarget.val,&imu.XEst.val,&velSetPointX.val,&integrate,&kp_loiter_pos_x.val,&ki_loiter_pos_x.val,&kd_loiter_pos_x.val,&fc_loiter_pos_x.val,&imuDT,1,1);
+PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,10,10);
 
-PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_loiter_pos_y.val,&ki_loiter_pos_y.val,&kd_loiter_pos_y.val,&fc_loiter_pos_y.val,&imuDT,2,2);
-PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,25,25);
+PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_loiter_pos_y.val,&ki_loiter_pos_y.val,&kd_loiter_pos_y.val,&fc_loiter_pos_y.val,&imuDT,1,1);
+PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,10,10);
 
 PID AltHoldPosition(&zTarget.val,&imu.ZEst.val,&velSetPointZ.val,&integrate,&kp_altitude_position.val,&ki_altitude_position.val,&kd_altitude_position.val,&fc_altitude_position.val,&imuDT,1.5,1.5);
 ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,400,800,&mul_altitude_velocity.val);
@@ -756,19 +760,20 @@ void setup(){
   ROMFlagsCheck();
   CalibrateESC();//throttle high will trigger this reset after calibration
   delay(3500);//this allows the telemetry radios to connect before trying the handshake
-
-  Port2.begin(115200);
-  radioStream = &Port2;
-  radioPrint = &Port2;
-  HandShake();
-
   if (handShake == false){
-    USBFlag = true;
-    radioStream = &Port0;
-    radioPrint = &Port0;
+    Port2.begin(115200);
+    radioStream = &Port2;
+    radioPrint = &Port2;
     HandShake();
+
+    if (handShake == false){
+      USBFlag = true;
+      radioStream = &Port0;
+      radioPrint = &Port0;
+      HandShake();
+    }
   }
-  
+
 
   I2c.begin();
   I2c.setSpeed(1);
@@ -797,7 +802,7 @@ void setup(){
 
   BaroInit();
   GPSStart();
-  
+
   CheckTXPositions();
   imuTimer = micros();
   _400HzTimer = micros();
@@ -862,7 +867,6 @@ void loop(){
   _400HzTask();
 
   if (gpsUpdate == true){
-    D28High();
     gpsUpdate = false;
     //GPSFlag = true;
     gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
@@ -870,7 +874,7 @@ void loop(){
     DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
     numSats.val = gps.satellites();
     hDop.val = gps.hdop();
-    if (numSats.val <= 6 || hDop.val >= 215){
+    if (numSats.val <= 6 /* || hDop.val >= 215 */){
       digitalWrite(RED,HIGH);
       GPSDenial = true;
       gpsFailSafe = true;
@@ -922,7 +926,6 @@ void loop(){
       }
 
     }
-    D28Low();
 
   }
 
@@ -938,20 +941,23 @@ void loop(){
   _400HzTask();
 
 
-  /*if (millis() - generalPurposeTimer >= 100){
+  if (millis() - generalPurposeTimer >= 100){
    generalPurposeTimer = millis();
    //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
-   //Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
+   Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
    //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
    //Port0<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
    ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
    //Port0<<imu.inertialZ<<"\r\n";
    //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
-   <<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
-   <<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+   //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
+   //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
+   //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+   //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
    }
-   _400HzTask();*/
+
+
+  _400HzTask();
 
   if (newRC == true){
     newRC = false;
@@ -1108,7 +1114,6 @@ void DistBearing(int32_t *lat1, int32_t *lon1, int32_t *lat2, int32_t *lon2,floa
 
 void _400HzTask(){
   if (micros() - _400HzTimer >= 2500){
-    D23High();
     rateDT = (micros() - _400HzTimer) * 0.000001;
     _400HzTimer = micros();
     GetGyro();
@@ -1117,7 +1122,6 @@ void _400HzTask(){
     YawRate.calculate();
     MotorHandler();
     GetAcc();
-    D23Low();
   }
 }
 
@@ -1221,9 +1225,9 @@ void FlightSM(){
       enterState = false;
       xTarget.val = imu.XEst.val;
       yTarget.val = imu.YEst.val;
-      zTarget.val = imu.ZEst.val + 5; 
-      if (zTarget.val > 30.0){
-        zTarget.val = 30.0;
+      zTarget.val = imu.ZEst.val + 1; 
+      if (zTarget.val > CEILING){
+        zTarget.val = CEILING;
       }
       RTBState = CLIMB;
     }
@@ -1244,11 +1248,11 @@ void TrimCheck(){
       imu.rollOffset.val = imu.rawRoll.val;
       j = 0;
       for(uint8_t i = 73; i <=76; i++){
-        EEPROM.write(i,imu.rawPitch.buffer[j++]);
+        EEPROM.write(i,imu.pitchOffset.buffer[j++]);
       }
       j = 0;
       for(uint8_t i = 77; i <=80; i++){
-        EEPROM.write(i,imu.rawRoll.buffer[j++]);
+        EEPROM.write(i,imu.rollOffset.buffer[j++]);
       }
     }
   }
@@ -1265,11 +1269,11 @@ void InitLoiter(){
     xTarget.val = imu.XEst.val;
     yTarget.val = imu.YEst.val;
     zTarget.val = imu.ZEst.val; 
-    if (zTarget.val < 1.0){
-      zTarget.val = 1.0;
+    if (zTarget.val < FLOOR){
+      zTarget.val = FLOOR;
     } 
-    if (zTarget.val > 30.0){
-      zTarget.val = 30.0;
+    if (zTarget.val > CEILING){
+      zTarget.val = FLOOR;
     }
     LoiterXPosition.reset();
     LoiterXVelocity.reset();
@@ -1304,11 +1308,40 @@ void RTBStateMachine(){
 
     break;
   case TRAVEL:
-    LoiterCalculations();
+    //make special PID loops for the loiter positions
+    if (fabs(xTarget.val - imu.XEst.val) < 1.5){
+      velSetPointX.val = 0;
+    }
+    else{
+
+    }
+    if (fabs(yTarget.val - imu.YEst.val) < 1.5){
+      velSetPointY.val = 0;
+    }
+    else{
+
+    }
+    LoiterXPosition.calculate();
+    LoiterYPosition.calculate();
+    if (velSetPointX.val > 0.5){
+      velSetPointX.val = 0.5;
+    }
+    if (velSetPointX.val < -0.5){
+      velSetPointX.val = -0.5;
+    }
+    if (velSetPointY.val > 0.5){
+      velSetPointY.val = 0.5;
+    }
+    if (velSetPointY.val < -0.5){
+      velSetPointY.val = -0.5;
+    }
+    LoiterXVelocity.calculate();
+    tiltAngleX.val *= -1.0;
+    LoiterYVelocity.calculate();
     RotatePitchRoll(&imu.yaw.val,&zero,&tiltAngleX.val,&tiltAngleY.val,&pitchSetPoint.val,&rollSetPoint.val);
     AltHoldPosition.calculate();
     AltHoldVelocity.calculate();
-    if (fabs(imu.XEst.val - homeBaseXOffset) < 2 && fabs(imu.YEst.val - homeBaseYOffset) < 2){
+    if (fabs(imu.XEst.val - homeBaseXOffset) < 1 && fabs(imu.YEst.val - homeBaseYOffset) < 1){
       velSetPointZ.val = LAND_VEL;
       RTBState = DESCEND;
     }
@@ -1339,12 +1372,26 @@ void RTBStateMachine(){
 }
 
 void LoiterCalculations(){
-  LoiterXPosition.calculate();
-  LoiterYPosition.calculate();
+  //make special PID loops for the loiter positions
+  if (fabs(xTarget.val - imu.XEst.val) < 1.5){
+    velSetPointX.val = 0;
+  }
+  else{
+    LoiterXPosition.calculate();
+  }
+  if (fabs(yTarget.val - imu.YEst.val) < 1.5){
+    velSetPointY.val = 0;
+  }
+  else{
+    LoiterYPosition.calculate();
+  }
+
   LoiterXVelocity.calculate();
   tiltAngleX.val *= -1.0;
   LoiterYVelocity.calculate();
 }
+
+
 
 
 

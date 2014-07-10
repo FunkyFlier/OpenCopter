@@ -56,7 +56,6 @@ void MotorInit(){
 }
 
 void MotorHandler(){
-
   switch(motorState){
   case HOLD:
     if (saveGainsFlag == true){
@@ -73,6 +72,8 @@ void MotorHandler(){
       EEPROM.write(0x00,calibrationFlags);
       saveGainsFlag = false;
     }
+    //GetAltitude(&pressure.val,&pressureInitial,&rawZ.val);
+    pressureInitial = pressure.val;
     integrate = false;
     HHState = 0;
     PitchAngle.reset();
@@ -96,12 +97,25 @@ void MotorHandler(){
     LoiterYVelocity.reset();
     ZLoiterState = LOITERING;
     XYLoiterState = LOITERING;
-    if (RCValue[RUDD] < 1300){
-      motorState = TO;
+    if (RCValue[THRO] > 1100){
+      motorCommand1.val = 1000;
+      motorCommand2.val = 1000;
+      motorCommand3.val = 1000;
+      motorCommand4.val = 1000;
+      break;
     }
     if (flightMode == RTB){
       motorState = HOLD;
+      motorCommand1.val = 1000;
+      motorCommand2.val = 1000;
+      motorCommand3.val = 1000;
+      motorCommand4.val = 1000;
+      break;
     }
+    if (RCValue[RUDD] < 1300){
+      motorState = TO;
+    }
+
     motorCommand1.val = 1000;
     motorCommand2.val = 1000;
     motorCommand3.val = 1000;
@@ -130,7 +144,7 @@ void MotorHandler(){
     if (flightMode <= L2 && flightMode >= L0){
       if (RCValue[THRO] <= 1600 && RCValue[THRO] >= 1500){
         motorState = FLIGHT;
-        zTarget.val = 3;
+        zTarget.val = TAKE_OFF_ALT;
         enterState = true;
         throttleAdjustment.val = 0;
         xTarget.val = imu.XEst.val;
@@ -225,6 +239,7 @@ void MotorHandler(){
 
 
 }
+
 
 
 

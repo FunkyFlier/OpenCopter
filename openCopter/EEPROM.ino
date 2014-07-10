@@ -120,7 +120,7 @@ void AssignPointerArray(){
   floatPointerArray[PITCH_SP_TX] = &pitchSetPointTX;
   floatPointerArray[ROLL_SP_TX] = &rollSetPointTX;
   floatPointerArray[DIST_TO_WP] = &distToWayPoint;
-  
+
   floatPointerArray[TARGET_VEL_WP] = &targetVelWayPoint;
   floatPointerArray[POS_ERR] = &positionError;
   floatPointerArray[ACC_CIR] = &accCircle;
@@ -134,11 +134,11 @@ void AssignPointerArray(){
   floatPointerArray[MOTOR_CMD_4] = &motorCommand4;
   floatPointerArray[PITCH_OFF] = &imu.pitchOffset;
   floatPointerArray[ROLL_OFF] = &imu.rollOffset;
-  
+
   floatPointerArray[INERTIAL_X] = &imu.inertialX;
   floatPointerArray[INERTIAL_Y] = &imu.inertialY;
   floatPointerArray[INERTIAL_Z] = &imu.inertialZ;
-  
+
 
   int16PointerArray[GYRO_X] = &gyroX;
   int16PointerArray[GYRO_Y] = &gyroY;
@@ -159,7 +159,7 @@ void AssignPointerArray(){
   int32PointerArray[H_DOP] = &hDop;
   int32PointerArray[LAT_] = &lattitude;
   int32PointerArray[LON_] = &longitude;
-  
+
   bytePointerArray[FLIGHT_MODE] = &flightMode;
   bytePointerArray[RTB_STATE] = &RTBState;
   bytePointerArray[Z_LOIT] = &ZLoiterState;
@@ -167,7 +167,7 @@ void AssignPointerArray(){
   bytePointerArray[GPS_FS] = &gpsFailSafe;
   bytePointerArray[DR_FLAG] = &drFlag;
   bytePointerArray[MOTOR_STATE] = &motorState;
-  
+
 
 
 }
@@ -276,9 +276,39 @@ void AssignPointerArray(){
  }*/
 
 void ROMFlagsCheck(){
-
-  calibrationFlags = EEPROM.read(0x00);
+  uint16_t j;
+  if (EEPROM.read(382) != 0xAA){
+    imu.pitchOffset.val = 0;
+    imu.rollOffset.val = 0;
+    j = 0;
+    for(uint8_t i = 73; i <=76; i++){
+      EEPROM.write(i,imu.pitchOffset.buffer[j++]);
+    }
+    j = 0;
+    for(uint8_t i = 77; i <=80; i++){
+      EEPROM.write(i,imu.rollOffset.buffer[j++]);
+    }
+  }
+  calibrationFlags = EEPROM.read(0);
   if ( ((calibrationFlags & (1<<RC_FLAG)) >> RC_FLAG) == 0x01 || ((calibrationFlags & (1<<ACC_FLAG)) >> ACC_FLAG) == 0x01 || ((calibrationFlags & (1<<MAG_FLAG)) >> MAG_FLAG) == 0x01 ){
+    Port2.begin(115200);
+    radioStream = &Port2;
+    radioPrint = &Port2;
+    HandShake();
+
+    if (handShake == false){
+      USBFlag = true;
+      radioStream = &Port0;
+      radioPrint = &Port0;
+      HandShake();
+    }
+    if (calibrationMode == true){
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,HIGH);
+      digitalWrite(GREEN,HIGH);
+      digitalWrite(13,LOW);
+      return;
+    }
     while(1){
       if ( ((calibrationFlags & (1<<RC_FLAG)) >> RC_FLAG) == 0x01 ){
         digitalWrite(RED,toggle);
@@ -595,6 +625,9 @@ void LoadROM(){
 
 
 }
+
+
+
 
 
 

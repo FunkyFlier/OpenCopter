@@ -192,8 +192,6 @@ void SendCalData(){
 
     radioPrint->write(txSum);
     radioPrint->write(txDoubleSum);
-
-
     break;
   }
 }

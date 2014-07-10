@@ -34,7 +34,7 @@ void LoiterSM(){
   case LOITERING:
     AltHoldPosition.calculate();
     AltHoldVelocity.calculate();
-    if (abs(RCValue[THRO] - 1550) > 150 && throttleCheckFlag == false){
+    if (abs(RCValue[THRO] - 1550) > 200 && throttleCheckFlag == false){
       ZLoiterState = RCINPUT;
     }
     if (RCValue[THRO] < 1100 && motorState == FLIGHT){
@@ -52,11 +52,11 @@ void LoiterSM(){
     if (abs(rcDifference) < 150){
       ZLoiterState = LOITERING;
       zTarget = imu.ZEst;
-      if (zTarget.val < 1.0){
-        zTarget.val = 1.0;
+      if (zTarget.val < FLOOR){
+        zTarget.val = FLOOR;
       } 
-      if (zTarget.val > 30.0){
-        zTarget.val = 30.0;
+      if (zTarget.val > CEILING){
+        zTarget.val = CEILING;
       }
       AltHoldPosition.calculate();
       AltHoldVelocity.calculate();
@@ -68,6 +68,9 @@ void LoiterSM(){
     }
     if (velSetPointZ.val < MIN_Z_RATE){
       velSetPointZ.val = MIN_Z_RATE;
+    }
+    if (imu.ZEst.val > CEILING || imu.ZEst.val < FLOOR){
+      velSetPointZ.val = 0;
     }
 
     AltHoldVelocity.calculate();
@@ -95,6 +98,7 @@ void LoiterSM(){
     case LOITERING:
       LoiterCalculations();
       RotatePitchRoll(&imu.yaw.val,&zero,&tiltAngleX.val,&tiltAngleY.val,&pitchSetPoint.val,&rollSetPoint.val);
+      //to do switch from fabs to look for zero
       if (fabs(rollSetPointTX.val) > 0.5 || fabs(pitchSetPointTX.val) > 0.5){
         XYLoiterState = RCINPUT;
       }

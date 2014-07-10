@@ -118,19 +118,19 @@ void CheckTXPositions(){
       ProcessChannels();
     } 
     positionOK = true;
-    if (RCValue[THRO] > 1010){
+    if (RCValue[THRO] > 1050){
       positionOK = false;
     }
-    if (RCValue[GEAR] > 1010){
+    if (RCValue[GEAR] > 1050){
       positionOK = false;
     }
-    if (RCValue[AUX1] > 1010){
+    if (RCValue[AUX1] > 1050){
       positionOK = false;
     }
-    if (RCValue[AUX2] > 1010){
+    if (RCValue[AUX2] > 1050){
       positionOK = false;
     }
-    if (RCValue[AUX3] > 1010){
+    if (RCValue[AUX3] > 1050){
       positionOK = false;
     }
   }
@@ -192,13 +192,13 @@ void ProcessChannels(){
     MapVar(&RCValue[ELEV],&pitchSetPoint.val,1000,2000,-60,60);
     MapVar(&RCValue[AILE],&rollSetPoint.val,1000,2000,-60,60);
     MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-    if (rollSetPoint.val < 0.5 && rollSetPoint.val > -0.5){
+    if (rollSetPoint.val < 1 && rollSetPoint.val > -1){
       rollSetPoint.val = 0;
     }
-    if (pitchSetPoint.val < 0.5 && pitchSetPoint.val > -0.5){
+    if (pitchSetPoint.val < 1 && pitchSetPoint.val > -1){
       pitchSetPoint.val = 0;
     }
-    if (yawInput < 0.5 && yawInput > -0.5){
+    if (yawInput < 5 && yawInput > -5){
       yawInput = 0;
     }
     if (flightMode != previousFlightMode){
@@ -219,13 +219,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -234,13 +234,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -249,13 +249,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       if (gpsFailSafe == true){
@@ -269,13 +269,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       if (gpsFailSafe == true){
@@ -290,13 +290,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       if (gpsFailSafe == true){
@@ -311,13 +311,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -331,13 +331,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -353,13 +353,13 @@ void ProcessChannels(){
       MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPointTX.val < 0.5 && rollSetPointTX.val > -0.5){
+      if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
         rollSetPointTX.val = 0;
       }
-      if (pitchSetPointTX.val < 0.5 && pitchSetPointTX.val > -0.5){
+      if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
         pitchSetPointTX.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -372,13 +372,13 @@ void ProcessChannels(){
       MapVar(&RCValue[ELEV],&pitchSetPoint.val,1000,2000,-60,60);
       MapVar(&RCValue[AILE],&rollSetPoint.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPoint.val < 0.5 && rollSetPoint.val > -0.5){
+      if (rollSetPoint.val < 1 && rollSetPoint.val > -1){
         rollSetPoint.val = 0;
       }
-      if (pitchSetPoint.val < 0.5 && pitchSetPoint.val > -0.5){
+      if (pitchSetPoint.val < 1 && pitchSetPoint.val > -1){
         pitchSetPoint.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -388,13 +388,13 @@ void ProcessChannels(){
       MapVar(&RCValue[ELEV],&pitchSetPoint.val,1000,2000,-60,60);
       MapVar(&RCValue[AILE],&rollSetPoint.val,1000,2000,-60,60);
       MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
-      if (rollSetPoint.val < 0.5 && rollSetPoint.val > -0.5){
+      if (rollSetPoint.val < 1 && rollSetPoint.val > -1){
         rollSetPoint.val = 0;
       }
-      if (pitchSetPoint.val < 0.5 && pitchSetPoint.val > -0.5){
+      if (pitchSetPoint.val < 1 && pitchSetPoint.val > -1){
         pitchSetPoint.val = 0;
       }
-      if (yawInput < 0.5 && yawInput > -0.5){
+      if (yawInput < 5 && yawInput > -5){
         yawInput = 0;
       }
       break;
@@ -407,13 +407,13 @@ void ProcessChannels(){
       MapVar(&RCValue[ELEV],&rateSetPointY.val,1000,2000,-400,400);
       MapVar(&RCValue[AILE],&rateSetPointX.val,1000,2000,-400,400);
       MapVar(&RCValue[RUDD],&rateSetPointZ.val,1000,2000,-400,400);
-      if (rateSetPointY.val < 0.5 && rateSetPointY.val > -0.5){
+      if (rateSetPointY.val < 5 && rateSetPointY.val > -5){
         rateSetPointY.val = 0;
       }
-      if (rateSetPointX.val < 0.5 && rateSetPointX.val > -0.5){
+      if (rateSetPointX.val < 5 && rateSetPointX.val > -5){
         rateSetPointX.val = 0;
       }
-      if (rateSetPointZ.val < 0.5 && rateSetPointZ.val > -0.5){
+      if (rateSetPointZ.val < 5 && rateSetPointZ.val > -5){
         rateSetPointZ.val = 0;
       }
       break;
@@ -423,13 +423,13 @@ void ProcessChannels(){
       MapVar(&RCValue[ELEV],&rateSetPointY.val,1000,2000,-400,400);
       MapVar(&RCValue[AILE],&rateSetPointX.val,1000,2000,-400,400);
       MapVar(&RCValue[RUDD],&rateSetPointZ.val,1000,2000,-400,400);
-      if (rateSetPointY.val < 0.5 && rateSetPointY.val > -0.5){
+      if (rateSetPointY.val < 5 && rateSetPointY.val > -5){
         rateSetPointY.val = 0;
       }
-      if (rateSetPointX.val < 0.5 && rateSetPointX.val > -0.5){
+      if (rateSetPointX.val < 5 && rateSetPointX.val > -5){
         rateSetPointX.val = 0;
       }
-      if (rateSetPointZ.val < 0.5 && rateSetPointZ.val > -0.5){
+      if (rateSetPointZ.val < 5 && rateSetPointZ.val > -5){
         rateSetPointZ.val = 0;
       }
       break;
@@ -671,6 +671,7 @@ void Spektrum(){
   rcType = DSMX;
   detected = true;
 }
+
 
 
 
