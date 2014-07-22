@@ -638,10 +638,10 @@ PID RollAngle(&rollSetPoint.val,&imu.roll.val,&rateSetPointX.val,&integrate,&kp_
 YAW YawAngle(&yawSetPoint.val,&imu.yaw.val,&rateSetPointZ.val,&integrate,&kp_yaw_attitude.val,&ki_yaw_attitude.val,&kd_yaw_attitude.val,&fc_yaw_attitude.val,&imuDT,800,800);
 
 PID LoiterXPosition(&xTarget.val,&imu.XEst.val,&velSetPointX.val,&integrate,&kp_loiter_pos_x.val,&ki_loiter_pos_x.val,&kd_loiter_pos_x.val,&fc_loiter_pos_x.val,&imuDT,1,1);
-PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,10,10);
+PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,30,30);
 
 PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_loiter_pos_y.val,&ki_loiter_pos_y.val,&kd_loiter_pos_y.val,&fc_loiter_pos_y.val,&imuDT,1,1);
-PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,10,10);
+PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,30,30);
 
 PID AltHoldPosition(&zTarget.val,&imu.ZEst.val,&velSetPointZ.val,&integrate,&kp_altitude_position.val,&ki_altitude_position.val,&kd_altitude_position.val,&fc_altitude_position.val,&imuDT,1.5,1.5);
 ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,400,800,&mul_altitude_velocity.val);
@@ -710,18 +710,28 @@ Stream* radioStream;
 
 boolean USBFlag = false,saveGainsFlag = false;
 uint16_t j_;
-/*void pause(){
- while(digitalRead(22)==0){
- }//wait for the toggle
- delay(500);
- }
- 
- char hex[17]="0123456789ABCDEF";
- 
- void ShowHex(byte convertByte){
- Port0 << hex[(convertByte >>4) & 0x0F];
- Port0 << hex[convertByte & 0x0F]<<"\r\n";
- }*/
+
+float_u xSlopeAcc,ySlopeAcc,zSlopeAcc;
+float_u xSlopeMag,ySlopeMag,zSlopeMag;
+float_u xSlopeGyro,ySlopeGyro,zSlopeGyro;
+
+int16_u xAccOffset,yAccOffset;
+int16_u calibTempAcc,calibTempMag,initialTemp,deltaTemp;
+
+uint32_t ledTimer;
+
+void pause(){
+  while(digitalRead(22)==0){
+  }//wait for the toggle
+  delay(500);
+}
+
+/*char hex[17]="0123456789ABCDEF";
+
+void ShowHex(byte convertByte){
+  Port0 << hex[(convertByte >>4) & 0x0F];
+  Port0 << hex[convertByte & 0x0F]<<"\r\n";
+}*/
 
 
 void setup(){
@@ -773,7 +783,7 @@ void setup(){
       HandShake();
     }
   }
-
+  
 
   I2c.begin();
   I2c.setSpeed(1);
@@ -784,23 +794,26 @@ void setup(){
 
 
   if (calibrationMode == true){
+    BaroInit();
     AccInit();
     MagInit();
     CalibrateSensors();  
+    ROMFlagsCheck();
   }
 
 
   ModeSelect();
   Arm();//move the rudder to the right to begin calibration
-
+  BaroInit();
+  WaitForTempStab();
+  GyroInit();
   AccInit();
   MagInit();
-  GyroInit();
   imu.InitialQuat();
 
   CalcGravityOffSet();
 
-  BaroInit();
+
   GPSStart();
 
   CheckTXPositions();
@@ -874,7 +887,7 @@ void loop(){
     DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
     numSats.val = gps.satellites();
     hDop.val = gps.hdop();
-    if (numSats.val <= 6 /* || hDop.val >= 215 */){
+    if (numSats.val <= 6  || hDop.val >= 215 ){
       digitalWrite(RED,HIGH);
       GPSDenial = true;
       gpsFailSafe = true;
@@ -940,24 +953,29 @@ void loop(){
   }
   _400HzTask();
 
+/*
+ if (millis() - generalPurposeTimer >= 100){
+    generalPurposeTimer = millis();
+    Port0<<generalPurposeTimer<<","<<temperature<<","<<gyroX.val<<","<<gyroY.val
+      <<","<<gyroZ.val<<","<<magX.val<<","<<magY.val<<","<<magZ.val
+      <<","<<accX.val<<","<<accY.val<<","<<accZ.val
+      <<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
 
-  if (millis() - generalPurposeTimer >= 100){
-   generalPurposeTimer = millis();
-   //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
-   Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
-   //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Port0<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
-   ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
-   //Port0<<imu.inertialZ<<"\r\n";
-   //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
-   //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
-   //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
-   //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
-   }
+    //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
+    //Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
+    //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+    //Port0<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
+    ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
+    //Port0<<imu.inertialZ<<"\r\n";
+    //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+    //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
+    //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
+    //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+    //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
+  }
 
 
-  _400HzTask();
+  _400HzTask();*/
 
   if (newRC == true){
     newRC = false;
@@ -1390,6 +1408,9 @@ void LoiterCalculations(){
   tiltAngleX.val *= -1.0;
   LoiterYVelocity.calculate();
 }
+
+
+
 
 
 

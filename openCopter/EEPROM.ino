@@ -171,8 +171,8 @@ void AssignPointerArray(){
 
 
 }
-
-/*void DEBUG_DUMP(){
+/*
+void DEBUG_DUMP(){
  Port0<< _FLOAT(accXScalePos,7) <<"\r\n";
  Port0<< _FLOAT(accYScalePos,7) <<"\r\n";
  Port0<< _FLOAT(accZScalePos,7) <<"\r\n";
@@ -281,13 +281,84 @@ void ROMFlagsCheck(){
     imu.pitchOffset.val = 0;
     imu.rollOffset.val = 0;
     j = 0;
-    for(uint8_t i = 73; i <=76; i++){
+    for(uint16_t i = 73; i <=76; i++){
       EEPROM.write(i,imu.pitchOffset.buffer[j++]);
     }
     j = 0;
-    for(uint8_t i = 77; i <=80; i++){
+    for(uint16_t i = 77; i <=80; i++){
       EEPROM.write(i,imu.rollOffset.buffer[j++]);
     }
+  }
+  if (EEPROM.read(389) == 0xAA){
+    //----
+    j = 0;
+    for(uint16_t i = 390; i < 394; i++){
+      xSlopeAcc.buffer[j++] = EEPROM.read(i);
+    }
+    j = 0;
+    for(uint16_t i = 394; i < 398; i++){
+      ySlopeAcc.buffer[j++] = EEPROM.read(i);
+    }
+    j = 0;
+    for(uint16_t i = 398; i < 402; i++){
+      zSlopeAcc.buffer[j++] = EEPROM.read(i);
+    }
+    //----
+    //----
+    j = 0;
+    for(uint16_t i = 402; i < 406; i++){
+      xSlopeMag.buffer[j++] = EEPROM.read(i);
+    }
+    j = 0;
+    for(uint16_t i = 406; i < 410; i++){
+      ySlopeMag.buffer[j++] = EEPROM.read(i);
+    }
+    j = 0;
+    for(uint16_t i = 410; i < 414; i++){
+      zSlopeMag.buffer[j++] = EEPROM.read(i);
+    }
+    //----
+    //----
+    j = 0;
+    for(uint16_t i = 414; i < 418; i++){
+      xSlopeGyro.buffer[j++] = EEPROM.read(i);
+    }
+    j = 0;
+    for(uint16_t i = 418; i < 422; i++){
+      ySlopeGyro.buffer[j++] = EEPROM.read(i);
+    }
+    j = 0;
+    for(uint16_t i = 422; i < 426; i++){
+      zSlopeGyro.buffer[j++] = EEPROM.read(i);
+    }
+
+    j = 0;
+    for(uint16_t i = 383; i < 385; i++){
+      calibTempAcc.buffer[j++] = EEPROM.read(i);
+    }
+    
+    j = 0;
+    for(uint16_t i = 426; i < 428; i++){
+      calibTempMag.buffer[j++] = EEPROM.read(i);
+    }
+
+  }
+  else{
+    xSlopeAcc.val = 1;
+    ySlopeAcc.val = 1;
+    zSlopeAcc.val = 1;
+
+    xSlopeMag.val = 1;
+    ySlopeMag.val = 1;
+    zSlopeMag.val = 1;
+
+    xSlopeGyro.val = 1;
+    ySlopeGyro.val = 1;
+    zSlopeGyro.val = 1;
+
+    calibTempAcc.val = 0;
+    calibTempMag.val = 0;
+
   }
   calibrationFlags = EEPROM.read(0);
   if ( ((calibrationFlags & (1<<RC_FLAG)) >> RC_FLAG) == 0x01 || ((calibrationFlags & (1<<ACC_FLAG)) >> ACC_FLAG) == 0x01 || ((calibrationFlags & (1<<MAG_FLAG)) >> MAG_FLAG) == 0x01 ){
@@ -622,9 +693,20 @@ void LoadROM(){
   (*floatPointerArray[MAG_DEC_]).buffer[3] = EEPROM.read(j++); 
 
 
+  //----
+  j = 0;
+  for(uint16_t i = 385; i < 387; i++){
+    xAccOffset.buffer[j++] = EEPROM.read(i);
+  }
+  j = 0;
+  for(uint16_t i = 387; i < 389; i++){
+    yAccOffset.buffer[j++] = EEPROM.read(i);
+  }
 
 
 }
+
+
 
 
 

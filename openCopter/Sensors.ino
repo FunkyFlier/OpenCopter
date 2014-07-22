@@ -1,7 +1,7 @@
 void CalcGravityOffSet(){
   imuTimer = micros();
 
-  for (int i =0; i < 250; i++){
+  for (int i =0; i < 1000; i++){
 
     while (micros() - imuTimer < 10000){
     }
@@ -31,8 +31,34 @@ void CalibrateSensors(){
   while(1){
     if ( millis() - generalPurposeTimer >= 10){
       generalPurposeTimer = millis();
-      GetAcc();
-      GetMag();
+
+      SPI.setDataMode(SPI_MODE3);
+      AccSSLow();
+      SPI.transfer(DATAX0 | READ | MULTI);
+      accX.buffer[0] = SPI.transfer(0x00);
+      accX.buffer[1] = SPI.transfer(0x00);
+      accY.buffer[0] = SPI.transfer(0x00);
+      accY.buffer[1] = SPI.transfer(0x00);
+      accZ.buffer[0] = SPI.transfer(0x00);
+      accZ.buffer[1] = SPI.transfer(0x00);
+      AccSSHigh();  
+      accY.val *= -1;
+      accZ.val *= -1;
+
+      I2c.read(MAG_ADDRESS,LSM303_OUT_X_H,6);
+      magX.buffer[1] = I2c.receive();//X
+      magX.buffer[0] = I2c.receive();
+      magZ.buffer[1] = I2c.receive();//Z
+      magZ.buffer[0] = I2c.receive();
+      magY.buffer[1] = I2c.receive();//Y
+      magY.buffer[0] = I2c.receive();
+      magY.val *= -1;
+      magZ.val *= -1;
+
+      PollPressure();
+      if (newBaro == true){
+        newBaro = false;
+      } 
       if (sendCalibrationData == true){
         SendCalData();
       }
@@ -203,6 +229,10 @@ void StartUpAHRSRun(){
     GetAcc();
     GetMag();
     GetGyro();
+    PollPressure();
+    if (newBaro == true){
+      newBaro = false;
+    } 
     imu.AHRSupdate();
   } 
 }
@@ -494,7 +524,8 @@ void BaroInit(void){
       baroSum += pressure.val;
     }    
   }
-  pressureInitial = baroSum / 10;    
+  pressureInitial = baroSum / 10;   
+  initialTemp.val = temperature;
   //use the line below for altitdue above sea level
   //pressureInitial = 101325;
 
@@ -605,21 +636,41 @@ void GyroInit(){
   gyroSumY = 0;
   gyroSumZ = 0;
   for (uint16_t j = 0; j < 500; j ++){
-    GetGyro();
+    SPI.setDataMode(SPI_MODE0);
+    GyroSSLow();
+    SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
+    gyroX.buffer[0] = SPI.transfer(0x00);
+    gyroX.buffer[1] = SPI.transfer(0x00);
+    gyroY.buffer[0] = SPI.transfer(0x00);
+    gyroY.buffer[1] = SPI.transfer(0x00);
+    gyroZ.buffer[0] = SPI.transfer(0x00);
+    gyroZ.buffer[1] = SPI.transfer(0x00);
+
+    GyroSSHigh();
     delay(3);
   }
   for (uint16_t j = 0; j < 500; j ++){
-    GetGyro();
+    SPI.setDataMode(SPI_MODE0);
+    GyroSSLow();
+    SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
+    gyroX.buffer[0] = SPI.transfer(0x00);
+    gyroX.buffer[1] = SPI.transfer(0x00);
+    gyroY.buffer[0] = SPI.transfer(0x00);
+    gyroY.buffer[1] = SPI.transfer(0x00);
+    gyroZ.buffer[0] = SPI.transfer(0x00);
+    gyroZ.buffer[1] = SPI.transfer(0x00);
+
+    GyroSSHigh();
     gyroSumX += gyroX.val;
-    gyroSumY += gyroY.val;
-    gyroSumZ += gyroZ.val;
+    gyroSumY += (gyroY.val * -1);
+    gyroSumZ += (gyroZ.val * -1);
     delay(3);
   }
   gyroOffsetX = gyroSumX / 500;
   gyroOffsetY = gyroSumY / 500;
   gyroOffsetZ = gyroSumZ / 500;
   GetGyro();
-
+ 
 }
 
 void GetMag(){
@@ -630,9 +681,14 @@ void GetMag(){
   magZ.buffer[0] = I2c.receive();
   magY.buffer[1] = I2c.receive();//Y
   magY.buffer[0] = I2c.receive();
-
   magY.val *= -1;
   magZ.val *= -1;
+
+  deltaTemp.val = temperature - calibTempMag.val;
+  magX.val -= deltaTemp.val * xSlopeMag.val;
+  magY.val -= deltaTemp.val * ySlopeMag.val;
+  magZ.val -= deltaTemp.val * zSlopeMag.val;
+
   shiftedMagX  = magX.val - magOffSetX;
   shiftedMagY  = magY.val - magOffSetY;
   shiftedMagZ  = magZ.val - magOffSetZ;
@@ -643,6 +699,7 @@ void GetMag(){
 }
 
 void GetGyro(){
+  
   SPI.setDataMode(SPI_MODE0);
   GyroSSLow();
   SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
@@ -652,12 +709,21 @@ void GetGyro(){
   gyroY.buffer[1] = SPI.transfer(0x00);
   gyroZ.buffer[0] = SPI.transfer(0x00);
   gyroZ.buffer[1] = SPI.transfer(0x00);
-
   GyroSSHigh();
 
-  degreeGyroX.val = (gyroX.val - gyroOffsetX) * 0.07;
-  degreeGyroY.val = -1.0 * ((gyroY.val - gyroOffsetY) * 0.07);
-  degreeGyroZ.val = -1.0 * ((gyroZ.val - gyroOffsetZ) * 0.07);
+  gyroY.val *= -1;
+  gyroZ.val *= -1;
+  
+  deltaTemp.val = temperature - initialTemp.val;
+  
+  
+  gyroX.val -= ( (deltaTemp.val * xSlopeGyro.val) + gyroOffsetX); 
+  gyroY.val -= ( (deltaTemp.val * ySlopeGyro.val) + gyroOffsetY);
+  gyroZ.val -= ( (deltaTemp.val * zSlopeGyro.val) + gyroOffsetZ);
+  
+  degreeGyroX.val = (gyroX.val) * 0.07;
+  degreeGyroY.val = (gyroY.val) * 0.07;
+  degreeGyroZ.val = (gyroZ.val) * 0.07;
 
   radianGyroX = ToRad(degreeGyroX.val);
   radianGyroY = ToRad(degreeGyroY.val);
@@ -679,7 +745,11 @@ void GetAcc(){
 
   accY.val *= -1;
   accZ.val *= -1;
-
+  
+  deltaTemp.val = temperature - calibTempAcc.val;
+  accX.val -= (xAccOffset.val + (deltaTemp.val) * xSlopeAcc.val);
+  accY.val -= (yAccOffset.val + (deltaTemp.val) * ySlopeAcc.val);
+  accZ.val -= (deltaTemp.val) * zSlopeAcc.val;
 
   if (accX.val > 0){
     scaledAccX = accX.val * accXScalePos;
@@ -688,10 +758,10 @@ void GetAcc(){
     scaledAccX = accX.val * accXScaleNeg;
   }
   if (accY.val > 0){
-    scaledAccY = accY.val  * accYScalePos;
+    scaledAccY = accY.val * accYScalePos;
   }
   else{
-    scaledAccY = accY.val  * accYScaleNeg;
+    scaledAccY = accY.val * accYScaleNeg;
   }
   if (accZ.val > 0){
     scaledAccZ = accZ.val * accZScalePos;
@@ -702,6 +772,63 @@ void GetAcc(){
   Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&filtAccX.val,&filtAccY.val,&filtAccZ.val);
 
 
+}
+
+void WaitForTempStab(){
+  boolean stabTemp = false;
+  boolean tog;
+  uint8_t tempState = 0;
+  while (stabTemp == false){
+    if (millis() - ledTimer >= 1000){
+      ledTimer = millis();
+      tog = ~tog;
+      digitalWrite(RED,tog);
+      digitalWrite(YELLOW,tog);
+      digitalWrite(GREEN,tog);
+      digitalWrite(13,tog);
+    }
+    PollPressure();
+    if (newBaro == true){
+      newBaro = false;
+      switch(tempState){
+      case 0://set final temperature
+        initialTemp.val  = temperature;
+        tempState = 1;
+        generalPurposeTimer = millis();
+        digitalWrite(RED,LOW);
+
+        break;
+      case 1://wait 
+        Port0<<(millis() - generalPurposeTimer)<<"\r\n";
+        if (millis() - generalPurposeTimer > 120000){
+          tempState = 2;
+        }
+        digitalWrite(YELLOW,LOW);
+
+        break;
+      case 2:
+        if (abs(temperature - initialTemp.val ) <= 10){
+          initialTemp.val  = temperature;
+          stabTemp = true;
+        }
+        else{
+          tempState = 0;
+        }
+        digitalWrite(GREEN,LOW);
+        break;
+      }
+    }
+  }
+  baroCount = 0;
+  while (baroCount < 10){//use a while instead of a for loop because the for loop runs too fast
+    PollPressure();
+    if (newBaro == true){
+      newBaro = false;
+      baroCount++;
+      baroSum += pressure.val;
+    }    
+  }
+  pressureInitial = baroSum / 10;    
 }
 
 

@@ -72,7 +72,6 @@ void MotorHandler(){
       EEPROM.write(0x00,calibrationFlags);
       saveGainsFlag = false;
     }
-    //GetAltitude(&pressure.val,&pressureInitial,&rawZ.val);
     pressureInitial = pressure.val;
     integrate = false;
     HHState = 0;
