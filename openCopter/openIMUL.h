@@ -19,7 +19,8 @@
 
 
 #define vXY 2.0f
-#define vZ 2.5f
+#define vZ_Baro 2.5f
+#define vZ_Ping 0.1f
 
 #define w1XY 2.0f
 #define w2XY 1.0f
@@ -45,6 +46,7 @@ public:
   void GetYaw(void);
   void InitialQuat(void);
   void BaroKalUpdate(void);
+  void PingKalUpdate(void);
   void AccKalUpdate(void);
   void GPSKalUpdate(void);
   float GetGravOffset(void);

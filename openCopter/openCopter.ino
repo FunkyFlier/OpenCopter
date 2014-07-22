@@ -10,6 +10,9 @@
 #include <AUXMATH.h>
 #include <TinyGPS.h>
 
+#define FREQ_TRIG 30
+#define PRESCALE_TRIG 64
+#define PERIOD_TRIG ((F_CPU/PRESCALE_TRIG/FREQ_TRIG) - 1)
 
 #define RADIUS_EARTH 6372795
 
@@ -147,8 +150,8 @@ enum CalibrationFlags {
 #define Motor4WriteMicros(x) OCR4A = x * 2//motor 4 is attached to pin6
 #define Motor5WriteMicros(x) OCR4B = x * 2//motor 1 is attached to pin7
 #define Motor6WriteMicros(x) OCR4C = x * 2//motor 2 is attached to pin8
-#define Motor7WriteMicros(x) OCR1A = x * 2//motor 3 is attached to pin11
-#define Motor8WriteMicros(x) OCR1B = x * 2//motor 4 is attached to pin12
+//#define Motor7WriteMicros(x) OCR1A = x * 2//motor 3 is attached to pin11
+//#define Motor8WriteMicros(x) OCR1B = x * 2//motor 4 is attached to pin12
 
 //radio control defines
 //RC defines
@@ -720,18 +723,24 @@ int16_u calibTempAcc,calibTempMag,initialTemp,deltaTemp;
 
 uint32_t ledTimer;
 
-void pause(){
-  while(digitalRead(22)==0){
-  }//wait for the toggle
-  delay(500);
-}
+volatile uint32_t start,width;
+volatile float pingDistCentimeters,pingDistMeters;
+volatile boolean newPing = false;
+float_u baroZ,ultraSonicRange;
+
+
+/*void pause(){
+ while(digitalRead(22)==0){
+ }//wait for the toggle
+ delay(500);
+ }*/
 
 /*char hex[17]="0123456789ABCDEF";
-
-void ShowHex(byte convertByte){
-  Port0 << hex[(convertByte >>4) & 0x0F];
-  Port0 << hex[convertByte & 0x0F]<<"\r\n";
-}*/
+ 
+ void ShowHex(byte convertByte){
+ Port0 << hex[(convertByte >>4) & 0x0F];
+ Port0 << hex[convertByte & 0x0F]<<"\r\n";
+ }*/
 
 
 void setup(){
@@ -762,11 +771,13 @@ void setup(){
   D27Output();
   D28Output();
   D29Output();
-
-
+  SonarInit();//must go above detectRC or the program breaks!
+  
   DetectRC();
+  
   _200HzISRConfig();
   MotorInit();
+  
   ROMFlagsCheck();
   CalibrateESC();//throttle high will trigger this reset after calibration
   delay(3500);//this allows the telemetry radios to connect before trying the handshake
@@ -783,50 +794,50 @@ void setup(){
       HandShake();
     }
   }
+
   
-
-  I2c.begin();
-  I2c.setSpeed(1);
-  SPI.begin();
-  SPI.setBitOrder(MSBFIRST);
-  SPI.setClockDivider(SPI_CLOCK_DIV2);   
-
-
-
-  if (calibrationMode == true){
-    BaroInit();
-    AccInit();
-    MagInit();
-    CalibrateSensors();  
-    ROMFlagsCheck();
-  }
-
-
-  ModeSelect();
-  Arm();//move the rudder to the right to begin calibration
-  BaroInit();
-  WaitForTempStab();
-  GyroInit();
-  AccInit();
-  MagInit();
-  imu.InitialQuat();
-
-  CalcGravityOffSet();
-
-
-  GPSStart();
-
-  CheckTXPositions();
-  imuTimer = micros();
-  _400HzTimer = micros();
-  generalPurposeTimer = millis();
-  watchDogStartCount = true;
-
-  accCircle.val = POSITION_ERROR_LIMIT;
-  digitalWrite(RED,LOW);
-  digitalWrite(YELLOW,LOW);
-  digitalWrite(GREEN,LOW);
-  digitalWrite(13,LOW);
+   I2c.begin();
+   I2c.setSpeed(1);
+   SPI.begin();
+   SPI.setBitOrder(MSBFIRST);
+   SPI.setClockDivider(SPI_CLOCK_DIV2);   
+   
+   
+   
+   if (calibrationMode == true){
+   BaroInit();
+   AccInit();
+   MagInit();
+   CalibrateSensors();  
+   ROMFlagsCheck();
+   }
+   
+   
+   ModeSelect();
+   Arm();//move the rudder to the right to begin calibration
+   BaroInit();
+   WaitForTempStab();
+   GyroInit();
+   AccInit();
+   MagInit();
+   imu.InitialQuat();
+   
+   CalcGravityOffSet();
+   
+   
+   GPSStart();
+   
+   CheckTXPositions();
+   imuTimer = micros();
+   _400HzTimer = micros();
+   generalPurposeTimer = millis();
+   watchDogStartCount = true;
+   
+   accCircle.val = POSITION_ERROR_LIMIT;
+   digitalWrite(RED,LOW);
+   digitalWrite(YELLOW,LOW);
+   digitalWrite(GREEN,LOW);
+   digitalWrite(13,LOW);
 
 }
 
@@ -939,7 +950,6 @@ void loop(){
       }
 
     }
-
   }
 
   _400HzTask();
@@ -948,10 +958,18 @@ void loop(){
   if (newBaro == true){
     newBaro = false;
     //baroFlag = true;
-    GetAltitude(&pressure.val,&pressureInitial,&rawZ.val);
+    GetAltitude(&pressure.val,&pressureInitial,&baroZ.val);
+    rawZ.val = baroZ.val;
     imu.BaroKalUpdate();
   }
   _400HzTask();
+  if (newPing == true){
+    newPing = false;
+    //Port0<<width<<","<<pingDistCentimeters<<","<<pingDistMeters<<"\r\n";
+    ultraSonicRange.val = cos(ToRad(imu.pitch.val)) * cos(ToRad(imu.roll.val)) *pingDistMeters;
+    rawZ.val = baroZ.val;
+    imu.PingKalUpdate();
+  }
 
 /*
  if (millis() - generalPurposeTimer >= 100){
@@ -998,8 +1016,8 @@ void loop(){
     Motor4WriteMicros(1000);
     Motor5WriteMicros(1000);
     Motor6WriteMicros(1000);
-    Motor7WriteMicros(1000);
-    Motor8WriteMicros(1000);
+    //Motor7WriteMicros(1000);
+    //Motor8WriteMicros(1000);
     if (failSafe == true){
       digitalWrite(RED,HIGH);
     }
@@ -1019,6 +1037,7 @@ void loop(){
   }
   //Port0.println(freeMemory());
 }
+
 
 void getAngles(){
 
@@ -1408,6 +1427,8 @@ void LoiterCalculations(){
   tiltAngleX.val *= -1.0;
   LoiterYVelocity.calculate();
 }
+
+
 
 
 

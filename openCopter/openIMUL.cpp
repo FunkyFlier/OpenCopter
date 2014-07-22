@@ -428,9 +428,10 @@ void openIMU::GPSKalUpdate(){
 }
 
 
+
 void openIMU::BaroKalUpdate(){
   static float temp1,temp2,temp3;
-  temp1 = p11Z + vZ;
+  temp1 = p11Z + vZ_Baro;
   temp2 = (p11Z / temp1) - 1;
   temp3 = *ZRaw - ZEst.val;
   k1Z = p11Z / temp1;
@@ -467,6 +468,49 @@ void openIMU::BaroKalUpdate(){
   p33Z = p33Z_;
 
 }
+
+
+void openIMU::PingKalUpdate(){
+  static float temp1,temp2,temp3;
+  temp1 = p11Z + vZ_Ping;
+  temp2 = (p11Z / temp1) - 1;
+  temp3 = *ZRaw - ZEst.val;
+  k1Z = p11Z / temp1;
+  k2Z = p21Z / temp1;
+  k3Z = p31Z / temp1;
+
+  ZEst.val += k1Z * temp3;
+  velZ.val += k2Z * temp3;
+  accelBiasZ += k3Z * temp3;
+
+  p11Z_ = -p11Z * temp2;
+  p12Z_ = -p12Z * temp2;
+  p13Z_ = -p13Z * temp2;
+
+  p21Z_ = p21Z - (p11Z * p21Z)/(temp1);
+  p22Z_ = p22Z - (p12Z * p21Z)/(temp1);
+  p23Z_ = p23Z - (p13Z * p21Z)/(temp1);
+
+  p31Z_ = p31Z - (p11Z * p31Z)/(temp1);
+  p32Z_ = p32Z - (p12Z * p31Z)/(temp1);
+  p33Z_ = p33Z - (p13Z * p31Z)/(temp1);
+
+
+  p11Z = p11Z_;
+  p12Z = p12Z_;
+  p13Z = p13Z_;
+
+  p21Z = p21Z_;
+  p22Z = p22Z_;
+  p23Z = p23Z_;
+
+  p31Z = p31Z_;
+  p32Z = p32Z_;
+  p33Z = p33Z_;
+
+}
+
+
 
 
 void openIMU::InitialQuat(){

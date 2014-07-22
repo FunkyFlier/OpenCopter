@@ -1,3 +1,48 @@
+void SonarInit(){
+  DDRB |= (1<<PB5);
+  TCCR1A = (1<<WGM11)|(1<<COM1A1);
+  TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11)|(1<<CS10);
+  ICR1 = PERIOD_TRIG;  
+  OCR1A = 2; 
+  TIMSK1 |= (1<<OCIE1A);
+
+  DDRB &= ~(1<<PB6);
+  PORTK |= (1<<PB6);
+  PCMSK0 |= 1<<PCINT6;
+  PCICR |= 1<<0;
+
+}
+
+ISR(TIMER1_COMPA_vect){
+  DDRB &= ~(1<<PB5);
+  //Port0<<"A\r\n";
+  
+}
+
+
+
+ISR(PCINT0_vect){
+  if (((PINB & 1<<PB6)>>PB6) == 1){
+    start = micros();
+
+  }
+  else{
+    width = (micros() - start);
+    //newPing = true;
+    //DDRB |= (1<<PB5);
+    if (width > 50){
+      if (width < 17100){
+        pingDistCentimeters = width  * 0.017543859;
+        pingDistMeters = pingDistCentimeters * 0.01;
+        newPing = true;
+      }
+      DDRB |= (1<<PB5);
+
+    }
+  }
+
+}
+
 void CalcGravityOffSet(){
   imuTimer = micros();
 
@@ -670,7 +715,7 @@ void GyroInit(){
   gyroOffsetY = gyroSumY / 500;
   gyroOffsetZ = gyroSumZ / 500;
   GetGyro();
- 
+
 }
 
 void GetMag(){
@@ -699,7 +744,7 @@ void GetMag(){
 }
 
 void GetGyro(){
-  
+
   SPI.setDataMode(SPI_MODE0);
   GyroSSLow();
   SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
@@ -713,14 +758,14 @@ void GetGyro(){
 
   gyroY.val *= -1;
   gyroZ.val *= -1;
-  
+
   deltaTemp.val = temperature - initialTemp.val;
-  
-  
+
+
   gyroX.val -= ( (deltaTemp.val * xSlopeGyro.val) + gyroOffsetX); 
   gyroY.val -= ( (deltaTemp.val * ySlopeGyro.val) + gyroOffsetY);
   gyroZ.val -= ( (deltaTemp.val * zSlopeGyro.val) + gyroOffsetZ);
-  
+
   degreeGyroX.val = (gyroX.val) * 0.07;
   degreeGyroY.val = (gyroY.val) * 0.07;
   degreeGyroZ.val = (gyroZ.val) * 0.07;
@@ -745,7 +790,7 @@ void GetAcc(){
 
   accY.val *= -1;
   accZ.val *= -1;
-  
+
   deltaTemp.val = temperature - calibTempAcc.val;
   accX.val -= (xAccOffset.val + (deltaTemp.val) * xSlopeAcc.val);
   accY.val -= (yAccOffset.val + (deltaTemp.val) * ySlopeAcc.val);
@@ -800,7 +845,7 @@ void WaitForTempStab(){
         break;
       case 1://wait 
         Port0<<(millis() - generalPurposeTimer)<<"\r\n";
-        if (millis() - generalPurposeTimer > 120000){
+        if (millis() - generalPurposeTimer > 1000){
           tempState = 2;
         }
         digitalWrite(YELLOW,LOW);
@@ -830,6 +875,7 @@ void WaitForTempStab(){
   }
   pressureInitial = baroSum / 10;    
 }
+
 
 
 

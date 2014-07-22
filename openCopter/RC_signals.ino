@@ -533,6 +533,8 @@ void DSMXParser(){
 }
 
 void DetectRC(){
+  //Spektrum();
+  
   readState = 0;
   SBus();
   readState = 0;
@@ -557,7 +559,7 @@ void DetectRC(){
     DDRK = 0;//PORTK as input
     PORTK |= 0xFF;//turn on pull ups
     PCMSK2 |= 0xFF;//set interrupt mask for all of PORTK
-    PCICR = 1<<2;//enable the pin change interrupt for K
+    PCICR |= 1<<2;//enable the pin change interrupt for K
     delay(100);//wait for a few frames
   } 
 
@@ -605,7 +607,7 @@ void FrameCheck(){//checks if serial RC was incorrectly detected
       DDRK = 0;//PORTK as input
       PORTK |= 0xFF;//turn on pull ups
       PCMSK2 |= 0xFF;//set interrupt mask for all of PORTK
-      PCICR = 1<<2;
+      PCICR |= 1<<2;
       delay(100);//wait for a few frames
       generalPurposeTimer = millis();
     }

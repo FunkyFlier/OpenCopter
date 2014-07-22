@@ -18,8 +18,8 @@ void CalibrateESC(){
       Motor4WriteMicros(2000);
       Motor5WriteMicros(2000);
       Motor6WriteMicros(2000);
-      Motor7WriteMicros(2000);
-      Motor8WriteMicros(2000);
+      //Motor7WriteMicros(2000);
+      //Motor8WriteMicros(2000);
     }
     Motor1WriteMicros(1000);//set the output compare value
     Motor2WriteMicros(1000);
@@ -27,8 +27,8 @@ void CalibrateESC(){
     Motor4WriteMicros(1000);
     Motor5WriteMicros(1000);
     Motor6WriteMicros(1000);
-    Motor7WriteMicros(1000);
-    Motor8WriteMicros(1000);
+    //Motor7WriteMicros(1000);
+    //Motor8WriteMicros(1000);
     delay(500);
     asm volatile ("  jmp 0");  
   }
@@ -37,7 +37,7 @@ void CalibrateESC(){
 void MotorInit(){
   DDRE |= B00111000;
   DDRH |= B00111000;
-  DDRB |= B01100000;
+  //DDRB |= B01100000;
 
 
   TCCR3A = (1<<WGM31)|(1<<COM3A1)|(1<<COM3B1)|(1<<COM3C1);  
@@ -48,9 +48,9 @@ void MotorInit(){
   TCCR4B = (1<<WGM43)|(1<<WGM42)|(1<<CS41);
   ICR4 = PERIOD;  
 
-  TCCR1A = (1<<WGM11)|(1<<COM1A1)|(1<<COM1B1);
-  TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11);
-  ICR1 = PERIOD;
+  //TCCR1A = (1<<WGM11)|(1<<COM1A1)|(1<<COM1B1);
+  //TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11);
+  //ICR1 = PERIOD;
 
 
 }
