@@ -130,7 +130,8 @@ void AssignPointerArray(){
   floatPointerArray[DR_POS_Y] = &drPosY;
   //floatPointerArray[MOTOR_CMD_1] = &motorCommand1;
   floatPointerArray[MOTOR_CMD_1] = &ultraSonicRange;
-  floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
+  //floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
+  floatPointerArray[MOTOR_CMD_2] = &baroZ;
   floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
   floatPointerArray[MOTOR_CMD_4] = &motorCommand4;
   floatPointerArray[PITCH_OFF] = &imu.pitchOffset;

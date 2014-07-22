@@ -967,7 +967,7 @@ void loop(){
     newPing = false;
     //Port0<<width<<","<<pingDistCentimeters<<","<<pingDistMeters<<"\r\n";
     ultraSonicRange.val = cos(ToRad(imu.pitch.val)) * cos(ToRad(imu.roll.val)) *pingDistMeters;
-    rawZ.val = baroZ.val;
+    rawZ.val = ultraSonicRange.val;
     imu.PingKalUpdate();
   }
 
