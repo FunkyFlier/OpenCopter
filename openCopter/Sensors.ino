@@ -16,7 +16,7 @@ void SonarInit(){
 ISR(TIMER1_COMPA_vect){
   DDRB &= ~(1<<PB5);
   //Port0<<"A\r\n";
-  
+
 }
 
 
@@ -31,7 +31,11 @@ ISR(PCINT0_vect){
     //newPing = true;
     //DDRB |= (1<<PB5);
     if (width > 50){
+      pingDistCentimeters = width  * 0.017543859;
+      pingDistMeters = pingDistCentimeters * 0.01;
+      newPing = true;
       if (width < 17100){
+        //if (width < 5700){
         pingDistCentimeters = width  * 0.017543859;
         pingDistMeters = pingDistCentimeters * 0.01;
         newPing = true;
@@ -384,13 +388,19 @@ void GPSStart(){
           StartUpAHRSRun();
           gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
           DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
-          if ( sqrt( sq(rawX.val) + sq(rawY.val)) <= 10 ){
-            imu.XEst.val = rawX.val;
-            imu.YEst.val = rawY.val;
-            homeBaseXOffset = rawX.val;
-            homeBaseYOffset = rawY.val;
-            drPosX.val = rawX.val;
-            drPosY.val = rawY.val;
+          if ( sqrt( sq(rawX.val) + sq(rawY.val)) <= 1.5 ){
+            homeBase.lat.val = lattitude.val;
+            homeBase.lon.val = longitude.val;
+            rawX.val = 0;
+            rawY.val = 0;
+            imu.XEst.val = 0;
+            imu.YEst.val = 0;
+            homeBaseXOffset = 0;
+            homeBaseYOffset = 0;
+            drPosX.val = 0;
+            drPosY.val = 0;
+            drVelX.val = 0;
+            drVelY.val = 0;
             GPSDetected = true;
           }
           else{
@@ -844,15 +854,20 @@ void WaitForTempStab(){
 
         break;
       case 1://wait 
-        Port0<<(millis() - generalPurposeTimer)<<"\r\n";
-        if (millis() - generalPurposeTimer > 1000){
+        Port0<<(millis() - generalPurposeTimer)<<","<<initialTemp.val<<","<<temperature<<"\r\n";
+        if (abs(temperature - initialTemp.val ) > 20){
+          generalPurposeTimer = millis();//reset timer if temp has changed by more than a degree
+          initialTemp.val = temperature;
+        }
+        if (millis() - generalPurposeTimer > 60000){
+        //if (millis() - generalPurposeTimer > 1){
           tempState = 2;
         }
         digitalWrite(YELLOW,LOW);
 
         break;
       case 2:
-        if (abs(temperature - initialTemp.val ) <= 10){
+        if (abs(temperature - initialTemp.val ) <= 20){
           initialTemp.val  = temperature;
           stabTemp = true;
         }
@@ -875,6 +890,11 @@ void WaitForTempStab(){
   }
   pressureInitial = baroSum / 10;    
 }
+
+
+
+
+
 
 
 

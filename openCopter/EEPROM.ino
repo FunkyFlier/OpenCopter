@@ -132,8 +132,9 @@ void AssignPointerArray(){
   floatPointerArray[MOTOR_CMD_1] = &ultraSonicRange;
   //floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
   floatPointerArray[MOTOR_CMD_2] = &baroZ;
-  floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
-  floatPointerArray[MOTOR_CMD_4] = &motorCommand4;
+  //floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
+  floatPointerArray[MOTOR_CMD_3] = &pingDistOutput;
+  floatPointerArray[MOTOR_CMD_4] = &widthOutput;
   floatPointerArray[PITCH_OFF] = &imu.pitchOffset;
   floatPointerArray[ROLL_OFF] = &imu.rollOffset;
 
@@ -142,7 +143,7 @@ void AssignPointerArray(){
   floatPointerArray[INERTIAL_Z] = &imu.inertialZ;
 
 
-  int16PointerArray[GYRO_X] = &gyroX;
+  int16PointerArray[GYRO_X] = &throOutput;
   int16PointerArray[GYRO_Y] = &gyroY;
   int16PointerArray[GYRO_Z] = &gyroZ;
   int16PointerArray[ACC_X] = &accX;
@@ -168,7 +169,8 @@ void AssignPointerArray(){
   bytePointerArray[XY_LOIT] = &XYLoiterState;
   bytePointerArray[GPS_FS] = &gpsFailSafe;
   bytePointerArray[DR_FLAG] = &drFlag;
-  bytePointerArray[MOTOR_STATE] = &motorState;
+  //bytePointerArray[MOTOR_STATE] = &motorState;
+  bytePointerArray[MOTOR_STATE] = &throttleCheckFlag;
 
 
 
@@ -338,7 +340,7 @@ void ROMFlagsCheck(){
     for(uint16_t i = 383; i < 385; i++){
       calibTempAcc.buffer[j++] = EEPROM.read(i);
     }
-    
+
     j = 0;
     for(uint16_t i = 426; i < 428; i++){
       calibTempMag.buffer[j++] = EEPROM.read(i);
@@ -346,17 +348,17 @@ void ROMFlagsCheck(){
 
   }
   else{
-    xSlopeAcc.val = 1;
-    ySlopeAcc.val = 1;
-    zSlopeAcc.val = 1;
+    xSlopeAcc.val = 0;
+    ySlopeAcc.val = 0;
+    zSlopeAcc.val = 0;
 
-    xSlopeMag.val = 1;
-    ySlopeMag.val = 1;
-    zSlopeMag.val = 1;
+    xSlopeMag.val = 0;
+    ySlopeMag.val = 0;
+    zSlopeMag.val = 0;
 
-    xSlopeGyro.val = 1;
-    ySlopeGyro.val = 1;
-    zSlopeGyro.val = 1;
+    xSlopeGyro.val = 0;
+    ySlopeGyro.val = 0;
+    zSlopeGyro.val = 0;
 
     calibTempAcc.val = 0;
     calibTempMag.val = 0;
@@ -707,6 +709,7 @@ void LoadROM(){
 
 
 }
+
 
 
 

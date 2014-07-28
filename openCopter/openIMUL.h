@@ -20,7 +20,7 @@
 
 #define vXY 2.0f
 #define vZ_Baro 2.5f
-#define vZ_Ping 0.1f
+#define vZ_Ping 1.0f
 
 #define w1XY 2.0f
 #define w2XY 1.0f
@@ -68,7 +68,7 @@ public:
   float inertialZ_Grav;
   float gravityOffSet;
   boolean feedBack;
-  float xError,yError;
+  float xError,yError,zError;
   float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];
   uint8_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;  
   float_u rawPitch,rawRoll;

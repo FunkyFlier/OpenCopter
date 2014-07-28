@@ -13,6 +13,12 @@ void SetFailSafeFlags(){//remove - for debugging purposes only
     imu.velY.val = 0;
     drVelX.val = 0;
     drVelY.val = 0;
+
+    imu.ZEst.val = 0;
+
+    imu.velX.val = 0;
+    imu.velY.val = 0;
+    imu.velZ.val = 0;
   }
 
 
@@ -150,7 +156,7 @@ void ProcessChannels(){
   RCValue[ELEV] = (rawRCVal[ELEV] - centerRCVal[ELEV]) * RCScale[ELEV] + 1500 ;
   RCValue[RUDD] = (rawRCVal[RUDD] - centerRCVal[RUDD]) * RCScale[RUDD] + 1500 ;
 
-
+  throOutput.val = RCValue[THRO];
 
   if (txFailSafe == true){
     if (motorState >= FLIGHT){
@@ -534,7 +540,7 @@ void DSMXParser(){
 
 void DetectRC(){
   //Spektrum();
-  
+
   readState = 0;
   SBus();
   readState = 0;
@@ -673,6 +679,7 @@ void Spektrum(){
   rcType = DSMX;
   detected = true;
 }
+
 
 
 

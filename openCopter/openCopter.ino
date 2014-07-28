@@ -10,15 +10,15 @@
 #include <AUXMATH.h>
 #include <TinyGPS.h>
 
-#define FREQ_TRIG 30
+#define FREQ_TRIG 20
 #define PRESCALE_TRIG 64
 #define PERIOD_TRIG ((F_CPU/PRESCALE_TRIG/FREQ_TRIG) - 1)
 
 #define RADIUS_EARTH 6372795
 
-#define CEILING 10
-#define FLOOR 3
-#define TAKE_OFF_ALT 3
+#define CEILING 6
+#define FLOOR 2
+#define TAKE_OFF_ALT 2
 
 #define LAND_VEL -0.75
 //LED defines
@@ -647,7 +647,7 @@ PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_
 PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,30,30);
 
 PID AltHoldPosition(&zTarget.val,&imu.ZEst.val,&velSetPointZ.val,&integrate,&kp_altitude_position.val,&ki_altitude_position.val,&kd_altitude_position.val,&fc_altitude_position.val,&imuDT,1.5,1.5);
-ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,400,800,&mul_altitude_velocity.val);
+ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,800,800,&mul_altitude_velocity.val);
 
 PID WayPointPosition(&zero,&distToWayPoint.val,&targetVelWayPoint.val,&integrate,&kp_waypoint_position.val,&ki_waypoint_position.val,&kd_waypoint_position.val,&fc_waypoint_position.val,&GPSDT,10,10);
 PID WayPointRate(&targetVelWayPoint.val,&speed2D_MPS,&pitchSetPoint.val,&integrate,&kp_waypoint_velocity.val,&ki_waypoint_velocity.val,&kd_waypoint_velocity.val,&fc_waypoint_velocity.val,&imuDT,45,45);
@@ -700,7 +700,8 @@ boolean offsetFlag,sendCalibrationData,hsTX,lsTX,tuningTrasnmitOK;
 
 boolean gpsFailSafe,txFailSafe,telemFailSafe,battFailSafe;
 
-boolean trimMode,setTrim,trimComplete,throttleCheckFlag,autoMaticReady;
+boolean trimMode,setTrim,trimComplete,autoMaticReady;
+uint8_t throttleCheckFlag;
 boolean modeSelect = false;
 uint8_t switchPositions,clearTXRTB;
 uint8_t previousFlightMode,motorState;
@@ -728,6 +729,13 @@ volatile float pingDistCentimeters,pingDistMeters;
 volatile boolean newPing = false;
 float_u baroZ,ultraSonicRange;
 
+float_u pingDistOutput,widthOutput;
+
+//boolean pingFlag;
+uint8_t pingFlag;
+
+int16_u throOutput;
+
 
 /*void pause(){
  while(digitalRead(22)==0){
@@ -750,6 +758,7 @@ void setup(){
   //digitalWrite(RED,HIGH);
   pinMode(13,OUTPUT);
   Port0.begin(115200);
+  Port2.begin(115200);
   AssignPointerArray();
   //----------------------------
   //Port0<<"start\r\n";
@@ -771,15 +780,18 @@ void setup(){
   D27Output();
   D28Output();
   D29Output();
-  SonarInit();//must go above detectRC or the program breaks!
+  //SonarInit();//must go above detectRC or the program breaks!
+
+  CheckESCFlag();
   
   DetectRC();
-  
+
   _200HzISRConfig();
-  MotorInit();
+  
   
   ROMFlagsCheck();
-  CalibrateESC();//throttle high will trigger this reset after calibration
+  CalibrateESC();
+  MotorInit();
   delay(3500);//this allows the telemetry radios to connect before trying the handshake
   if (handShake == false){
     Port2.begin(115200);
@@ -795,54 +807,57 @@ void setup(){
     }
   }
 
-  
-   I2c.begin();
-   I2c.setSpeed(1);
-   SPI.begin();
-   SPI.setBitOrder(MSBFIRST);
-   SPI.setClockDivider(SPI_CLOCK_DIV2);   
-   
-   
-   
-   if (calibrationMode == true){
-   BaroInit();
-   AccInit();
-   MagInit();
-   CalibrateSensors();  
-   ROMFlagsCheck();
-   }
-   
-   
-   ModeSelect();
-   Arm();//move the rudder to the right to begin calibration
-   BaroInit();
-   WaitForTempStab();
-   GyroInit();
-   AccInit();
-   MagInit();
-   imu.InitialQuat();
-   
-   CalcGravityOffSet();
-   
-   
-   GPSStart();
-   
-   CheckTXPositions();
-   imuTimer = micros();
-   _400HzTimer = micros();
-   generalPurposeTimer = millis();
-   watchDogStartCount = true;
-   
-   accCircle.val = POSITION_ERROR_LIMIT;
-   digitalWrite(RED,LOW);
-   digitalWrite(YELLOW,LOW);
-   digitalWrite(GREEN,LOW);
-   digitalWrite(13,LOW);
+
+  I2c.begin();
+  I2c.setSpeed(1);
+  SPI.begin();
+  SPI.setBitOrder(MSBFIRST);
+  SPI.setClockDivider(SPI_CLOCK_DIV2);   
+
+
+
+  if (calibrationMode == true){
+    BaroInit();
+    AccInit();
+    MagInit();
+    CalibrateSensors();  
+    ROMFlagsCheck();
+  }
+
+
+  ModeSelect();
+  Arm();//move the rudder to the right to begin calibration
+  BaroInit();
+  WaitForTempStab();
+  GyroInit();
+  AccInit();
+  MagInit();
+  imu.InitialQuat();
+
+  CalcGravityOffSet();
+
+
+  GPSStart();
+
+  CheckTXPositions();
+  imuTimer = micros();
+  _400HzTimer = micros();
+  generalPurposeTimer = millis();
+  watchDogStartCount = true;
+
+  accCircle.val = POSITION_ERROR_LIMIT;
+
+  digitalWrite(RED,LOW);
+  digitalWrite(YELLOW,LOW);
+  digitalWrite(GREEN,LOW);
+  digitalWrite(13,LOW);
 
 }
 
-void loop(){
 
+
+void loop(){
+  //pingFlag = newPing;
   _400HzTask();
   if ( micros() - imuTimer >= 16666){  
     imuDT = (micros() - imuTimer) * 0.000001;
@@ -883,6 +898,9 @@ void loop(){
     Radio();
     if (tuningTrasnmitOK == true){
       TuningTransmitter();
+      if (pingFlag == 1){
+        pingFlag = 0;
+      }
       tuningTrasnmitOK = false;
     }
   }
@@ -918,6 +936,7 @@ void loop(){
     }
     if (drFlag == false){
       imu.GPSKalUpdate();
+      //Port2<<imu.xError<<","<<imu.yError<<","<<imu.zError<<" GPS\r\n";
     }
     else{
       accCircle.val *= ACC_RATE;
@@ -961,39 +980,46 @@ void loop(){
     GetAltitude(&pressure.val,&pressureInitial,&baroZ.val);
     rawZ.val = baroZ.val;
     imu.BaroKalUpdate();
+    //Port2<<imu.xError<<","<<imu.yError<<","<<imu.zError<<" Baro\r\n";
   }
   _400HzTask();
   if (newPing == true){
+    pingFlag = 1;
     newPing = false;
     //Port0<<width<<","<<pingDistCentimeters<<","<<pingDistMeters<<"\r\n";
-    ultraSonicRange.val = cos(ToRad(imu.pitch.val)) * cos(ToRad(imu.roll.val)) *pingDistMeters;
-    rawZ.val = ultraSonicRange.val;
-    imu.PingKalUpdate();
+    pingDistOutput.val = pingDistMeters;
+    widthOutput.val = width;
+    ultraSonicRange.val = cos(ToRad(imu.pitch.val)) * cos(ToRad(imu.roll.val)) * pingDistMeters;
+    //rawZ.val = ultraSonicRange.val;
+    //imu.PingKalUpdate();
+    //Port2<<imu.xError<<","<<imu.yError<<","<<imu.zError<<" Ping\r\n";
+
   }
 
-/*
- if (millis() - generalPurposeTimer >= 100){
-    generalPurposeTimer = millis();
-    Port0<<generalPurposeTimer<<","<<temperature<<","<<gyroX.val<<","<<gyroY.val
-      <<","<<gyroZ.val<<","<<magX.val<<","<<magY.val<<","<<magZ.val
-      <<","<<accX.val<<","<<accY.val<<","<<accZ.val
-      <<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
+  
+ if (millis() - generalPurposeTimer >= 50){
+   generalPurposeTimer = millis();
+   //Port0<<generalPurposeTimer<<","<<temperature<<","<<gyroX.val<<","<<gyroY.val
+   //<<","<<gyroZ.val<<","<<magX.val<<","<<magY.val<<","<<magZ.val
+   //<<","<<accX.val<<","<<accY.val<<","<<accZ.val
+   //<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
+   //Port0<<imu.ZEst.val<<","<<imu.velZ.val<<","<<baroZ.val<<","<<ultraSonicRange.val<<","<<pingFlag<<"\r\n";
 
-    //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
-    //Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
-    //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-    //Port0<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
-    ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
-    //Port0<<imu.inertialZ<<"\r\n";
-    //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-    //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
-    //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
-    //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
-    //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
-  }
-
-
-  _400HzTask();*/
+   //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
+   //Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
+   //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   //Port0<<a<<","<<b<<","<<c<<","<<D<<","<<E<<","<<F<<","<<G<<"\r\n";
+   ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
+   //Port0<<imu.inertialZ<<"\r\n";
+   //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
+   //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
+   //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
+   //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+   //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
+   }
+   
+   
+   _400HzTask();
 
   if (newRC == true){
     newRC = false;
@@ -1291,6 +1317,7 @@ void TrimCheck(){
       for(uint8_t i = 77; i <=80; i++){
         EEPROM.write(i,imu.rollOffset.buffer[j++]);
       }
+      EEPROM.write(382,0xAA);
     }
   }
 }
@@ -1427,6 +1454,11 @@ void LoiterCalculations(){
   tiltAngleX.val *= -1.0;
   LoiterYVelocity.calculate();
 }
+
+
+
+
+
 
 
 

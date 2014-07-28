@@ -29,33 +29,35 @@ void Arm(){
 }
 
 void LoiterSM(){
-
+  //Port0<<abs(RCValue[THRO] - 1550)<<"\r\n";
   switch(ZLoiterState){
   case LOITERING:
+    //Port0<<"A\r\n";
     AltHoldPosition.calculate();
     AltHoldVelocity.calculate();
     if (abs(RCValue[THRO] - 1550) > 200 && throttleCheckFlag == false){
       ZLoiterState = RCINPUT;
     }
-    if (RCValue[THRO] < 1100 && motorState == FLIGHT){
+    if (RCValue[THRO] < 1050 && motorState == FLIGHT){
       ZLoiterState = LAND;
       motorState = LANDING;
       velSetPointZ.val = LAND_VEL;
     }
     break;
   case RCINPUT:
+    //Port0<<"B\r\n";
     if (throttleCheckFlag == true){
       ZLoiterState = LOITERING;
       break;
     }
     rcDifference = RCValue[THRO] - 1550;
-    if (abs(rcDifference) < 150){
+    if (abs(rcDifference) < 200){
       ZLoiterState = LOITERING;
       zTarget = imu.ZEst;
-      if (zTarget.val < FLOOR){
+      if (zTarget.val <= FLOOR){
         zTarget.val = FLOOR;
       } 
-      if (zTarget.val > CEILING){
+      if (zTarget.val >= CEILING){
         zTarget.val = CEILING;
       }
       AltHoldPosition.calculate();
@@ -69,12 +71,24 @@ void LoiterSM(){
     if (velSetPointZ.val < MIN_Z_RATE){
       velSetPointZ.val = MIN_Z_RATE;
     }
-    if (imu.ZEst.val > CEILING || imu.ZEst.val < FLOOR){
+    /*if (imu.ZEst.val >= CEILING || imu.ZEst.val <= FLOOR){
       velSetPointZ.val = 0;
+    }*/
+    if (imu.ZEst.val >= CEILING && velSetPointZ.val > 0){
+      zTarget.val = CEILING;
+      AltHoldPosition.calculate();
+      AltHoldVelocity.calculate();
+      break;
+    }
+    if (imu.ZEst.val <= FLOOR && velSetPointZ.val < 0){
+      zTarget.val = FLOOR;
+      AltHoldPosition.calculate();
+      AltHoldVelocity.calculate();
+      break;
     }
 
     AltHoldVelocity.calculate();
-    if (RCValue[THRO] < 1100 && motorState == FLIGHT){
+    if (RCValue[THRO] < 1050 && motorState == FLIGHT){
       ZLoiterState = LAND;
       motorState = LANDING;
       velSetPointZ.val = LAND_VEL;
@@ -82,6 +96,7 @@ void LoiterSM(){
     break;
 
   case LAND:
+    //Port0<<"C\r\n";
     AltHoldVelocity.calculate();
     if (RCValue[THRO] > 1200 && motorState == LANDING){
       ZLoiterState = LOITERING;

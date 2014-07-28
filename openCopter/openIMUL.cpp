@@ -86,8 +86,8 @@ float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *ma
 
   currentEstIndex = 0;
   lagIndex = 1;
-  currentEstIndex_z = 0;
-  lagIndex_z = 1;
+  //currentEstIndex_z = 0;
+//lagIndex_z = 1;
 }
 
 float openIMU::GetGravOffset(void){
@@ -434,6 +434,7 @@ void openIMU::BaroKalUpdate(){
   temp1 = p11Z + vZ_Baro;
   temp2 = (p11Z / temp1) - 1;
   temp3 = *ZRaw - ZEst.val;
+  zError = temp3;
   k1Z = p11Z / temp1;
   k2Z = p21Z / temp1;
   k3Z = p31Z / temp1;

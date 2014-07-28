@@ -1,3 +1,45 @@
+void CheckESCFlag(){
+  if (EEPROM.read(428) == 0xAA){
+    MotorInit();
+    Motor1WriteMicros(2000);//set the output compare value
+    Motor2WriteMicros(2000);
+    Motor3WriteMicros(2000);
+    Motor4WriteMicros(2000);
+    Motor5WriteMicros(2000);
+    Motor6WriteMicros(2000);
+    delay(2000);
+    Motor1WriteMicros(1000);//set the output compare value
+    Motor2WriteMicros(1000);
+    Motor3WriteMicros(1000);
+    Motor4WriteMicros(1000);
+    Motor5WriteMicros(1000);
+    Motor6WriteMicros(1000);
+    EEPROM.write(428,0xFF);
+    while(1){
+      digitalWrite(13,LOW);
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,HIGH);
+      digitalWrite(GREEN,HIGH);
+      delay(250);
+      digitalWrite(13,HIGH);
+      digitalWrite(RED,LOW);
+      digitalWrite(YELLOW,HIGH);
+      digitalWrite(GREEN,HIGH);
+      delay(250);
+      digitalWrite(13,HIGH);
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,LOW);
+      digitalWrite(GREEN,HIGH);
+      delay(250);
+      digitalWrite(13,HIGH);
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,HIGH);
+      digitalWrite(GREEN,LOW);
+      delay(250);
+    }
+  }
+}
+
 void CalibrateESC(){
   delay(500);//wait for new frame
 
@@ -7,32 +49,34 @@ void CalibrateESC(){
   ProcessChannels();
   if (RCValue[THRO] > 1900){
     EEPROM.write(0x3E8,0xFF);//clear the handshake flag
-    while (RCValue[THRO] > 1100){
-      if (newRC == true){
-        ProcessChannels();
-        newRC = false;
-      }
-      Motor1WriteMicros(2000);//set the output compare value
-      Motor2WriteMicros(2000);
-      Motor3WriteMicros(2000);
-      Motor4WriteMicros(2000);
-      Motor5WriteMicros(2000);
-      Motor6WriteMicros(2000);
-      //Motor7WriteMicros(2000);
-      //Motor8WriteMicros(2000);
+    EEPROM.write(428,0xAA);
+    while(1){
+      digitalWrite(13,HIGH);
+      digitalWrite(RED,LOW);
+      digitalWrite(YELLOW,LOW);
+      digitalWrite(GREEN,LOW);
+      delay(250);
+      digitalWrite(13,LOW);
+      digitalWrite(RED,HIGH);
+      digitalWrite(YELLOW,LOW);
+      digitalWrite(GREEN,LOW);
+      delay(250);
+      digitalWrite(13,LOW);
+      digitalWrite(RED,LOW);
+      digitalWrite(YELLOW,HIGH);
+      digitalWrite(GREEN,LOW);
+      delay(250);
+      digitalWrite(13,LOW);
+      digitalWrite(RED,LOW);
+      digitalWrite(YELLOW,LOW);
+      digitalWrite(GREEN,HIGH);
+      delay(250);
     }
-    Motor1WriteMicros(1000);//set the output compare value
-    Motor2WriteMicros(1000);
-    Motor3WriteMicros(1000);
-    Motor4WriteMicros(1000);
-    Motor5WriteMicros(1000);
-    Motor6WriteMicros(1000);
-    //Motor7WriteMicros(1000);
-    //Motor8WriteMicros(1000);
-    delay(500);
-    asm volatile ("  jmp 0");  
+
   }
+  
 }
+
 
 void MotorInit(){
   DDRE |= B00111000;

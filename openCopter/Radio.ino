@@ -75,26 +75,26 @@ void Radio(){
       numRXbytes++;    
       packetTemp[1] = radioByte;
       remotePacketNumberUn = (packetTemp[1] << 8 ) | packetTemp[0];
-      /*if (remotePacketNumberUn > localPacketNumberUn){
-       if ( (remotePacketNumberUn - localPacketNumberUn) > 1000){
-       radioState = 8;
-       break;
-       }
-       SendUnMis();
-       radioState = 0;
-       break;
-       }
-       if (remotePacketNumberUn == localPacketNumberUn){
-       radioState = 8;
-       break;
-       }
-       if (remotePacketNumberUn < localPacketNumberUn){
-       if ((localPacketNumberUn - remotePacketNumberUn) > 1000){
-       SendUnMis();
-       radioState = 0;
-       }
-       radioState = 8;
-       }*/
+      if (remotePacketNumberUn > localPacketNumberUn){
+        if ( (remotePacketNumberUn - localPacketNumberUn) > 1000){
+          radioState = 8;
+          break;
+        }
+        SendUnMis();
+        radioState = 0;
+        break;
+      }
+      if (remotePacketNumberUn == localPacketNumberUn){
+        radioState = 8;
+        break;
+      }
+      if (remotePacketNumberUn < localPacketNumberUn){
+        if ((localPacketNumberUn - remotePacketNumberUn) > 1000){
+          SendUnMis();
+          radioState = 0;
+        }
+        radioState = 8;
+      }
       break;
 
     case 8://get typeNum
@@ -129,28 +129,28 @@ void Radio(){
           localPacketNumberUn++;
         }
       }
-      else{
-        if (remotePacketNumberUn > localPacketNumberUn){
-          if ( (remotePacketNumberUn - localPacketNumberUn) > 1000){
-            radioState = 8;
-            break;
-          }
-          SendUnMis();
-          radioState = 0;
-          break;
-        }
-        if (remotePacketNumberUn == localPacketNumberUn){
-          radioState = 8;
-          break;
-        }
-        if (remotePacketNumberUn < localPacketNumberUn){
-          if ((localPacketNumberUn - remotePacketNumberUn) > 1000){
-            SendUnMis();
-            radioState = 0;
-          }
-          radioState = 8;
-        }
-      }
+      /*else{
+       if (remotePacketNumberUn > localPacketNumberUn){
+       if ( (remotePacketNumberUn - localPacketNumberUn) > 1000){
+       radioState = 8;
+       break;
+       }
+       SendUnMis();
+       radioState = 0;
+       break;
+       }
+       if (remotePacketNumberUn == localPacketNumberUn){
+       radioState = 8;
+       break;
+       }
+       if (remotePacketNumberUn < localPacketNumberUn){
+       if ((localPacketNumberUn - remotePacketNumberUn) > 1000){
+       SendUnMis();
+       radioState = 0;
+       }
+       radioState = 8;
+       }
+       }*/
 
       radioState = 0;
 
@@ -170,11 +170,11 @@ void Radio(){
       numRXbytes++;    
       packetTemp[1] = radioByte;
       remotePacketNumberOrdered = (packetTemp[1] << 8 ) | packetTemp[0];
-      /*if (remotePacketNumberOrdered != localPacketNumberOrdered){
-       SendOrdMis();
-       radioState = 0;
-       break;
-       }*/
+      if (remotePacketNumberOrdered != localPacketNumberOrdered){
+        SendOrdMis();
+        radioState = 0;
+        break;
+      }
       radioState = 14;
       break;
 
@@ -251,17 +251,18 @@ void Radio(){
             for(uint8_t i = 77; i <=80; i++){
               EEPROM.write(i,imu.rawRoll.buffer[j++]);
             }
+            EEPROM.write(382,0xAA);
           }
         }
         SendOrdAck();
       }
-      else{
-        if (remotePacketNumberOrdered != localPacketNumberOrdered){
-          SendOrdMis();
-          radioState = 0;
-          break;
-        }
-      }
+      /*else{
+       if (remotePacketNumberOrdered != localPacketNumberOrdered){
+       SendOrdMis();
+       radioState = 0;
+       break;
+       }
+       }*/
       radioState = 0;
       break;
 
@@ -453,7 +454,7 @@ void TuningTransmitter(){//
 
 void SetTransmissionRate(){
   if (typeNum == 4){
-
+    //Port0<<cmdNum<<"\r\n";
     if (cmdNum == 0){
       hsTX = false;
     }
@@ -522,7 +523,7 @@ void WriteCalibrationDataToRom(){
     for(uint16_t i = 385; i <= 388; i++){
       EEPROM.write(i,itemBuffer[itemIndex++]);
     }
-     //set the calib temp
+    //set the calib temp
     temp16.val = temperature;
     for (uint16_t i = 0; i < 2; i++){
       EEPROM.write(i + 383,temp16.buffer[i]);
@@ -530,10 +531,10 @@ void WriteCalibrationDataToRom(){
     calibrationFlags = EEPROM.read(0x00);
     calibrationFlags &= ~(1<<ACC_FLAG);
     EEPROM.write(0x00,calibrationFlags);
-    
-    
+
+
     break;//--------------------------------------------
-   
+
 
   case 2://RC calibration data
     for(uint16_t i = 329; i <= 376; i++){
@@ -1131,6 +1132,9 @@ void SendHandShakeResponse(){
 
   }
 }
+
+
+
 
 
 
