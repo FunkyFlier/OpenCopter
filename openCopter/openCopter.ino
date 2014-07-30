@@ -580,7 +580,7 @@ float_u adjustmentZ;
 float_u throttleAdjustment;    
 float_u velSetPointX,velSetPointY;
 float_u zTarget,velSetPointZ,actualAltitude;
-float yawInput;
+float_u yawInput;
 float zero = 0.0;
 float_u pitchSetPointTX,rollSetPointTX;
 float_u distToWayPoint,targetVelWayPoint;
@@ -629,34 +629,6 @@ float gravSum;
 float gravAvg;
 float shiftedAccX,shiftedAccY,shiftedAccZ;
 
-//constructors //fix the dts
-openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&filtAccX.val,&filtAccY.val,&filtAccZ.val,&calibMagX.val,&calibMagY.val,&calibMagZ.val,&rawX.val,&rawY.val,&rawZ.val,&imuDT);
-
-PID PitchRate(&rateSetPointY.val,&degreeGyroY.val,&adjustmentY.val,&integrate,&kp_pitch_rate.val,&ki_pitch_rate.val,&kd_pitch_rate.val,&fc_pitch_rate.val,&rateDT,400,400);
-PID RollRate(&rateSetPointX.val,&degreeGyroX.val,&adjustmentX.val,&integrate,&kp_roll_rate.val,&ki_roll_rate.val,&kd_roll_rate.val,&fc_roll_rate.val,&rateDT,400,400);
-PID YawRate(&rateSetPointZ.val,&degreeGyroZ.val,&adjustmentZ.val,&integrate,&kp_yaw_rate.val,&ki_yaw_rate.val,&kd_yaw_rate.val,&fc_yaw_rate.val,&rateDT,400,400);
-
-PID PitchAngle(&pitchSetPoint.val,&imu.pitch.val,&rateSetPointY.val,&integrate,&kp_pitch_attitude.val,&ki_pitch_attitude.val,&kd_pitch_attitude.val,&fc_pitch_attitude.val,&imuDT,800,800);
-PID RollAngle(&rollSetPoint.val,&imu.roll.val,&rateSetPointX.val,&integrate,&kp_roll_attitude.val,&ki_roll_attitude.val,&kd_roll_attitude.val,&fc_roll_attitude.val,&imuDT,800,800);
-YAW YawAngle(&yawSetPoint.val,&imu.yaw.val,&rateSetPointZ.val,&integrate,&kp_yaw_attitude.val,&ki_yaw_attitude.val,&kd_yaw_attitude.val,&fc_yaw_attitude.val,&imuDT,800,800);
-
-PID LoiterXPosition(&xTarget.val,&imu.XEst.val,&velSetPointX.val,&integrate,&kp_loiter_pos_x.val,&ki_loiter_pos_x.val,&kd_loiter_pos_x.val,&fc_loiter_pos_x.val,&imuDT,1,1);
-PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,30,30);
-
-PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_loiter_pos_y.val,&ki_loiter_pos_y.val,&kd_loiter_pos_y.val,&fc_loiter_pos_y.val,&imuDT,1,1);
-PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,30,30);
-
-PID AltHoldPosition(&zTarget.val,&imu.ZEst.val,&velSetPointZ.val,&integrate,&kp_altitude_position.val,&ki_altitude_position.val,&kd_altitude_position.val,&fc_altitude_position.val,&imuDT,1.5,1.5);
-ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,800,800,&mul_altitude_velocity.val);
-
-PID WayPointPosition(&zero,&distToWayPoint.val,&targetVelWayPoint.val,&integrate,&kp_waypoint_position.val,&ki_waypoint_position.val,&kd_waypoint_position.val,&fc_waypoint_position.val,&GPSDT,10,10);
-PID WayPointRate(&targetVelWayPoint.val,&speed2D_MPS,&pitchSetPoint.val,&integrate,&kp_waypoint_velocity.val,&ki_waypoint_velocity.val,&kd_waypoint_velocity.val,&fc_waypoint_velocity.val,&imuDT,45,45);
-//PID CrossTrack 
-//2D speed from GPS best idea where or use the vel from the estimator?
-
-
-
-//x and y setpoints are rotated into pitch and roll set points
 
 
 uint32_t _400HzTimer;
@@ -700,7 +672,7 @@ boolean offsetFlag,sendCalibrationData,hsTX,lsTX,tuningTrasnmitOK;
 
 boolean gpsFailSafe,txFailSafe,telemFailSafe,battFailSafe;
 
-boolean trimMode,setTrim,trimComplete,autoMaticReady;
+boolean startMode,setTrim,trimComplete,autoMaticReady;
 uint8_t throttleCheckFlag;
 boolean modeSelect = false;
 uint8_t switchPositions,clearTXRTB;
@@ -724,12 +696,6 @@ int16_u calibTempAcc,calibTempMag,initialTemp,deltaTemp;
 
 uint32_t ledTimer;
 
-volatile uint32_t start,width;
-volatile float pingDistCentimeters,pingDistMeters;
-volatile boolean newPing = false;
-float_u baroZ,ultraSonicRange;
-
-float_u pingDistOutput,widthOutput;
 
 //boolean pingFlag;
 uint8_t pingFlag;
@@ -737,18 +703,33 @@ uint8_t pingFlag;
 int16_u throOutput;
 
 
-/*void pause(){
- while(digitalRead(22)==0){
- }//wait for the toggle
- delay(500);
- }*/
+volatile uint32_t start,width;
+volatile float pingDistCentimeters,pingDistMeters;
+volatile boolean newPing = false;
+float_u baroZ,ultraSonicRange;
 
-/*char hex[17]="0123456789ABCDEF";
- 
- void ShowHex(byte convertByte){
- Port0 << hex[(convertByte >>4) & 0x0F];
- Port0 << hex[convertByte & 0x0F]<<"\r\n";
- }*/
+//constructors //fix the dts
+openIMU imu(&radianGyroX,&radianGyroY,&radianGyroZ,&accToFilterX,&accToFilterY,&accToFilterZ,&filtAccX.val,&filtAccY.val,&filtAccZ.val,&calibMagX.val,&calibMagY.val,&calibMagZ.val,&rawX.val,&rawY.val,&rawZ.val,&imuDT);
+
+PID PitchRate(&rateSetPointY.val,&degreeGyroY.val,&adjustmentY.val,&integrate,&kp_pitch_rate.val,&ki_pitch_rate.val,&kd_pitch_rate.val,&fc_pitch_rate.val,&rateDT,400,400);
+PID RollRate(&rateSetPointX.val,&degreeGyroX.val,&adjustmentX.val,&integrate,&kp_roll_rate.val,&ki_roll_rate.val,&kd_roll_rate.val,&fc_roll_rate.val,&rateDT,400,400);
+PID YawRate(&rateSetPointZ.val,&degreeGyroZ.val,&adjustmentZ.val,&integrate,&kp_yaw_rate.val,&ki_yaw_rate.val,&kd_yaw_rate.val,&fc_yaw_rate.val,&rateDT,400,400);
+
+PID PitchAngle(&pitchSetPoint.val,&imu.pitch.val,&rateSetPointY.val,&integrate,&kp_pitch_attitude.val,&ki_pitch_attitude.val,&kd_pitch_attitude.val,&fc_pitch_attitude.val,&imuDT,800,800);
+PID RollAngle(&rollSetPoint.val,&imu.roll.val,&rateSetPointX.val,&integrate,&kp_roll_attitude.val,&ki_roll_attitude.val,&kd_roll_attitude.val,&fc_roll_attitude.val,&imuDT,800,800);
+YAW YawAngle(&yawSetPoint.val,&imu.yaw.val,&rateSetPointZ.val,&integrate,&kp_yaw_attitude.val,&ki_yaw_attitude.val,&kd_yaw_attitude.val,&fc_yaw_attitude.val,&imuDT,800,800);
+
+PID LoiterXPosition(&xTarget.val,&imu.XEst.val,&velSetPointX.val,&integrate,&kp_loiter_pos_x.val,&ki_loiter_pos_x.val,&kd_loiter_pos_x.val,&fc_loiter_pos_x.val,&imuDT,1,1);
+PID LoiterXVelocity(&velSetPointX.val,&imu.velX.val,&tiltAngleX.val,&integrate,&kp_loiter_velocity_x.val,&ki_loiter_velocity_x.val,&kd_loiter_velocity_x.val,&fc_loiter_velocity_x.val,&imuDT,30,30);
+
+PID LoiterYPosition(&yTarget.val,&imu.YEst.val,&velSetPointY.val,&integrate,&kp_loiter_pos_y.val,&ki_loiter_pos_y.val,&kd_loiter_pos_y.val,&fc_loiter_pos_y.val,&imuDT,1,1);
+PID LoiterYVelocity(&velSetPointY.val,&imu.velY.val,&tiltAngleY.val,&integrate,&kp_loiter_velocity_y.val,&ki_loiter_velocity_y.val,&kd_loiter_velocity_y.val,&fc_loiter_velocity_y.val,&imuDT,30,30);
+
+PID AltHoldPosition(&zTarget.val,&imu.ZEst.val,&velSetPointZ.val,&integrate,&kp_altitude_position.val,&ki_altitude_position.val,&kd_altitude_position.val,&fc_altitude_position.val,&imuDT,1.5,1.5);
+ALT AltHoldVelocity(&velSetPointZ.val,&imu.velZ.val,&throttleAdjustment.val,&integrate,&kp_altitude_velocity.val,&ki_altitude_velocity.val,&kd_altitude_velocity.val,&fc_altitude_velocity.val,&imuDT,800,800,&mul_altitude_velocity.val);
+
+PID WayPointPosition(&zero,&distToWayPoint.val,&targetVelWayPoint.val,&integrate,&kp_waypoint_position.val,&ki_waypoint_position.val,&kd_waypoint_position.val,&fc_waypoint_position.val,&GPSDT,10,10);
+PID WayPointRate(&targetVelWayPoint.val,&speed2D_MPS,&pitchSetPoint.val,&integrate,&kp_waypoint_velocity.val,&ki_waypoint_velocity.val,&kd_waypoint_velocity.val,&fc_waypoint_velocity.val,&imuDT,45,45);
 
 
 void setup(){
@@ -760,19 +741,11 @@ void setup(){
   Port0.begin(115200);
   Port2.begin(115200);
   AssignPointerArray();
-  //----------------------------
-  //Port0<<"start\r\n";
-  //ROMFlagsCheck();
-  //DEBUG_DUMP();
-  //while(1){}
-
-  //----------------------------  
   AccSSOutput();//this was moved from the init
   AccSSHigh();//if high isn't written to both devices befor config 
   GyroSSOutput();//the SPI bus will be addressing both devices 
   GyroSSHigh();
   D22Output();
-  //pinMode(22,INPUT);
   D23Output();
   D24Output();
   D25Output();
@@ -780,8 +753,7 @@ void setup(){
   D27Output();
   D28Output();
   D29Output();
-  //SonarInit();//must go above detectRC or the program breaks!
-
+  
   CheckESCFlag();
   
   DetectRC();
@@ -792,6 +764,7 @@ void setup(){
   ROMFlagsCheck();
   CalibrateESC();
   MotorInit();
+  //throttle high will trigger this reset after calibration
   delay(3500);//this allows the telemetry radios to connect before trying the handshake
   if (handShake == false){
     Port2.begin(115200);
@@ -910,14 +883,13 @@ void loop(){
 
   if (gpsUpdate == true){
     gpsUpdate = false;
-    //GPSFlag = true;
     gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
 
     DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
     numSats.val = gps.satellites();
     hDop.val = gps.hdop();
     if (numSats.val <= 6  || hDop.val >= 215 ){
-      digitalWrite(RED,HIGH);
+      //digitalWrite(RED,HIGH);
       GPSDenial = true;
       gpsFailSafe = true;
     }
@@ -936,7 +908,6 @@ void loop(){
     }
     if (drFlag == false){
       imu.GPSKalUpdate();
-      //Port2<<imu.xError<<","<<imu.yError<<","<<imu.zError<<" GPS\r\n";
     }
     else{
       accCircle.val *= ACC_RATE;
@@ -976,35 +947,27 @@ void loop(){
   _400HzTask();
   if (newBaro == true){
     newBaro = false;
-    //baroFlag = true;
     GetAltitude(&pressure.val,&pressureInitial,&baroZ.val);
     rawZ.val = baroZ.val;
     imu.BaroKalUpdate();
-    //Port2<<imu.xError<<","<<imu.yError<<","<<imu.zError<<" Baro\r\n";
   }
   _400HzTask();
   if (newPing == true){
     pingFlag = 1;
     newPing = false;
-    //Port0<<width<<","<<pingDistCentimeters<<","<<pingDistMeters<<"\r\n";
-    pingDistOutput.val = pingDistMeters;
-    widthOutput.val = width;
     ultraSonicRange.val = cos(ToRad(imu.pitch.val)) * cos(ToRad(imu.roll.val)) * pingDistMeters;
-    //rawZ.val = ultraSonicRange.val;
-    //imu.PingKalUpdate();
-    //Port2<<imu.xError<<","<<imu.yError<<","<<imu.zError<<" Ping\r\n";
 
   }
 
-  
- /*if (millis() - generalPurposeTimer >= 50){
+
+  /*if (millis() - generalPurposeTimer >= 50){
    generalPurposeTimer = millis();
    //Port0<<generalPurposeTimer<<","<<temperature<<","<<gyroX.val<<","<<gyroY.val
    //<<","<<gyroZ.val<<","<<magX.val<<","<<magY.val<<","<<magZ.val
    //<<","<<accX.val<<","<<accY.val<<","<<accZ.val
    //<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
    //Port0<<imu.ZEst.val<<","<<imu.velZ.val<<","<<baroZ.val<<","<<ultraSonicRange.val<<","<<pingFlag<<"\r\n";
-
+   
    //Port0<<millis()<<","<<radianGyroX<<","<<radianGyroY<<","<<radianGyroZ<<"\r\n";
    //Port0<<"^"<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<"\r\n";
    //Port0<<generalPurposeTimer<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
@@ -1012,20 +975,19 @@ void loop(){
    ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
    //Port0<<imu.inertialZ<<"\r\n";
    //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
-   <<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
-   <<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+   //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
+   //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
+   //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
    //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
-   }
-   
-   
-   _400HzTask();*/
+   }*/
+
+
+  _400HzTask();
 
   if (newRC == true){
     newRC = false;
     ProcessChannels();
     GetSwitchPositions();
-    //SetFailSafeFlags();
     RCFailSafeCounter = 0;
   }  
   _400HzTask();
@@ -1042,8 +1004,8 @@ void loop(){
     Motor4WriteMicros(1000);
     Motor5WriteMicros(1000);
     Motor6WriteMicros(1000);
-    //Motor7WriteMicros(1000);
-    //Motor8WriteMicros(1000);
+    Motor7WriteMicros(1000);
+    Motor8WriteMicros(1000);
     if (failSafe == true){
       digitalWrite(RED,HIGH);
     }
@@ -1057,11 +1019,7 @@ void loop(){
   }
   _400HzTask();
   watchDogFailSafeCounter = 0;
-  if (gpsFailSafe == true){
-    digitalWrite(GREEN,LOW);
-    digitalWrite(YELLOW,HIGH);
-  }
-  //Port0.println(freeMemory());
+
 }
 
 
@@ -1454,6 +1412,7 @@ void LoiterCalculations(){
   tiltAngleX.val *= -1.0;
   LoiterYVelocity.calculate();
 }
+
 
 
 

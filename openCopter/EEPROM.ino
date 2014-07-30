@@ -128,13 +128,10 @@ void AssignPointerArray(){
   floatPointerArray[DR_VEL_Y] = &drVelY;
   floatPointerArray[DR_POS_X] = &drPosX;
   floatPointerArray[DR_POS_Y] = &drPosY;
-  //floatPointerArray[MOTOR_CMD_1] = &motorCommand1;
-  floatPointerArray[MOTOR_CMD_1] = &ultraSonicRange;
-  //floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
-  floatPointerArray[MOTOR_CMD_2] = &baroZ;
-  //floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
-  floatPointerArray[MOTOR_CMD_3] = &pingDistOutput;
-  floatPointerArray[MOTOR_CMD_4] = &widthOutput;
+  floatPointerArray[MOTOR_CMD_1] = &motorCommand1;
+  floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
+  floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
+  floatPointerArray[MOTOR_CMD_4] = &motorCommand4;
   floatPointerArray[PITCH_OFF] = &imu.pitchOffset;
   floatPointerArray[ROLL_OFF] = &imu.rollOffset;
 
@@ -143,7 +140,7 @@ void AssignPointerArray(){
   floatPointerArray[INERTIAL_Z] = &imu.inertialZ;
 
 
-  int16PointerArray[GYRO_X] = &throOutput;
+  int16PointerArray[GYRO_X] = &gyroZ;
   int16PointerArray[GYRO_Y] = &gyroY;
   int16PointerArray[GYRO_Z] = &gyroZ;
   int16PointerArray[ACC_X] = &accX;
@@ -170,7 +167,6 @@ void AssignPointerArray(){
   bytePointerArray[GPS_FS] = &gpsFailSafe;
   bytePointerArray[DR_FLAG] = &drFlag;
   bytePointerArray[MOTOR_STATE] = &motorState;
-  //bytePointerArray[MOTOR_STATE] = &throttleCheckFlag;
 
 
 
@@ -282,6 +278,7 @@ void DEBUG_DUMP(){
 void ROMFlagsCheck(){
   uint16_t j;
   if (EEPROM.read(382) != 0xAA){
+    EEPROM.write(382,0xAA);
     imu.pitchOffset.val = 0;
     imu.rollOffset.val = 0;
     j = 0;
@@ -340,7 +337,7 @@ void ROMFlagsCheck(){
     for(uint16_t i = 383; i < 385; i++){
       calibTempAcc.buffer[j++] = EEPROM.read(i);
     }
-
+    
     j = 0;
     for(uint16_t i = 426; i < 428; i++){
       calibTempMag.buffer[j++] = EEPROM.read(i);
@@ -446,9 +443,9 @@ void SetDefaultGains(){
   kd_altitude_position.val = -0.0001;
   fc_altitude_position.val = 50;
 
-  kp_altitude_velocity.val = 65;
-  ki_altitude_velocity.val = 15;
-  kd_altitude_velocity.val = 0.0002;
+  kp_altitude_velocity.val = 70;
+  ki_altitude_velocity.val = 75;
+  kd_altitude_velocity.val = 0.0003;
   fc_altitude_velocity.val = 50;
   mul_altitude_velocity.val = 1.15;
 
@@ -709,7 +706,6 @@ void LoadROM(){
 
 
 }
-
 
 
 

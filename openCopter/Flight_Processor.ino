@@ -75,10 +75,8 @@ void LoiterSM(){
       ZLoiterState = LAND;
       motorState = LANDING;
       velSetPointZ.val = LAND_VEL;
-      break;
+	  break;
     }
-    
-
     if (imu.ZEst.val >= CEILING && velSetPointZ.val > 0){
       zTarget.val = CEILING;
       AltHoldPosition.calculate();
@@ -93,8 +91,8 @@ void LoiterSM(){
     }
 
     AltHoldVelocity.calculate();
-    break;
     
+    break;
 
   case LAND:
     //Port0<<"C\r\n";
@@ -171,14 +169,14 @@ void HeadingHold(){
   switch (HHState){
   case HH_ON:
     calcYaw = true;
-    if (abs(yawInput) > 1){
+    if (abs(yawInput.val) > 1){
       HHState = HH_OFF;
     }
     break;
   case HH_OFF:
     calcYaw = false;
-    rateSetPointZ.val = yawInput;
-    if (abs(yawInput) < 1){
+    rateSetPointZ.val = yawInput.val;
+    if (abs(yawInput.val) < 1){
       yawSetPoint = imu.yaw;
       HHState = HH_ON;
     }
