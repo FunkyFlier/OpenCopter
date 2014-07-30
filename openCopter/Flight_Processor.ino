@@ -71,9 +71,14 @@ void LoiterSM(){
     if (velSetPointZ.val < MIN_Z_RATE){
       velSetPointZ.val = MIN_Z_RATE;
     }
-    /*if (imu.ZEst.val >= CEILING || imu.ZEst.val <= FLOOR){
-      velSetPointZ.val = 0;
-    }*/
+    if (RCValue[THRO] < 1050 && motorState == FLIGHT){
+      ZLoiterState = LAND;
+      motorState = LANDING;
+      velSetPointZ.val = LAND_VEL;
+      break;
+    }
+    
+
     if (imu.ZEst.val >= CEILING && velSetPointZ.val > 0){
       zTarget.val = CEILING;
       AltHoldPosition.calculate();
@@ -88,12 +93,8 @@ void LoiterSM(){
     }
 
     AltHoldVelocity.calculate();
-    if (RCValue[THRO] < 1050 && motorState == FLIGHT){
-      ZLoiterState = LAND;
-      motorState = LANDING;
-      velSetPointZ.val = LAND_VEL;
-    }
     break;
+    
 
   case LAND:
     //Port0<<"C\r\n";

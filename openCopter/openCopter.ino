@@ -150,8 +150,8 @@ enum CalibrationFlags {
 #define Motor4WriteMicros(x) OCR4A = x * 2//motor 4 is attached to pin6
 #define Motor5WriteMicros(x) OCR4B = x * 2//motor 1 is attached to pin7
 #define Motor6WriteMicros(x) OCR4C = x * 2//motor 2 is attached to pin8
-//#define Motor7WriteMicros(x) OCR1A = x * 2//motor 3 is attached to pin11
-//#define Motor8WriteMicros(x) OCR1B = x * 2//motor 4 is attached to pin12
+#define Motor7WriteMicros(x) OCR1A = x * 2//motor 3 is attached to pin11
+#define Motor8WriteMicros(x) OCR1B = x * 2//motor 4 is attached to pin12
 
 //radio control defines
 //RC defines
@@ -997,7 +997,7 @@ void loop(){
   }
 
   
- if (millis() - generalPurposeTimer >= 50){
+ /*if (millis() - generalPurposeTimer >= 50){
    generalPurposeTimer = millis();
    //Port0<<generalPurposeTimer<<","<<temperature<<","<<gyroX.val<<","<<gyroY.val
    //<<","<<gyroZ.val<<","<<magX.val<<","<<magY.val<<","<<magZ.val
@@ -1012,20 +1012,20 @@ void loop(){
    ///Port0<<generalPurposeTimer<<","<<imu.pitch.val<<","<<imu.roll.val<<","<<imu.yaw.val<<","<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<","<<imu.feedBack<<","<<imu.inertialZ<<"\r\n";
    //Port0<<imu.inertialZ<<"\r\n";
    //Port0<<scaledAccX<<","<<scaledAccY<<","<<scaledAccZ<<"\r\n";
-   //Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
-   //<<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
-   //<<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
+   Port0<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]
+   <<","<<RCValue[RUDD]<<","<<RCValue[GEAR]<<","<<RCValue[AUX1]
+   <<","<<RCValue[AUX2]<<","<<RCValue[AUX3]<<"\r\n";
    //Port0<<rateSetPointY.val<<","<<rateSetPointX.val<<","<<rateSetPointZ.val<<"\r\n";
    }
    
    
-   _400HzTask();
+   _400HzTask();*/
 
   if (newRC == true){
     newRC = false;
     ProcessChannels();
     GetSwitchPositions();
-    SetFailSafeFlags();
+    //SetFailSafeFlags();
     RCFailSafeCounter = 0;
   }  
   _400HzTask();

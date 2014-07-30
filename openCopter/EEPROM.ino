@@ -169,8 +169,8 @@ void AssignPointerArray(){
   bytePointerArray[XY_LOIT] = &XYLoiterState;
   bytePointerArray[GPS_FS] = &gpsFailSafe;
   bytePointerArray[DR_FLAG] = &drFlag;
-  //bytePointerArray[MOTOR_STATE] = &motorState;
-  bytePointerArray[MOTOR_STATE] = &throttleCheckFlag;
+  bytePointerArray[MOTOR_STATE] = &motorState;
+  //bytePointerArray[MOTOR_STATE] = &throttleCheckFlag;
 
 
 

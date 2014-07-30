@@ -1,7 +1,7 @@
 #include "AUXMATH.h"
 
 
-void SetFailSafeFlags(){//remove - for debugging purposes only
+/*void SetFailSafeFlags(){//remove - for debugging purposes only
   if (RCValue[AUX2] > 1800){
     gpsFailSafe = false;
     drFlag = false;
@@ -22,7 +22,7 @@ void SetFailSafeFlags(){//remove - for debugging purposes only
   }
 
 
-}
+}*/
 void GetSwitchPositions(){
   //value from gear switch
   if (RCValue[GEAR] < 1250){
@@ -155,6 +155,8 @@ void ProcessChannels(){
   RCValue[AILE] = (rawRCVal[AILE] - centerRCVal[AILE]) * RCScale[AILE] + 1500;
   RCValue[ELEV] = (rawRCVal[ELEV] - centerRCVal[ELEV]) * RCScale[ELEV] + 1500 ;
   RCValue[RUDD] = (rawRCVal[RUDD] - centerRCVal[RUDD]) * RCScale[RUDD] + 1500 ;
+  
+  Motor8WriteMicros(RCValue[AUX3]);
 
   throOutput.val = RCValue[THRO];
 
@@ -191,7 +193,7 @@ void ProcessChannels(){
     clearTXRTB = 0;
   }
 
-  if (RCValue[AUX3] > 1750){
+  if (RCValue[AUX2] > 1750){
     flightMode = ATT;
     setTrim = true;
     trimComplete = true;
