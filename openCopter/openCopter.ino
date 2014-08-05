@@ -16,11 +16,11 @@
 
 #define RADIUS_EARTH 6372795
 
-#define CEILING 6
+#define CEILING 122
 #define FLOOR 2
-#define TAKE_OFF_ALT 2
+#define TAKE_OFF_ALT 3
 
-#define LAND_VEL -0.75
+#define LAND_VEL -0.4
 //LED defines
 #define RED 38
 #define YELLOW 40
@@ -1031,7 +1031,7 @@ void loop(){
   _400HzTask();
   if (RCFailSafeCounter >= 200 || failSafe == true){
     txFailSafe = true;
-    TIMSK5 = (0<<OCIE5A);
+    /*TIMSK5 = (0<<OCIE5A);
     digitalWrite(13,LOW);
     digitalWrite(RED,LOW);
     digitalWrite(YELLOW,LOW);
@@ -1053,7 +1053,7 @@ void loop(){
       delay(500);
       digitalWrite(YELLOW,LOW);
       delay(500);
-    }
+    }*/
   }
   _400HzTask();
   watchDogFailSafeCounter = 0;
@@ -1209,7 +1209,9 @@ void FlightSM(){
     if (enterState == true){
       if (previousFlightMode != RATE && previousFlightMode != ATT){
         throttleCheckFlag = true;
+        
       }
+      yawSetPoint = imu.yaw;
       enterState = false;
       digitalWrite(13,LOW);
       digitalWrite(RED,LOW);
@@ -1223,6 +1225,7 @@ void FlightSM(){
     if (enterState == true){
       enterState = false;
       InitLoiter();
+      yawSetPoint = imu.yaw;
       digitalWrite(13,HIGH);
       digitalWrite(RED,HIGH);
       digitalWrite(YELLOW,LOW);
@@ -1236,6 +1239,7 @@ void FlightSM(){
     if (enterState == true){
       enterState = false;
       InitLoiter();
+      yawSetPoint = imu.yaw;
       digitalWrite(13,HIGH);
       digitalWrite(RED,LOW);
       digitalWrite(YELLOW,HIGH);
@@ -1249,6 +1253,7 @@ void FlightSM(){
   case L2:
     if (enterState == true){
       InitLoiter();
+      yawSetPoint = imu.yaw;
       digitalWrite(13,HIGH);
       digitalWrite(RED,LOW);
       digitalWrite(YELLOW,LOW);
@@ -1267,6 +1272,7 @@ void FlightSM(){
     digitalWrite(GREEN,LOW);
     if (enterState == true){
       enterState = false;
+      yawSetPoint = imu.yaw;
     }
     break;
   case WP:
@@ -1276,6 +1282,7 @@ void FlightSM(){
     digitalWrite(GREEN,LOW);
     if (enterState == true){
       enterState = false;
+      yawSetPoint = imu.yaw;
     }
     break;
   case RTB:
@@ -1293,6 +1300,7 @@ void FlightSM(){
         zTarget.val = CEILING;
       }
       RTBState = CLIMB;
+      yawSetPoint = imu.yaw;
     }
     HeadingHold();
     RTBStateMachine();

@@ -102,6 +102,7 @@ void MotorInit(){
 void MotorHandler(){
   switch(motorState){
   case HOLD:
+  
     if (saveGainsFlag == true){
       j_ = 81;
       for(uint16_t i = KP_PITCH_RATE_; i <= MAG_DEC_; i++){
@@ -117,6 +118,7 @@ void MotorHandler(){
       saveGainsFlag = false;
     }
     pressureInitial = pressure.val;
+    initialYaw = imu.yaw.val;
     integrate = false;
     HHState = 0;
     PitchAngle.reset();
@@ -171,7 +173,7 @@ void MotorHandler(){
     motorCommand3.val = 1125;
     motorCommand4.val = 1125;
     throttleCheckFlag = false;
-    initialYaw = imu.yaw.val;
+    
     if (RCValue[RUDD] > 1700){
       motorState = HOLD;
     }
