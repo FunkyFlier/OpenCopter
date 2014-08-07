@@ -246,7 +246,7 @@ void MotorHandler(){
       }
     }
     throttleCommand = 1450;
-    if ( (1450 + throttleAdjustment.val) < 1200){
+    if ( (1450 + throttleAdjustment.val) < 1250){
       motorCommand1.val = 1000;
       motorCommand2.val = 1000;
       motorCommand3.val = 1000;

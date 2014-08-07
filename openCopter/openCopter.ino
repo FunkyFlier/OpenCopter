@@ -16,11 +16,11 @@
 
 #define RADIUS_EARTH 6372795
 
-#define CEILING 122
+#define CEILING 6
 #define FLOOR 2
 #define TAKE_OFF_ALT 3
 
-#define LAND_VEL -0.4
+#define LAND_VEL -0.3
 //LED defines
 #define RED 38
 #define YELLOW 40
