@@ -336,6 +336,7 @@ void GPSStart(){
         digitalWrite(RED,HIGH);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,LOW);
+        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
         if (gpsUpdate == true){
           gpsUpdate = false;
           gpsStartState = 1;
@@ -346,6 +347,7 @@ void GPSStart(){
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,HIGH);
         digitalWrite(GREEN,LOW);
+        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
         if (gpsUpdate == true){
           gpsUpdate = false;
           if (gps.hdop() < 200 && gps.satellites() >= 8){
@@ -359,6 +361,7 @@ void GPSStart(){
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,LOW);
+        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
         if (gpsUpdate == true){
           gpsUpdate = false;
           if (gps.hdop() > 200 || gps.satellites() < 8){
@@ -378,6 +381,7 @@ void GPSStart(){
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,HIGH);
+        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
         if (gpsUpdate == true){
           gpsUpdate = false;
           if (gps.hdop() > 200 || gps.satellites() < 8){

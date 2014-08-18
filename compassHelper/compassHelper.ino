@@ -23,6 +23,7 @@ Sensor_t mag;
 
 void setup(){
   Serial.begin(115200);
+  Serial<<"start\r\n";
   I2c.begin();
   I2c.setSpeed(1);
   MagInit();
