@@ -884,6 +884,7 @@ void WaitForTempStab(){
     }
   }
   baroCount = 0;
+  baroSum = 0;
   while (baroCount < 10){//use a while instead of a for loop because the for loop runs too fast
     PollPressure();
     if (newBaro == true){
