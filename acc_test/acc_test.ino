@@ -1,10 +1,56 @@
 #include <Streaming.h>
 #include <SPI.h>
 
+//however digitalWrite will work when using SPI 
+#define GyroSSOutput() DDRL |= 1<<0 
+#define GyroSSHigh() PORTL |= 1<<0 
+#define GyroSSLow() PORTL &= ~(1<<0)
 
-#define AccSSOutput() DDRL |= 1<<1 //this is the same as pinMode(48,OUTPUT)
-#define AccSSHigh() PORTL |= 1<<1 //this is like digitalWrite(48,HIGH) but faster
+#define D22Output() DDRA |= 1<<0 
+#define D22High() PORTA |= 1<<0 
+#define D22Low() PORTA &= ~(1<<0)
+#define D22Toggle() PORTA ^= (1<<0);
+
+#define D23Output() DDRA |= 1<<1 
+#define D23High() PORTA |= 1<<1 
+#define D23Low() PORTA &= ~(1<<1)
+#define D23Toggle() PORTA ^= (1<<1);
+
+#define D24Output() DDRA |= 1<<2 
+#define D24High() PORTA |= 1<<2 
+#define D24Low() PORTA &= ~(1<<2)
+#define D24Toggle() PORTA ^= (1<<2);
+
+#define D25Output() DDRA |= 1<<3 
+#define D25High() PORTA |= 1<<3 
+#define D25Low() PORTA &= ~(1<<3)
+#define D25Toggle() PORTA ^= (1<<3);
+
+#define D26Output() DDRA |= 1<<4 
+#define D26High() PORTA |= 1<<4 
+#define D26Low() PORTA &= ~(1<<4)
+#define D26Toggle() PORTA ^= (1<<4);
+
+#define D27Output() DDRA |= 1<<5 
+#define D27High() PORTA |= 1<<5 
+#define D27Low() PORTA &= ~(1<<5)
+#define D27Toggle() PORTA ^= (1<<5);
+
+#define D28Output() DDRA |= 1<<6 
+#define D28High() PORTA |= 1<<6 
+#define D28Low() PORTA &= ~(1<<6)
+#define D28Toggle() PORTA ^= (1<<6);
+
+#define D29Output() DDRA |= 1<<7 
+#define D29High() PORTA |= 1<<7 
+#define D29Low() PORTA &= ~(1<<7)
+#define D29Toggle() PORTA ^= (1<<7);
+
+#define AccSSOutput() DDRL |= 1<<1 
+#define AccSSHigh() PORTL |= 1<<1 
 #define AccSSLow() PORTL &= ~(1<<1)
+
+
 
 //general SPI defines
 #define READ 0x80
@@ -44,6 +90,8 @@ void setup(){
   SPI.setDataMode(SPI_MODE3);
   AccSSOutput();//this was moved from the init
   AccSSHigh();//if high isn't written to both devices befor config 
+  GyroSSOutput();//the SPI bus will be addressing both devices 
+  GyroSSHigh();
   AccSSLow();
   SPI.transfer(WRITE | SINGLE | BW_RATE);
   SPI.transfer(0x0C);
@@ -62,7 +110,7 @@ void setup(){
 
 void loop(){
   GetAcc();
-  Serial<<acc.v.x<<","<<acc.v.y<<","<<acc.v.z<<"\r\n";
+  Serial<<acc.v.x<<"   "<<acc.v.y<<"   "<<acc.v.z<<"\r\n";
   delay(100);
 }
 
