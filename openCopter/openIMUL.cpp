@@ -1,3 +1,4 @@
+
 // Implementation of Madgwick's IMU and AHRS algorithms.
 // See: http://www.x-io.co.uk/open-source-imu-and-ahrs-algorithms/
 //This code is provided under the GNU General Public Licence
@@ -8,7 +9,7 @@
 
 
 openIMU::openIMU(float *gyroX, float *gyroY, float *gyroZ, float *accX, float *accY, 
-float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *magY, float *magZ, float *XIn , float *YIn, float *ZIn, float *G_Dt){
+float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *magY, float *magZ, float *xGPS , float *yGPS, float *zBaro,float *xGPSVel ,float *yGPSVel,float *zBaroVel,float *G_Dt){
 
   //constructor for the 10DOF system
   gx = gyroX;
@@ -27,797 +28,424 @@ float *accZ, float *scAccX, float *scAccY, float *scAccZ, float *magX, float *ma
   say = scAccY;
   saz = scAccZ;
 
-  XRaw = XIn;
-  YRaw = YIn;
-  ZRaw = ZIn;
-
+  XPosGPS = xGPS;
+  YPosGPS = yGPS;
+  ZPosBaro = zBaro;
+  XVelGPS = xGPSVel;
+  YVelGPS = yGPSVel;
+  ZVelBaro = zBaroVel;
   dt = G_Dt;
-
   q0.val = 1;
   q1.val = 0;
   q2.val = 0;
   q3.val = 0;
 
-  //Kalman stuff
   XEst.val = 0;
   velX.val = 0;
-
-  p11X = 0.5;
-  p12X = 0;
-  p13X = 0;
-
-  p21X = 0;
-  p22X = 0.5;
-  p23X = 0;
-
-  p31X = 0;
-  p32X = 0;
-  p33X = 0.01;
 
   YEst.val = 0;
   velY.val = 0;
 
-  p11Y = 0.5;
-  p12Y = 0;
-  p13Y = 0;
-
-  p21Y = 0;
-  p22Y = 0.5;
-  p23Y = 0;
-
-  p31Y = 0;
-  p32Y = 0;
-  p33Y = 0.01;
-
   velZ.val = 0;
+  velZUp.val = 0;
   ZEst.val = 0;
+  ZEstUp.val = 0;
 
-  p11Z = 1;
-  p12Z = 0;
-  p13Z = 0;
+  kPosGPS = 0.20;
+  kVelGPS = 0.1;
+  kAccGPS = 0.03;
 
-  p21Z = 0;
-  p22Z = 1;
-  p23Z = 0;
+  kPosBaro = 0.1;
+  kVelBaro = 0.1;
+  kAccBaro = 0.01;
 
-  p31Z = 0;
-  p32Z = 0;
-  p33Z = 0.01;
+  for (int i = 0; i < LAG_SIZE; i++){
+    XEstHist[i] = 0;
+    YEstHist[i] = 0;
+    XVelHist[i] = 0;
+    YVelHist[i] = 0;
+  }
+  for (int i = 0; i < LAG_SIZE_BARO; i++){
+    ZEstHist[i] = 0;
+    ZVelHist[i] = 0;
+  }
 
-  currentEstIndex = 0;
-  lagIndex = 1;
-  //currentEstIndex_z = 0;
-//lagIndex_z = 1;
+
 }
 
-float openIMU::GetGravOffset(void){
-  q0q0 = q0.val * q0.val;
-  q0q1 = q0.val * q1.val;
-  q0q2 = q0.val * q2.val;
-  q0q3 = q0.val * q3.val;
-  q1q1 = q1.val * q1.val;
-  q1q2 = q1.val * q2.val;
-  q1q3 = q1.val * q3.val;
-  q2q2 = q2.val * q2.val;
-  q2q3 = q2.val * q3.val;
-  q3q3 = q3.val * q3.val;
+void openIMU::GetGravOffset(void){
+  initialAccMagnitude.val = -1.0 * sqrt(*sax * *sax + *say * *say + *saz * *saz) ;
 
-  return (2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) )) ; 
-  //return 9.8;
 }
 void openIMU::GetInertial(void){
-  q0q0 = q0.val * q0.val;
-  q0q1 = q0.val * q1.val;
-  q0q2 = q0.val * q2.val;
-  q0q3 = q0.val * q3.val;
-  q1q1 = q1.val * q1.val;
-  q1q2 = q1.val * q2.val;
-  q1q3 = q1.val * q3.val;
-  q2q2 = q2.val * q2.val;
-  q2q3 = q2.val * q3.val;
-  q3q3 = q3.val * q3.val;   
 
-
-
-  inertialX.val =  (2.0f * (*sax * (0.5f - q2q2 - q3q3) + *say * (q1q2 - q0q3) + *saz * (q1q3 + q0q2)) );
-  inertialY.val = 2.0 * (*sax * (q1q2 + q0q3) + *say * (0.5f - q1q1 - q3q3) + *saz * (q2q3 - q0q1));
-  inertialZ_Grav = -1.0 * (2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) ));
-  inertialZ.val = inertialZ_Grav + gravityOffSet;  
+  inertialX.val = ((R11 * (*sax)) + (R21 * (*say))) + (R31 * (*saz));// - inertialXOffSet.val;
+  inertialY.val = R12 * *sax + R22 * *say + R32 * *saz;// - inertialYOffSet.val;
+  inertialZGrav.val = R13 * *sax + R23 * *say + R33 * *saz;
+  inertialZ.val = inertialZGrav.val - initialAccMagnitude.val;// - inertialZOffSet.val;
 }
-void openIMU::pUpateX(void){
-  velX.val = velX.val + (inertialX.val * *dt) + (accelBiasX * *dt);
 
-  XEst.val = XEst.val + velX.val * *dt + (inertialX.val * *dt * *dt * 0.5) + (accelBiasX * *dt * *dt * 0.5);
-  XEstHist[currentEstIndex] = XEst.val;
-
-  p11X_ = p11X + *dt * p21X + *dt * w1XY + *dt * ((p32X * *dt * *dt)* 0.5 + p22X * *dt + p12X) + (*dt * *dt * p31X) * 0.5 + (*dt * *dt * ((p33X * *dt * *dt)/2 + p23X * *dt + p13X))* 0.5;
-  p12X_ = p12X + *dt * p22X + *dt * ((p33X * *dt * *dt) * 0.5 + p23X * *dt + p13X) + (*dt * *dt *p32X) * 0.5;
-  p13X_ = (p33X * *dt * *dt) * 0.5  + p23X * * dt + p13X;
-
-  p21X_ = p21X + (*dt * *dt *(p23X + *dt * p33X)) * 0.5 + *dt * p31X + *dt * (p22X + *dt * p32X);
-  p22X_ = p22X + *dt * p32X + *dt * w2XY + *dt * (p23X + *dt * p33X);
-  p23X_ = p23X + *dt * p33X;
-
-  p31X_ = (p33X * *dt * *dt) * 0.5 + p32X * *dt + p31X;
-  p32X_ = p32X + *dt * p33X;
-  p33X_ = p33X + *dt * w3XY;
-  p11X = p11X_;
-  p12X = p12X_;
-  p13X = p13X_;
-
-  p21X = p21X_;
-  p22X = p22X_;
-  p23X = p23X_;
-
-  p31X = p31X_;
-  p32X = p32X_;
-  p33X = p33X_;  
-}
-void openIMU::pUpateY(void){
-  velY.val = velY.val + (inertialY.val * *dt) + (accelBiasY * *dt);
-
-  YEst.val = YEst.val + velY.val * *dt + (inertialY.val * *dt * *dt * 0.5) + (accelBiasY * *dt * *dt * 0.5);
-  YEstHist[currentEstIndex] = YEst.val;
-
-  p11Y_ = p11Y + *dt * p21Y + *dt * w1XY + *dt * ((p32Y * *dt * *dt)* 0.5 + p22Y * *dt + p12Y) + (*dt * *dt * p31Y) * 0.5 + (*dt * *dt * ((p33Y * *dt * *dt)/2 + p23Y * *dt + p13Y))* 0.5;
-  p12Y_ = p12Y + *dt * p22Y + *dt * ((p33Y * *dt * *dt) * 0.5 + p23Y * *dt + p13Y) + (*dt * *dt *p32Y) * 0.5;
-  p13Y_ = (p33Y * *dt * *dt) * 0.5  + p23Y * * dt + p13Y;
-
-  p21Y_ = p21Y + (*dt * *dt *(p23Y + *dt * p33Y)) * 0.5 + *dt * p31Y + *dt * (p22Y + *dt * p32Y);
-  p22Y_ = p22Y + *dt * p32Y + *dt * w2XY + *dt * (p23Y + *dt * p33Y);
-  p23Y_ = p23Y + *dt * p33Y;
-
-  p31Y_ = (p33Y * *dt * *dt) * 0.5 + p32Y * *dt + p31Y;
-  p32Y_ = p32Y + *dt * p33Y;
-  p33Y_ = p33Y + *dt * w3XY;  
-  p11Y = p11Y_;
-  p12Y = p12Y_;
-  p13Y = p13Y_;
-
-  p21Y = p21Y_;
-  p22Y = p22Y_;
-  p23Y = p23Y_;
-
-  p31Y = p31Y_;
-  p32Y = p32Y_;
-  p33Y = p33Y_;  
-
-
-}
-void openIMU::pUpateZ(void){
-  velZ.val = velZ.val + (inertialZ.val * *dt) + (accelBiasZ * *dt);
-
-  ZEst.val = ZEst.val + velZ.val * *dt + (inertialZ.val * *dt * *dt * 0.5) + (accelBiasZ * *dt * *dt * 0.5);
-
-  p11Z_ = p11Z + *dt * p21Z + *dt * w1Z + *dt * ((p32Z * *dt * *dt)* 0.5 + p22Z * *dt + p12Z) + (*dt * *dt * p31Z) * 0.5 + (*dt * *dt * ((p33Z * *dt * *dt)/2 + p23Z * *dt + p13Z))* 0.5;
-  p12Z_ = p12Z + *dt * p22Z + *dt * ((p33Z * *dt * *dt) * 0.5 + p23Z * *dt + p13Z) + (*dt * *dt *p32Z) * 0.5;
-  p13Z_ = (p33Z * *dt * *dt) * 0.5  + p23Z * * dt + p13Z;
-
-  p21Z_ = p21Z + (*dt * *dt *(p23Z + *dt * p33Z)) * 0.5 + *dt * p31Z + *dt * (p22Z + *dt * p32Z);
-  p22Z_ = p22Z + *dt * p32Z + *dt * w2Z + *dt * (p23Z + *dt * p33Z);
-  p23Z_ = p23Z + *dt * p33Z;
-
-  p31Z_ = (p33Z * *dt * *dt) * 0.5 + p32Z * *dt + p31Z;
-  p32Z_ = p32Z + *dt * p33Z;
-  p33Z_ = p33Z + *dt * w3Z;  
-
-  p11Z = p11Z_;
-  p12Z = p12Z_;
-  p13Z = p13Z_;
-
-  p21Z = p21Z_;
-  p22Z = p22Z_;
-  p23Z = p23Z_;
-
-  p31Z = p31Z_;
-  p32Z = p32Z_;
-  p33Z = p33Z_;   
-}
 
 void openIMU::UpdateLagIndex(void){
-  currentEstIndex++;
-
-  lagIndex++;
-  if (currentEstIndex == LAG_SIZE){
-    currentEstIndex = 0;
-  }
-  if (lagIndex == LAG_SIZE){
-    lagIndex = 0;
-  }
-
-
-}
-void openIMU::AccKalUpdate(void){
-  //first rotate the accelerometer reading from the body to the intertial frame
-  // Auxiliary variables to avoid repeated arithmetic
-  q0q0 = q0.val * q0.val;
-  q0q1 = q0.val * q1.val;
-  q0q2 = q0.val * q2.val;
-  q0q3 = q0.val * q3.val;
-  q1q1 = q1.val * q1.val;
-  q1q2 = q1.val * q2.val;
-  q1q3 = q1.val * q3.val;
-  q2q2 = q2.val * q2.val;
-  q2q3 = q2.val * q3.val;
-  q3q3 = q3.val * q3.val;   
-
-
-
-  inertialX.val =  (2.0f * (*sax * (0.5f - q2q2 - q3q3) + *say * (q1q2 - q0q3) + *saz * (q1q3 + q0q2)) );
-  inertialY.val = 2.0 * (*sax * (q1q2 + q0q3) + *say * (0.5f - q1q1 - q3q3) + *saz * (q2q3 - q0q1));
-  inertialZ_Grav = -1.0 * (2 * (*sax * (q1q3 - q0q2) + *say * (q2q3 + q0q1) + *saz * (q0q0 - 0.5 + q3q3) ));
-  inertialZ.val = inertialZ_Grav + gravityOffSet;
-
-  //Kalman filter stuff - makes more sense looking at it in matrix form
-  velX.val = velX.val + (inertialX.val * *dt) + (accelBiasX * *dt);
-
-  XEst.val = XEst.val + velX.val * *dt + (inertialX.val * *dt * *dt * 0.5) + (accelBiasX * *dt * *dt * 0.5);
-  XEstHist[currentEstIndex] = XEst.val;
-
-  p11X_ = p11X + *dt * p21X + *dt * w1XY + *dt * ((p32X * *dt * *dt)* 0.5 + p22X * *dt + p12X) + (*dt * *dt * p31X) * 0.5 + (*dt * *dt * ((p33X * *dt * *dt)/2 + p23X * *dt + p13X))* 0.5;
-  p12X_ = p12X + *dt * p22X + *dt * ((p33X * *dt * *dt) * 0.5 + p23X * *dt + p13X) + (*dt * *dt *p32X) * 0.5;
-  p13X_ = (p33X * *dt * *dt) * 0.5  + p23X * * dt + p13X;
-
-  p21X_ = p21X + (*dt * *dt *(p23X + *dt * p33X)) * 0.5 + *dt * p31X + *dt * (p22X + *dt * p32X);
-  p22X_ = p22X + *dt * p32X + *dt * w2XY + *dt * (p23X + *dt * p33X);
-  p23X_ = p23X + *dt * p33X;
-
-  p31X_ = (p33X * *dt * *dt) * 0.5 + p32X * *dt + p31X;
-  p32X_ = p32X + *dt * p33X;
-  p33X_ = p33X + *dt * w3XY;
-
-
-  velY.val = velY.val + (inertialY.val * *dt) + (accelBiasY * *dt);
-
-  YEst.val = YEst.val + velY.val * *dt + (inertialY.val * *dt * *dt * 0.5) + (accelBiasY * *dt * *dt * 0.5);
-  YEstHist[currentEstIndex] = YEst.val;
-
-  p11Y_ = p11Y + *dt * p21Y + *dt * w1XY + *dt * ((p32Y * *dt * *dt)* 0.5 + p22Y * *dt + p12Y) + (*dt * *dt * p31Y) * 0.5 + (*dt * *dt * ((p33Y * *dt * *dt)/2 + p23Y * *dt + p13Y))* 0.5;
-  p12Y_ = p12Y + *dt * p22Y + *dt * ((p33Y * *dt * *dt) * 0.5 + p23Y * *dt + p13Y) + (*dt * *dt *p32Y) * 0.5;
-  p13Y_ = (p33Y * *dt * *dt) * 0.5  + p23Y * * dt + p13Y;
-
-  p21Y_ = p21Y + (*dt * *dt *(p23Y + *dt * p33Y)) * 0.5 + *dt * p31Y + *dt * (p22Y + *dt * p32Y);
-  p22Y_ = p22Y + *dt * p32Y + *dt * w2XY + *dt * (p23Y + *dt * p33Y);
-  p23Y_ = p23Y + *dt * p33Y;
-
-  p31Y_ = (p33Y * *dt * *dt) * 0.5 + p32Y * *dt + p31Y;
-  p32Y_ = p32Y + *dt * p33Y;
-  p33Y_ = p33Y + *dt * w3XY;
-
-  velZ.val = velZ.val + (inertialZ.val * *dt) + (accelBiasZ * *dt);
-
-  ZEst.val = ZEst.val + velZ.val * *dt + (inertialZ.val * *dt * *dt * 0.5) + (accelBiasZ * *dt * *dt * 0.5);
-
-  p11Z_ = p11Z + *dt * p21Z + *dt * w1Z + *dt * ((p32Z * *dt * *dt)* 0.5 + p22Z * *dt + p12Z) + (*dt * *dt * p31Z) * 0.5 + (*dt * *dt * ((p33Z * *dt * *dt)/2 + p23Z * *dt + p13Z))* 0.5;
-  p12Z_ = p12Z + *dt * p22Z + *dt * ((p33Z * *dt * *dt) * 0.5 + p23Z * *dt + p13Z) + (*dt * *dt *p32Z) * 0.5;
-  p13Z_ = (p33Z * *dt * *dt) * 0.5  + p23Z * * dt + p13Z;
-
-  p21Z_ = p21Z + (*dt * *dt *(p23Z + *dt * p33Z)) * 0.5 + *dt * p31Z + *dt * (p22Z + *dt * p32Z);
-  p22Z_ = p22Z + *dt * p32Z + *dt * w2Z + *dt * (p23Z + *dt * p33Z);
-  p23Z_ = p23Z + *dt * p33Z;
-
-  p31Z_ = (p33Z * *dt * *dt) * 0.5 + p32Z * *dt + p31Z;
-  p32Z_ = p32Z + *dt * p33Z;
-  p33Z_ = p33Z + *dt * w3Z;
-
-  p11X = p11X_;
-  p12X = p12X_;
-  p13X = p13X_;
-
-  p21X = p21X_;
-  p22X = p22X_;
-  p23X = p23X_;
-
-  p31X = p31X_;
-  p32X = p32X_;
-  p33X = p33X_;
-
-  p11Y = p11Y_;
-  p12Y = p12Y_;
-  p13Y = p13Y_;
-
-  p21Y = p21Y_;
-  p22Y = p22Y_;
-  p23Y = p23Y_;
-
-  p31Y = p31Y_;
-  p32Y = p32Y_;
-  p33Y = p33Y_;
-
-  p11Z = p11Z_;
-  p12Z = p12Z_;
-  p13Z = p13Z_;
-
-  p21Z = p21Z_;
-  p22Z = p22Z_;
-  p23Z = p23Z_;
-
-  p31Z = p31Z_;
-  p32Z = p32Z_;
-  p33Z = p33Z_;
 
 
   currentEstIndex++;
-
-  lagIndex++;
-  if (currentEstIndex == LAG_SIZE){
+  if (currentEstIndex == (LAG_SIZE)){
     currentEstIndex = 0;
   }
-  if (lagIndex == LAG_SIZE){
-    lagIndex = 0;
+
+  lagIndex = currentEstIndex - 50;
+
+
+  if (lagIndex < 0){
+    lagIndex = LAG_SIZE + lagIndex;
   }
 
 
+  //0.3sec lag
+  currentEstIndex_z++;
+  if (currentEstIndex_z == (LAG_SIZE_BARO)){
+    currentEstIndex_z = 0;
+  }
+  lagIndex_z = currentEstIndex_z - 25;
+
+  if (lagIndex_z < 0){
+    lagIndex_z = LAG_SIZE_BARO + lagIndex_z;
+  }
 }
-
-void openIMU::GPSKalUpdate(){
-
-  static float temp1,temp2,temp3;
-  temp1 = p11X + vXY;
-  temp2 = (p11X / temp1) - 1;
-  temp3 = *XRaw - XEstHist[lagIndex];
-  xError = temp3;
-  k1X = p11X / temp1;
-  k2X = p21X / temp1;
-  k3X = p31X / temp1;
-
-  XEst.val += k1X * temp3;
-  velX.val += k2X * temp3;
-  accelBiasX += k3X * temp3;
-
-  p11X_ = -p11X * temp2;
-  p12X_ = -p12X * temp2;
-  p13X_ = -p13X * temp2;
-
-  p21X_ = p21X - (p11X * p21X)/(temp1);
-  p22X_ = p22X - (p12X * p21X)/(temp1);
-  p23X_ = p23X - (p13X * p21X)/(temp1);
-
-  p31X_ = p31X - (p11X * p31X)/(temp1);
-  p32X_ = p32X - (p12X * p31X)/(temp1);
-  p33X_ = p33X - (p13X * p31X)/(temp1);
-
-  temp1 = p11Y + vXY;
-  temp2 = (p11Y / temp1) - 1;
-  temp3 = *YRaw - YEstHist[lagIndex];
-  yError = temp3;
-  k1Y = p11Y / temp1;
-  k2Y = p21Y / temp1;
-  k3Y = p31Y / temp1;
-
-  YEst.val += k1Y * temp3;
-  velY.val += k2Y * temp3;
-  accelBiasY += k3Y * temp3;
-
-  p11Y_ = -p11Y * temp2;
-  p12Y_ = -p12Y * temp2;
-  p13Y_ = -p13Y * temp2;
-
-  p21Y_ = p21Y - (p11Y * p21Y)/(temp1);
-  p22Y_ = p22Y - (p12Y * p21Y)/(temp1);
-  p23Y_ = p23Y - (p13Y * p21Y)/(temp1);
-
-  p31Y_ = p31Y - (p11Y * p31Y)/(temp1);
-  p32Y_ = p32Y - (p12Y * p31Y)/(temp1);
-  p33Y_ = p33Y - (p13Y * p31Y)/(temp1);
-
-  p11X = p11X_;
-  p12X = p12X_;
-  p13X = p13X_;
-
-  p21X = p21X_;
-  p22X = p22X_;
-  p23X = p23X_;
-
-  p31X = p31X_;
-  p32X = p32X_;
-  p33X = p33X_;
-
-  p11Y = p11Y_;
-  p12Y = p12Y_;
-  p13Y = p13Y_;
-
-  p21Y = p21Y_;
-  p22Y = p22Y_;
-  p23Y = p23Y_;
-
-  p31Y = p31Y_;
-  p32Y = p32Y_;
-  p33Y = p33Y_;
-
-}
-
-
-
-void openIMU::BaroKalUpdate(){
-  static float temp1,temp2,temp3;
-  temp1 = p11Z + vZ_Baro;
-  temp2 = (p11Z / temp1) - 1;
-  temp3 = *ZRaw - ZEst.val;
-  zError = temp3;
-  k1Z = p11Z / temp1;
-  k2Z = p21Z / temp1;
-  k3Z = p31Z / temp1;
-
-  ZEst.val += k1Z * temp3;
-  velZ.val += k2Z * temp3;
-  accelBiasZ += k3Z * temp3;
-
-  p11Z_ = -p11Z * temp2;
-  p12Z_ = -p12Z * temp2;
-  p13Z_ = -p13Z * temp2;
-
-  p21Z_ = p21Z - (p11Z * p21Z)/(temp1);
-  p22Z_ = p22Z - (p12Z * p21Z)/(temp1);
-  p23Z_ = p23Z - (p13Z * p21Z)/(temp1);
-
-  p31Z_ = p31Z - (p11Z * p31Z)/(temp1);
-  p32Z_ = p32Z - (p12Z * p31Z)/(temp1);
-  p33Z_ = p33Z - (p13Z * p31Z)/(temp1);
-
-
-  p11Z = p11Z_;
-  p12Z = p12Z_;
-  p13Z = p13Z_;
-
-  p21Z = p21Z_;
-  p22Z = p22Z_;
-  p23Z = p23Z_;
-
-  p31Z = p31Z_;
-  p32Z = p32Z_;
-  p33Z = p33Z_;
-
-}
-
-
-void openIMU::PingKalUpdate(){
-  static float temp1,temp2,temp3;
-  temp1 = p11Z + vZ_Ping;
-  temp2 = (p11Z / temp1) - 1;
-  temp3 = *ZRaw - ZEst.val;
-  k1Z = p11Z / temp1;
-  k2Z = p21Z / temp1;
-  k3Z = p31Z / temp1;
-
-  ZEst.val += k1Z * temp3;
-  velZ.val += k2Z * temp3;
-  accelBiasZ += k3Z * temp3;
-
-  p11Z_ = -p11Z * temp2;
-  p12Z_ = -p12Z * temp2;
-  p13Z_ = -p13Z * temp2;
-
-  p21Z_ = p21Z - (p11Z * p21Z)/(temp1);
-  p22Z_ = p22Z - (p12Z * p21Z)/(temp1);
-  p23Z_ = p23Z - (p13Z * p21Z)/(temp1);
-
-  p31Z_ = p31Z - (p11Z * p31Z)/(temp1);
-  p32Z_ = p32Z - (p12Z * p31Z)/(temp1);
-  p33Z_ = p33Z - (p13Z * p31Z)/(temp1);
-
-
-  p11Z = p11Z_;
-  p12Z = p12Z_;
-  p13Z = p13Z_;
-
-  p21Z = p21Z_;
-  p22Z = p22Z_;
-  p23Z = p23Z_;
-
-  p31Z = p31Z_;
-  p32Z = p32Z_;
-  p33Z = p33Z_;
-
-}
-
 
 
 
 void openIMU::InitialQuat(){
-  //calculate the pitch and roll from the accelerometer
-  pitch.val = ToDeg(atan2(-1 * *ax,sqrt(*ay * *ay + *az * *az)));
-  roll.val = ToDeg(atan2(*ay,*az));
+  //calculate the ypr from sensors convert to quaternion and rotation matrix
+  radPitch.val = atan2(*sax,sqrt(*say * *say + *saz * *saz));
+  radRoll.val = atan2(-1.0 * *say, -1.0 * *saz);
 
-  //tilt compensate the compass
-  float xMag = (*mx * cos(ToRad(pitch.val))) + (*mz * sin(ToRad(pitch.val)));
-  float yMag = -1 * ((*mx * sin(ToRad(roll.val))  * sin(ToRad(pitch.val))) + (*my * cos(ToRad(roll.val))) - (*mz * sin(ToRad(roll.val)) * cos(ToRad(pitch.val))));
+  R11 = cos(radPitch.val);
+  R13 = -1.0 * sin(radPitch.val);
+  R21 = sin(radRoll.val)*sin(radPitch.val);
+  R22 = cos(radRoll.val);
+  R23 = cos(radPitch.val)*sin(radRoll.val);
 
-  //calculate the yaw from the tilt compensated compass
-  yaw.val = ToDeg(atan2(yMag,xMag));
-  if (yaw.val < 0){
-    yaw.val += 360;
-  }
+  bx = *mx * R11 + *mz * R13;
+  by = *mx * R21 + *my * R22 + *mz * R23;
+  radYaw.val = atan2(-1.0 * by, bx) - DECLINATION;
 
-
-  //calculate the rotation matrix
-  float cosPitch = cos(ToRad(pitch.val));
-  float sinPitch = sin(ToRad(pitch.val));
-
-  float cosRoll = cos(ToRad(roll.val));
-  float sinRoll = sin(ToRad(roll.val));
-
-  float cosYaw = cos(ToRad(yaw.val));
-  float sinYaw = sin(ToRad(yaw.val));
-
-  //need the transpose of the rotation matrix
-  float r11 = cosPitch * cosYaw;
-  float r21 = cosPitch * sinYaw;
-  float r31 = -1.0 * sinPitch;
-
-  float r12 = -1.0 * (cosRoll * sinYaw) + (sinRoll * sinPitch * cosYaw);
-  float r22 = (cosRoll * cosYaw) + (sinRoll * sinPitch * sinYaw);
-  float r32 = sinRoll * cosPitch;
-
-  float r13 = (sinRoll * sinYaw) + (cosRoll * sinPitch * cosYaw);
-  float r23 = -1.0 * (sinRoll * cosYaw) + (cosRoll * sinPitch * sinYaw);
-  float r33 = cosRoll * cosPitch;
-
-  //convert to quaternion
-  q0.val = 0.5 * sqrt(1 + r11 + r22 + r33);
-  q1.val = (r32 - r23)/(4 * q0.val);
-  q2.val = (r13 - r31)/(4 * q0.val);
-  q3.val = (r21 - r12)/(4 * q0.val);
-
-  //normalize the quaternion
-  recipNorm = InvSqrt(q0.val * q0.val + q1.val * q1.val + q2.val * q2.val + q3.val * q3.val);
-  q0.val *= recipNorm;
-  q1.val *= recipNorm;
-  q2.val *= recipNorm;
-  q3.val *= recipNorm;
-}
-
-void openIMU::AHRSStart(void){
-  squareSum = *ax * *ax + *ay * *ay + *az * *az;
-  qDot1 = 0.5f * (-q1.val * *gx - q2.val * *gy - q3.val * *gz);
-  qDot2 = 0.5f * (q0.val * *gx + q2.val * *gz - q3.val * *gy);
-  qDot3 = 0.5f * (q0.val * *gy - q1.val * *gz + q3.val * *gx);
-  qDot4 = 0.5f * (q0.val * *gz + q1.val * *gy - q2.val * *gx);
-  magnitude = sqrt(squareSum);
-  //if ((magnitude < 10.78) && (magnitude > 8.82)   ){  
-  if ((magnitude < 11.76) && (magnitude > 7.84) ){ 
-    feedBack = true;
-    // Normalise accelerometer measurement
-
-    //recipNorm = InvSqrt(squareSum);
-    recipNorm = 1 / magnitude;
-    *ax *= recipNorm;
-    *ay *= recipNorm;
-    *az *= recipNorm;     
-    // Normalise magnetometer measurement
-    recipNorm = InvSqrt(*mx * *mx + *my * *my + *mz * *mz);
-    *mx *= recipNorm;
-    *my *= recipNorm;
-    *mz *= recipNorm;   
-    // Auxiliary variables to avoid repeated arithmetic
-    _2q0mx = 2.0f * q0.val * *mx;
-    _2q0my = 2.0f * q0.val * *my;
-    _2q0mz = 2.0f * q0.val * *mz;
-    _2q1mx = 2.0f * q1.val * *mx;
-    _2q0 = 2.0f * q0.val;
-    _2q1 = 2.0f * q1.val;
-    _2q2 = 2.0f * q2.val;
-    _2q3 = 2.0f * q3.val;
-    _2q0q2 = 2.0f * q0.val * q2.val;
-    _2q2q3 = 2.0f * q2.val * q3.val;
-    q0q0 = q0.val * q0.val;
-    q0q1 = q0.val * q1.val;
-    q0q2 = q0.val * q2.val;
-    q0q3 = q0.val * q3.val;
-    q1q1 = q1.val * q1.val;
-    q1q2 = q1.val * q2.val;
-    q1q3 = q1.val * q3.val;
-    q2q2 = q2.val * q2.val;
-    q2q3 = q2.val * q3.val;
-    q3q3 = q3.val * q3.val;
-
-    // Reference direction of Earth's magnetic field
-    hx = *mx * q0q0 - _2q0my * q3.val + _2q0mz * q2.val + *mx * q1q1 + _2q1 * *my * q2.val + _2q1 * *mz * q3.val - *mx * q2q2 - *mx * q3q3;
-    hy = _2q0mx * q3.val + *my * q0q0 - _2q0mz * q1.val + _2q1mx * q2.val - *my * q1q1 + *my * q2q2 + _2q2 * *mz * q3.val - *my * q3q3;
-    _2bx = sqrt(hx * hx + hy * hy);
-    _2bz = -_2q0mx * q2.val + _2q0my * q1.val + *mz * q0q0 + _2q1mx * q3.val - *mz * q1q1 + _2q2 * *my * q3.val - *mz * q2q2 + *mz * q3q3;
-    _4bx = 2.0f * _2bx;
-    _4bz = 2.0f * _2bz;
+  q0.val = cos(radYaw.val/2.0)*cos(radPitch.val/2.0)*cos(radRoll.val/2.0) + sin(radYaw.val/2.0)*sin(radPitch.val/2.0)*sin(radRoll.val/2.0); 
+  q1.val = cos(radYaw.val/2.0)*cos(radPitch.val/2.0)*sin(radRoll.val/2.0) - sin(radYaw.val/2.0)*sin(radPitch.val/2.0)*cos(radRoll.val/2.0); 
+  q2.val = cos(radYaw.val/2.0)*sin(radPitch.val/2.0)*cos(radRoll.val/2.0) + sin(radYaw.val/2.0)*cos(radPitch.val/2.0)*sin(radRoll.val/2.0); 
+  q3.val = sin(radYaw.val/2.0)*cos(radPitch.val/2.0)*cos(radRoll.val/2.0) - cos(radYaw.val/2.0)*sin(radPitch.val/2.0)*sin(radRoll.val/2.0);
+  magnitude.val = sqrt(q0.val *  q0.val + q1.val *  q1.val + q2.val *  q2.val + q3.val *  q3.val); 
+  q0.val = q0.val / magnitude.val;
+  q1.val = q1.val / magnitude.val;
+  q2.val = q2.val / magnitude.val;
+  q3.val = q3.val / magnitude.val;
 
 
-  }
-  else{
-    feedBack = false;
-  }
+  q0q0 = q0.val*q0.val;
+  q1q1 = q1.val*q1.val;
+  q2q2 = q2.val*q2.val;
+  q3q3 = q3.val*q3.val;
+
+  q0q1 = q0.val*q1.val;
+  q0q2 = q0.val*q2.val;
+  q0q3 = q0.val*q3.val;
+
+  q1q2 = q1.val*q2.val;
+  q1q3 = q1.val*q3.val;
+
+  q2q3 = q2.val*q3.val;
+  //generate rotation matrix
+  R11 = 2*(q0q0-0.5+q1q1);
+  R12 = 2*(q1q2+q0q3);
+  R13 = 2*(q1q3-q0q2);
+  R21 = 2*(q1q2-q0q3);
+  R22 = 2*(q0q0-0.5+q2q2);
+  R23 = 2*(q2q3+q0q1);
+  R31 = 2*(q1q3+q0q2);
+  R32 = 2*(q2q3-q0q1);
+  R33 = 2*(q0q0-0.5+q3q3);  
+
+  //rotate by declination 
+  COS_DEC = cos(DECLINATION);
+  SIN_DEC = sin(DECLINATION);
+  R11 = R11*COS_DEC - R12*SIN_DEC;
+  R12 = R12*COS_DEC + R11*SIN_DEC;
+
+  R21 = R21*COS_DEC - R22*SIN_DEC;
+  R22 = R22*COS_DEC + R21*SIN_DEC;
+
+  R31 = R31*COS_DEC - R32*SIN_DEC;
+  R32 = R32*COS_DEC + R31*SIN_DEC;
+
+
+
+
 
 }
-void openIMU::AHRSEnd(){
-  if (feedBack == true){
-    // Gradient decent algorithm corrective step
-    s0 = -_2q2 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q1 * (2.0f * q0q1 + _2q2q3 - *ay) - _2bz * q2.val * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (-_2bx * q3.val + _2bz * q1.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + _2bx * q2.val * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    s1 = _2q3 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q0 * (2.0f * q0q1 + _2q2q3 - *ay) - 4.0f * q1.val * (1 - 2.0f * q1q1 - 2.0f * q2q2 - *az) + _2bz * q3.val * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (_2bx * q2.val + _2bz * q0.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + (_2bx * q3.val - _4bz * q1.val) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    s2 = -_2q0 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q3 * (2.0f * q0q1 + _2q2q3 - *ay) - 4.0f * q2.val * (1 - 2.0f * q1q1 - 2.0f * q2q2 - *az) + (-_4bx * q2.val - _2bz * q0.val) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (_2bx * q1.val + _2bz * q3.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + (_2bx * q0.val - _4bz * q2.val) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    s3 = _2q1 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q2 * (2.0f * q0q1 + _2q2q3 - *ay) + (-_4bx * q3.val + _2bz * q1.val) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (-_2bx * q0.val + _2bz * q2.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + _2bx * q1.val * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    recipNorm = InvSqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3); // normalise step magnitude
-    s0 *= recipNorm;
-    s1 *= recipNorm;
-    s2 *= recipNorm;
-    s3 *= recipNorm;
 
-    // Apply feedback step
-    qDot1 -= betaMag * s0;
-    qDot2 -= betaMag * s1;
-    qDot3 -= betaMag * s2;
-    qDot4 -= betaMag * s3;
-    feedBack = false;
-  }
-  // Integrate rate of change of quaternion to yield quaternion
-  q0.val += qDot1 * *dt;
-  q1.val += qDot2 * *dt;
-  q2.val += qDot3 * *dt;
-  q3.val += qDot4 * *dt;
+void openIMU::Predict(void){
 
-  // Normalise quaternion
-  recipNorm = InvSqrt(q0.val * q0.val + q1.val * q1.val + q2.val * q2.val + q3.val * q3.val);
-  q0.val *= recipNorm;
-  q1.val *= recipNorm;
-  q2.val *= recipNorm;
-  q3.val *= recipNorm;
+
+
+  biasedX.val = (*sax - accelBiasX.val);
+  biasedY.val = (*say - accelBiasY.val);
+  biasedZ.val = (*saz - accelBiasZ.val);
+  inertialXBiased.val = R11 * biasedX.val + R21 * biasedY.val + R31 * biasedZ.val;//  - inertialXOffSet.val;
+  inertialYBiased.val = R12 * biasedX.val + R22 * biasedY.val + R32 * biasedZ.val;// - inertialYOffSet.val;
+  inertialZBiased.val = R13 * biasedX.val + R23 * biasedY.val + R33 * biasedZ.val - initialAccMagnitude.val;// - inertialZOffSet.val; 
+
+
+
+  velX.val = velX.val + inertialXBiased.val * *dt;
+  velY.val = velY.val + inertialYBiased.val * *dt;
+  velZ.val = velZ.val + inertialZBiased.val * *dt;
+
+
+  XEst.val = XEst.val + velX.val * *dt;
+  YEst.val = YEst.val + velY.val * *dt;
+  ZEst.val = ZEst.val + velZ.val * *dt;
+
+
+
+  XEstHist[currentEstIndex] = XEst.val;
+  YEstHist[currentEstIndex] = YEst.val;
+
+
+  XVelHist[currentEstIndex] = velX.val;
+  YVelHist[currentEstIndex] = velY.val;
+
+  //lagEstForDebug.val = XVelHist[lagIndex];
+
+
+  ZEstHist[currentEstIndex_z] = ZEst.val;
+  ZVelHist[currentEstIndex_z] = velZ.val;
+
+
+  lagEstForDebugVel.val = -1.0 * ZVelHist[lagIndex_z];
+  lagEstForDebugPos.val = -1.0 * ZEstHist[lagIndex_z];
+
+
+  ZEstUp.val = -1.0 * ZEst.val;
+  velZUp.val = -1.0 * velZ.val;
+
+
 }
-void openIMU::IMUupdate(){
-  squareSum = *ax * *ax + *ay * *ay + *az * *az;
-  qDot1 = 0.5f * (-q1.val * *gx - q2.val * *gy - q3.val * *gz);
-  qDot2 = 0.5f * (q0.val * *gx + q2.val * *gz - q3.val * *gy);
-  qDot3 = 0.5f * (q0.val * *gy - q1.val * *gz + q3.val * *gx);
-  qDot4 = 0.5f * (q0.val * *gz + q1.val * *gy - q2.val * *gx);
-  magnitude = sqrt(squareSum);
-  //if ((magnitude < 10.78) && (magnitude > 8.82)   ){  
-  if ((magnitude < 11.76) && (magnitude > 7.84)){
-    //feedBack = true;
-    recipNorm = 1 / magnitude;
-    *ax *= recipNorm;
-    *ay *= recipNorm;
-    *az *= recipNorm;  
-    // Auxiliary variables to avoid repeated arithmetic
-    _2q0 = 2.0f * q0.val;
-    _2q1 = 2.0f * q1.val;
-    _2q2 = 2.0f * q2.val;
-    _2q3 = 2.0f * q3.val;
-    _4q0 = 4.0f * q0.val;
-    _4q1 = 4.0f * q1.val;
-    _4q2 = 4.0f * q2.val;
-    _8q1 = 8.0f * q1.val;
-    _8q2 = 8.0f * q2.val;
-    q0q0 = q0.val * q0.val;
-    q1q1 = q1.val * q1.val;
-    q2q2 = q2.val * q2.val;
-    q3q3 = q3.val * q3.val;
+void openIMU::CorrectGPS(void){
+  xPosError.val = XEstHist[lagIndex] - *XPosGPS;
+  yPosError.val = YEstHist[lagIndex] - *YPosGPS;
 
-    // Gradient decent algorithm corrective step
-    s0 = _4q0 * q2q2 + _2q2 * *ax + _4q0 * q1q1 - _2q1 * *ay;
-    s1 = _4q1 * q3q3 - _2q3 * *ax + 4.0f * q0q0 * q1.val - _2q0 * *ay - _4q1 + _8q1 * q1q1 + _8q1 * q2q2 + _4q1 * *az;
-    s2 = 4.0f * q0q0 * q2.val + _2q0 * *ax + _4q2 * q3q3 - _2q3 * *ay - _4q2 + _8q2 * q1q1 + _8q2 * q2q2 + _4q2 * *az;
-    s3 = 4.0f * q1q1 * q3.val - _2q1 * *ax + 4.0f * q2q2 * q3.val - _2q2 * *ay;
-    recipNorm = InvSqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3); // normalise step magnitude
-    s0 *= recipNorm;
-    s1 *= recipNorm;
-    s2 *= recipNorm;
-    s3 *= recipNorm;
+  xVelError.val = XVelHist[lagIndex] - *XVelGPS;
+  yVelError.val = YVelHist[lagIndex] - *YVelGPS;
 
-    // Apply feedback step
-    qDot1 -= betaAcc * s0;
-    qDot2 -= betaAcc * s1;
-    qDot3 -= betaAcc * s2;
-    qDot4 -= betaAcc * s3;   
-  }
-  else{
-    //feedBack = false;
-  }
-  // Integrate rate of change of quaternion to yield quaternion
-  q0.val += qDot1 * *dt;
-  q1.val += qDot2 * *dt;
-  q2.val += qDot3 * *dt;
-  q3.val += qDot4 * *dt;
+  XEst.val = XEst.val - kPosGPS * xPosError.val;
+  YEst.val = YEst.val - kPosGPS * yPosError.val;
 
-  // Normalise quaternion
-  recipNorm = InvSqrt(q0.val * q0.val + q1.val * q1.val + q2.val * q2.val + q3.val * q3.val);
-  q0.val *= recipNorm;
-  q1.val *= recipNorm;
-  q2.val *= recipNorm;
-  q3.val *= recipNorm;
+  velX.val = velX.val - kVelGPS * xVelError.val;
+  velY.val = velY.val - kVelGPS * yVelError.val;
+
+
+
+
+  accelBiasXEF = R11 * accelBiasX.val + R21 * accelBiasY.val + R31 * accelBiasZ.val;
+  accelBiasYEF = R12 * accelBiasX.val + R22 * accelBiasY.val + R32 * accelBiasZ.val;
+  accelBiasZEF = R13 * accelBiasX.val + R23 * accelBiasY.val + R33 * accelBiasZ.val;
+
+
+  accelBiasXEF = accelBiasXEF + kAccGPS * xVelError.val;
+  accelBiasYEF = accelBiasYEF + kAccGPS * yVelError.val;
+
+  accelBiasX.val = R11*accelBiasXEF + R12*accelBiasYEF + R13*accelBiasZEF;
+  accelBiasY.val = R21*accelBiasXEF + R22*accelBiasYEF + R23*accelBiasZEF;
+  accelBiasZ.val = R31*accelBiasXEF + R32*accelBiasYEF + R33*accelBiasZEF;
+
+
 }
+
+void openIMU::CorrectAlt(void){
+  zPosError.val = ZEstHist[lagIndex_z] + *ZPosBaro;
+  zVelError.val = ZVelHist[lagIndex_z] + *ZVelBaro;
+
+  ZEst.val = ZEst.val - kPosBaro * zPosError.val;
+  velZ.val = velZ.val - kVelBaro * zVelError.val;
+
+  accelBiasXEF = R11*accelBiasX.val + R21*accelBiasY.val + R31*accelBiasZ.val;
+  accelBiasYEF = R12*accelBiasX.val + R22*accelBiasY.val + R32*accelBiasZ.val;
+  accelBiasZEF = R13*accelBiasX.val + R23*accelBiasY.val + R33*accelBiasZ.val;
+
+
+  accelBiasZEF = accelBiasZEF + kAccBaro * zVelError.val;
+
+  accelBiasX.val = R11*accelBiasXEF + R12*accelBiasYEF + R13*accelBiasZEF;
+  accelBiasY.val = R21*accelBiasXEF + R22*accelBiasYEF + R23*accelBiasZEF;
+  accelBiasZ.val = R31*accelBiasXEF + R32*accelBiasYEF + R33*accelBiasZEF;
+
+  ZEstUp.val = -1.0 * ZEst.val;
+  velZUp.val = -1.0 * velZ.val;
+}
+
+
+
 
 void openIMU::AHRSupdate() {
-  squareSum = *ax * *ax + *ay * *ay + *az * *az;
-  qDot1 = 0.5f * (-q1.val * *gx - q2.val * *gy - q3.val * *gz);
-  qDot2 = 0.5f * (q0.val * *gx + q2.val * *gz - q3.val * *gy);
-  qDot3 = 0.5f * (q0.val * *gy - q1.val * *gz + q3.val * *gx);
-  qDot4 = 0.5f * (q0.val * *gz + q1.val * *gy - q2.val * *gx);
-  magnitude = sqrt(squareSum);
-  //feedBack = false;
-  //if ((magnitude < 10.78) && (magnitude > 8.82)   ){  
-  if ((magnitude < 11.76) && (magnitude > 7.84)){
-    //feedBack = true;
-    // Normalise accelerometer measurement
+  //normalize the sensor readings
+  magnitude.val =  sqrt(*ax * *ax + *ay * *ay + *az * *az);
+  magnitudeDifference.val = fabs(initialAccMagnitude.val +  magnitude.val);
 
-    //recipNorm = InvSqrt(squareSum);
-    recipNorm = 1 / magnitude;
+  if (magnitudeDifference.val < FEEDBACK_LIMIT ){
+
+    recipNorm = 1/magnitude.val;
     *ax *= recipNorm;
     *ay *= recipNorm;
-    *az *= recipNorm;     
-    // Normalise magnetometer measurement
+    *az *= recipNorm;
+
     recipNorm = InvSqrt(*mx * *mx + *my * *my + *mz * *mz);
     *mx *= recipNorm;
     *my *= recipNorm;
-    *mz *= recipNorm;   
-    // Auxiliary variables to avoid repeated arithmetic
-    _2q0mx = 2.0f * q0.val * *mx;
-    _2q0my = 2.0f * q0.val * *my;
-    _2q0mz = 2.0f * q0.val * *mz;
-    _2q1mx = 2.0f * q1.val * *mx;
-    _2q0 = 2.0f * q0.val;
-    _2q1 = 2.0f * q1.val;
-    _2q2 = 2.0f * q2.val;
-    _2q3 = 2.0f * q3.val;
-    _2q0q2 = 2.0f * q0.val * q2.val;
-    _2q2q3 = 2.0f * q2.val * q3.val;
-    q0q0 = q0.val * q0.val;
-    q0q1 = q0.val * q1.val;
-    q0q2 = q0.val * q2.val;
-    q0q3 = q0.val * q3.val;
-    q1q1 = q1.val * q1.val;
-    q1q2 = q1.val * q2.val;
-    q1q3 = q1.val * q3.val;
-    q2q2 = q2.val * q2.val;
-    q2q3 = q2.val * q3.val;
-    q3q3 = q3.val * q3.val;
+    *mz *= recipNorm;
 
-    // Reference direction of Earth's magnetic field
-    hx = *mx * q0q0 - _2q0my * q3.val + _2q0mz * q2.val + *mx * q1q1 + _2q1 * *my * q2.val + _2q1 * *mz * q3.val - *mx * q2q2 - *mx * q3q3;
-    hy = _2q0mx * q3.val + *my * q0q0 - _2q0mz * q1.val + _2q1mx * q2.val - *my * q1q1 + *my * q2q2 + _2q2 * *mz * q3.val - *my * q3q3;
-    _2bx = sqrt(hx * hx + hy * hy);
-    _2bz = -_2q0mx * q2.val + _2q0my * q1.val + *mz * q0q0 + _2q1mx * q3.val - *mz * q1q1 + _2q2 * *my * q3.val - *mz * q2q2 + *mz * q3q3;
-    _4bx = 2.0f * _2bx;
-    _4bz = 2.0f * _2bz;
+    hx = R11 * *mx + R21 * *my + R31 * *mz;
+    hy = R12 * *mx + R22 * *my + R32 * *mz;
+    hz = R13 * *mx + R23 * *my + R33 * *mz;
 
-    // Gradient decent algorithm corrective step
-    s0 = -_2q2 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q1 * (2.0f * q0q1 + _2q2q3 - *ay) - _2bz * q2.val * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (-_2bx * q3.val + _2bz * q1.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + _2bx * q2.val * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    s1 = _2q3 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q0 * (2.0f * q0q1 + _2q2q3 - *ay) - 4.0f * q1.val * (1 - 2.0f * q1q1 - 2.0f * q2q2 - *az) + _2bz * q3.val * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (_2bx * q2.val + _2bz * q0.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + (_2bx * q3.val - _4bz * q1.val) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    s2 = -_2q0 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q3 * (2.0f * q0q1 + _2q2q3 - *ay) - 4.0f * q2.val * (1 - 2.0f * q1q1 - 2.0f * q2q2 - *az) + (-_4bx * q2.val - _2bz * q0.val) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (_2bx * q1.val + _2bz * q3.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + (_2bx * q0.val - _4bz * q2.val) * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    s3 = _2q1 * (2.0f * q1q3 - _2q0q2 - *ax) + _2q2 * (2.0f * q0q1 + _2q2q3 - *ay) + (-_4bx * q3.val + _2bz * q1.val) * (_2bx * (0.5f - q2q2 - q3q3) + _2bz * (q1q3 - q0q2) - *mx) + (-_2bx * q0.val + _2bz * q2.val) * (_2bx * (q1q2 - q0q3) + _2bz * (q0q1 + q2q3) - *my) + _2bx * q1.val * (_2bx * (q0q2 + q1q3) + _2bz * (0.5f - q1q1 - q2q2) - *mz);
-    recipNorm = InvSqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3); // normalise step magnitude
-    s0 *= recipNorm;
-    s1 *= recipNorm;
-    s2 *= recipNorm;
-    s3 *= recipNorm;
 
-    // Apply feedback step
-    qDot1 -= betaMag * s0;
-    qDot2 -= betaMag * s1;
-    qDot3 -= betaMag * s2;
-    qDot4 -= betaMag * s3;
+    bx = sqrt(hx * hx + hy * hy);
+    bz = hz;
 
+
+    wx = R11*bx + R13*bz;
+    wy = R21*bx + R23*bz;
+    wz = R31*bx + R33*bz;
+
+
+    exm = (*my * wz - *mz * wy);
+    eym = (*mz * wx - *mx * wz);
+    ezm = (*mx * wy - *my * wx);
+    /*if (magFlag == 1){
+      recipNorm = InvSqrt(*mx * *mx + *my * *my + *mz * *mz);
+      *mx *= recipNorm;
+      *my *= recipNorm;
+      *mz *= recipNorm;
+
+      hx = R11 * *mx + R21 * *my + R31 * *mz;
+      hy = R12 * *mx + R22 * *my + R32 * *mz;
+      hz = R13 * *mx + R23 * *my + R33 * *mz;
+
+
+      bx = sqrt(hx * hx + hy * hy);
+      bz = hz;
+
+
+      wx = R11*bx + R13*bz;
+      wy = R21*bx + R23*bz;
+      wz = R31*bx + R33*bz;
+
+
+      exm = (*my * wz - *mz * wy);
+      eym = (*mz * wx - *mx * wz);
+      ezm = (*mx * wy - *my * wx);
+    }
+    else{
+      exm = 0;
+      eym = 0;
+      ezm = 0;
+    }*/
+
+
+    vx = R13;
+    vy = R23;
+    vz = R33;
+
+
+    exa = (*ay * vz - *az * vy);
+    eya = (*az * vx - *ax * vz);
+    eza = (*ax * vy - *ay * vx);
+
+    kiDTAcc = kiAcc * *dt;
+    kiDTMag = kiMag * *dt;
+    if (kiAcc > 0){
+      integralFBX += exa * kiDTAcc+ exm * kiDTMag;
+      integralFBY += eya * kiDTAcc+ eym * kiDTMag;
+      integralFBZ += eza * kiDTAcc+ ezm * kiDTMag;
+      *gx = *gx + integralFBX;
+      *gy = *gy + integralFBY;
+      *gz = *gz + integralFBZ;  
+    }
+    else{
+      integralFBX = 0;
+      integralFBY = 0;
+      integralFBZ = 0;  
+    }
+    *gx += exa * kpAcc + exm * kpMag;
+    *gy += eya * kpAcc + eym * kpMag;
+    *gz += eza * kpAcc + ezm * kpMag;
   }
- 
-  // Integrate rate of change of quaternion to yield quaternion
-  q0.val += qDot1 * *dt;
-  q1.val += qDot2 * *dt;
-  q2.val += qDot3 * *dt;
-  q3.val += qDot4 * *dt;
 
-  // Normalise quaternion
-  recipNorm = InvSqrt(q0.val * q0.val + q1.val * q1.val + q2.val * q2.val + q3.val * q3.val);
+
+  dtby2 = *dt * 0.5;
+  q0.val += -1.0 * dtby2*(*gx * q1.val + *gy * q2.val + *gz * q3.val);
+  q1.val +=      dtby2*(*gx * q0.val - *gy * q3.val + *gz * q2.val);
+  q2.val +=      dtby2*(*gx * q3.val + *gy * q0.val - *gz * q1.val);
+  q3.val +=      dtby2*(*gy * q1.val - *gx * q2.val + *gz * q0.val);
+
+
+  //normalize the quaternion
+  recipNorm = 1/sqrt(q0.val * q0.val + q1.val * q1.val + q2.val * q2.val + q3.val * q3.val);
   q0.val *= recipNorm;
   q1.val *= recipNorm;
   q2.val *= recipNorm;
   q3.val *= recipNorm;
+
+}
+
+
+void openIMU::GenerateRotationMatrix(void){
+  q0q0 = q0.val*q0.val;
+  q1q1 = q1.val*q1.val;
+  q2q2 = q2.val*q2.val;
+  q3q3 = q3.val*q3.val;
+
+  q0q1 = q0.val*q1.val;
+  q0q2 = q0.val*q2.val;
+  q0q3 = q0.val*q3.val;
+
+  q1q2 = q1.val*q2.val;
+  q1q3 = q1.val*q3.val;
+
+  q2q3 = q2.val*q3.val;
+  //generate rotation matrix
+  R11 = 2*(q0q0-0.5+q1q1);
+  R12 = 2.0*(q1q2+q0q3);
+  R13 = 2.0*(q1q3-q0q2);
+  R21 = 2.0*(q1q2-q0q3);
+  R22 = 2.0*(q0q0-0.5+q2q2);
+  R23 = 2.0*(q2q3+q0q1);
+  R31 = 2.0*(q1q3+q0q2);
+  R32 = 2.0*(q2q3-q0q1);
+  R33 = 2.0*(q0q0-0.5+q3q3);  
+  COS_DEC = cos(DECLINATION);
+  SIN_DEC = sin(DECLINATION);
+  //rotate by declination 
+  R11 = R11*COS_DEC - R12*SIN_DEC;
+  R12 = R12*COS_DEC + R11*SIN_DEC;
+
+  R21 = R21*COS_DEC - R22*SIN_DEC;
+  R22 = R22*COS_DEC + R21*SIN_DEC;
+
+  R31 = R31*COS_DEC - R32*SIN_DEC;
+  R32 = R32*COS_DEC + R31*SIN_DEC;
+
 
 }
 
 void openIMU::GetEuler(void){
-  rawRoll.val = ToDeg(FastAtan2(2 * (q0.val * q1.val + q2.val * q3.val),1 - 2 * (q1.val * q1.val + q2.val * q2.val)));
+  rawRoll.val = ToDeg(FastAtan2(2 * (q0.val * q1.val + q2.val * q3.val),1 - 2.0 * (q1.val * q1.val + q2.val * q2.val)));
   roll.val=  rawRoll.val - rollOffset.val;
 
-  rawPitch.val = ToDeg(asin(2 * (q0.val * q2.val - q3.val * q1.val)));
+  rawPitch.val = ToDeg(asin(2.0 * (q0.val * q2.val - q3.val * q1.val)));
   pitch.val =  rawPitch.val - pitchOffset.val;
 
-  yaw.val = ToDeg(FastAtan2(2 * (q0.val * q3.val + q1.val * q2.val) , 1 - 2* (q2.val * q2.val + q3.val * q3.val))) - declination.val;
-  //yaw.val -= DECLINATION;
+  yaw.val = ToDeg(FastAtan2(2.0 * (q0.val * q3.val + q1.val * q2.val) , 1 - 2.0* (q2.val * q2.val + q3.val * q3.val)));
 
   if (yaw.val < 0){
     yaw.val +=360;
@@ -825,22 +453,59 @@ void openIMU::GetEuler(void){
 
 }
 void openIMU::GetPitch(void){
-  rawPitch.val = ToDeg(asin(2 * (q0.val * q2.val - q3.val * q1.val)));
+  rawPitch.val = ToDeg(asin(2.0 * (q0.val * q2.val - q3.val * q1.val)));
   pitch.val =  rawPitch.val - pitchOffset.val;
 }
 
 void openIMU::GetRoll(void){
-  rawRoll.val = ToDeg(FastAtan2(2 * (q0.val * q1.val + q2.val * q3.val),1 - 2 * (q1.val * q1.val + q2.val * q2.val)));
+  rawRoll.val = ToDeg(FastAtan2(2.0 * (q0.val * q1.val + q2.val * q3.val),1 - 2.0 * (q1.val * q1.val + q2.val * q2.val)));
   roll.val=  rawRoll.val - rollOffset.val;
 }
 
 void openIMU::GetYaw(void){
-  yaw.val = ToDeg(FastAtan2(2 * (q0.val * q3.val + q1.val * q2.val) , 1 - 2* (q2.val * q2.val + q3.val * q3.val))) - declination.val;
-  //yaw.val -= DECLINATION;//switch to the variable
+  yaw.val = ToDeg(FastAtan2(2.0 * (q0.val * q3.val + q1.val * q2.val) , 1 - 2.0* (q2.val * q2.val + q3.val * q3.val))) ;
   if (yaw.val < 0){
     yaw.val +=360;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

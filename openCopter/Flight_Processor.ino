@@ -29,10 +29,8 @@ void Arm(){
 }
 
 void LoiterSM(){
-  //Port0<<abs(RCValue[THRO] - 1550)<<"\r\n";
   switch(ZLoiterState){
   case LOITERING:
-    //Port0<<"A\r\n";
     AltHoldPosition.calculate();
     AltHoldVelocity.calculate();
     if (abs(RCValue[THRO] - 1550) > 200 && throttleCheckFlag == false){
@@ -45,7 +43,6 @@ void LoiterSM(){
     }
     break;
   case RCINPUT:
-    //Port0<<"B\r\n";
     if (throttleCheckFlag == true){
       ZLoiterState = LOITERING;
       break;
@@ -53,7 +50,7 @@ void LoiterSM(){
     rcDifference = RCValue[THRO] - 1550;
     if (abs(rcDifference) < 200){
       ZLoiterState = LOITERING;
-      zTarget = imu.ZEst;
+      zTarget = imu.ZEstUp;
       if (zTarget.val <= FLOOR){
         zTarget.val = FLOOR;
       } 
@@ -79,13 +76,13 @@ void LoiterSM(){
     }
     
 
-    if (imu.ZEst.val >= CEILING && velSetPointZ.val > 0){
+    if (imu.ZEstUp.val >= CEILING && velSetPointZ.val > 0){
       zTarget.val = CEILING;
       AltHoldPosition.calculate();
       AltHoldVelocity.calculate();
       break;
     }
-    if (imu.ZEst.val <= FLOOR && velSetPointZ.val < 0){
+    if (imu.ZEstUp.val <= FLOOR && velSetPointZ.val < 0){
       zTarget.val = FLOOR;
       AltHoldPosition.calculate();
       AltHoldVelocity.calculate();
@@ -97,8 +94,10 @@ void LoiterSM(){
     
 
   case LAND:
-    //Port0<<"C\r\n";
     AltHoldVelocity.calculate();
+    if (throttleAdjustment.val > 0){
+      throttleAdjustment.val = 0;
+    }
     if (RCValue[THRO] > 1200 && motorState == LANDING){
       ZLoiterState = LOITERING;
       motorState = FLIGHT;
@@ -109,7 +108,8 @@ void LoiterSM(){
   }
 
 
-  if (gpsFailSafe == false && drFlag == false){
+  //if (gpsFailSafe == false && drFlag == false){
+  if (gpsFailSafe == false && GPSDetected == true){
     switch(XYLoiterState){
     case LOITERING:
       LoiterCalculations();
@@ -141,7 +141,7 @@ void LoiterSM(){
     }  
   }
   else{
-    if (flightMode = L2){
+    if (flightMode = L2){//check
       controlBearing = initialYaw;
     }
     RotatePitchRoll(&imu.yaw.val,&controlBearing,&pitchSetPointTX.val,&rollSetPointTX.val,&pitchSetPoint.val,&rollSetPoint.val);

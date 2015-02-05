@@ -1,7 +1,7 @@
 #include "AUXMATH.h"
 
 void AssignPointerArray(){
-  floatPointerArray[GYRO_X_DEG] = &degreeGyroX;
+ floatPointerArray[GYRO_X_DEG] = &degreeGyroX;
   floatPointerArray[GYRO_Y_DEG] = &degreeGyroY;
   floatPointerArray[GYRO_Z_DEG] = &degreeGyroZ;
   floatPointerArray[ACC_X_FILT] = &filtAccX;
@@ -10,9 +10,9 @@ void AssignPointerArray(){
   floatPointerArray[MAG_X_CALIB] = &calibMagX;
   floatPointerArray[MAG_Y_CALIB] = &calibMagY;
   floatPointerArray[MAG_Z_CALIB] = &calibMagZ;
-  floatPointerArray[RAW_X] = &rawX;
-  floatPointerArray[RAW_Y] = &rawY;
-  floatPointerArray[RAW_Z] = &rawZ;
+  floatPointerArray[RAW_X] = &gpsX;
+  floatPointerArray[RAW_Y] = &gpsY;
+  floatPointerArray[RAW_Z] = &zMeas;
   floatPointerArray[PITCH_] = &imu.pitch;
   floatPointerArray[ROLL_] = &imu.roll;
   floatPointerArray[YAW_] = &imu.yaw;
@@ -22,10 +22,10 @@ void AssignPointerArray(){
   floatPointerArray[QUAT_3] = &imu.q3;
   floatPointerArray[X_EST] = &imu.XEst;
   floatPointerArray[Y_EST] = &imu.YEst;
-  floatPointerArray[Z_EST] = &imu.ZEst;
+  floatPointerArray[Z_EST] = &imu.ZEstUp;
   floatPointerArray[VEL_X] = &imu.velX;
   floatPointerArray[VEL_Y] = &imu.velY;
-  floatPointerArray[VEL_Z] = &imu.velZ;
+  floatPointerArray[VEL_Z] = &imu.velZUp;
   floatPointerArray[KP_PITCH_RATE_] = &kp_pitch_rate;
   floatPointerArray[KI_PITCH_RATE_] = &ki_pitch_rate;
   floatPointerArray[KD_PITCH_RATE_] = &kd_pitch_rate;
@@ -102,9 +102,9 @@ void AssignPointerArray(){
   floatPointerArray[RATE_SP_X] = &rateSetPointX;
   floatPointerArray[RATE_SP_Y] = &rateSetPointY;
   floatPointerArray[RATE_SP_Z] = &rateSetPointZ;
-  floatPointerArray[ADJ_X] = &adjustmentX;
-  floatPointerArray[ADJ_Y] = &adjustmentY;
-  floatPointerArray[ADJ_Z] = &adjustmentZ;
+  floatPointerArray[ADJ_X] = &imu.inertialXBiased;
+  floatPointerArray[ADJ_Y] = &imu.inertialYBiased;
+  floatPointerArray[ADJ_Z] = &imu.inertialZBiased;
   floatPointerArray[PITCH_SP] = &pitchSetPoint;
   floatPointerArray[ROLL_SP] = &rollSetPoint;
   floatPointerArray[YAW_SP] = &yawSetPoint;
@@ -119,22 +119,19 @@ void AssignPointerArray(){
   floatPointerArray[THRO_ADJ] = &throttleAdjustment;
   floatPointerArray[PITCH_SP_TX] = &pitchSetPointTX;
   floatPointerArray[ROLL_SP_TX] = &rollSetPointTX;
-  floatPointerArray[DIST_TO_WP] = &distToWayPoint;
+  floatPointerArray[DIST_TO_WP] = &tempOutput;
 
-  floatPointerArray[TARGET_VEL_WP] = &targetVelWayPoint;
-  floatPointerArray[POS_ERR] = &positionError;
-  floatPointerArray[ACC_CIR] = &accCircle;
-  floatPointerArray[DR_VEL_X] = &drVelX;
-  floatPointerArray[DR_VEL_Y] = &drVelY;
-  floatPointerArray[DR_POS_X] = &drPosX;
+  floatPointerArray[TARGET_VEL_WP] = &velZMeas;
+  floatPointerArray[POS_ERR] = &imu.lagEstForDebugPos;
+  floatPointerArray[ACC_CIR] = &imu.lagEstForDebugVel;
+  floatPointerArray[DR_VEL_X] = &velN;
+  floatPointerArray[DR_VEL_Y] = &velE;
+  floatPointerArray[DR_POS_X] = &baroVel;
   floatPointerArray[DR_POS_Y] = &drPosY;
-  //floatPointerArray[MOTOR_CMD_1] = &motorCommand1;
-  floatPointerArray[MOTOR_CMD_1] = &ultraSonicRange;
-  //floatPointerArray[MOTOR_CMD_2] = &motorCommand2;
-  floatPointerArray[MOTOR_CMD_2] = &baroZ;
-  //floatPointerArray[MOTOR_CMD_3] = &motorCommand3;
-  floatPointerArray[MOTOR_CMD_3] = &pingDistOutput;
-  floatPointerArray[MOTOR_CMD_4] = &widthOutput;
+  floatPointerArray[MOTOR_CMD_1] = &imu.accelBiasX;
+  floatPointerArray[MOTOR_CMD_2] = &imu.accelBiasY;
+  floatPointerArray[MOTOR_CMD_3] = &imu.accelBiasZ;
+  floatPointerArray[MOTOR_CMD_4] = &motorCommand4;
   floatPointerArray[PITCH_OFF] = &imu.pitchOffset;
   floatPointerArray[ROLL_OFF] = &imu.rollOffset;
 
@@ -143,7 +140,7 @@ void AssignPointerArray(){
   floatPointerArray[INERTIAL_Z] = &imu.inertialZ;
 
 
-  int16PointerArray[GYRO_X] = &throOutput;
+  int16PointerArray[GYRO_X] = &gyroX;
   int16PointerArray[GYRO_Y] = &gyroY;
   int16PointerArray[GYRO_Z] = &gyroZ;
   int16PointerArray[ACC_X] = &accX;
@@ -155,7 +152,7 @@ void AssignPointerArray(){
   int16PointerArray[NUM_SATS] = &numSats;
 
 
-  int32PointerArray[PRESSURE_] = &pressure;
+  int32PointerArray[PRESSURE_] = &lattitude;
   int32PointerArray[HB_LAT] = &homeBase.lat;
   int32PointerArray[HB_LON] = &homeBase.lon;
   int32PointerArray[HB_ALT] = &homeBase.alt;
@@ -169,8 +166,7 @@ void AssignPointerArray(){
   bytePointerArray[XY_LOIT] = &XYLoiterState;
   bytePointerArray[GPS_FS] = &gpsFailSafe;
   bytePointerArray[DR_FLAG] = &drFlag;
-  bytePointerArray[MOTOR_STATE] = &motorState;
-  //bytePointerArray[MOTOR_STATE] = &throttleCheckFlag;
+  bytePointerArray[MOTOR_STATE] = &imu.feedBack;
 
 
 
@@ -277,8 +273,8 @@ void DEBUG_DUMP(){
  Port0<< _FLOAT(RCScale[AUX3],7) <<"\r\n";
  
  
- }*/
-
+ }
+*/
 void ROMFlagsCheck(){
   uint16_t j;
   if (EEPROM.read(382) != 0xAA){
@@ -411,29 +407,29 @@ void SetDefaultGains(){
   uint16_t j;
 
 
-  kp_pitch_rate.val = 0.792;
-  ki_pitch_rate.val = 6.89;
-  kd_pitch_rate.val = 0.0607;
+  kp_pitch_rate.val = 0.891;
+  ki_pitch_rate.val = 8.25;
+  kd_pitch_rate.val = 0.064;
   fc_pitch_rate.val = 50.0;
 
-  kp_roll_rate.val = 0.792;
-  ki_roll_rate.val = 6.89;
-  kd_roll_rate.val = 0.0607;
+  kp_roll_rate.val = 0.891;
+  ki_roll_rate.val = 8.25;
+  kd_roll_rate.val = 0.064;
   fc_roll_rate.val = 50.0;
 
-  kp_yaw_rate.val = 7.0;
-  ki_yaw_rate.val = 0.0;
-  kd_yaw_rate.val = 0.1;
+  kp_yaw_rate.val = 6.0;
+  ki_yaw_rate.val = 1.0;
+  kd_yaw_rate.val = 0.01;
   fc_yaw_rate.val = 50.0;
 
-  kp_pitch_attitude.val = 5.25;
+  kp_pitch_attitude.val = 4.25;
   ki_pitch_attitude.val = 0;
-  kd_pitch_attitude.val = 0.06;
+  kd_pitch_attitude.val = 0.01;
   fc_pitch_attitude.val = 50.0;
 
-  kp_roll_attitude.val = 5.25;
+  kp_roll_attitude.val = 4.25;
   ki_roll_attitude.val = 0;
-  kd_roll_attitude.val = 0.06;
+  kd_roll_attitude.val = 0.01;
   fc_roll_attitude.val = 50;
 
   kp_yaw_attitude.val = 3.0;
@@ -441,16 +437,16 @@ void SetDefaultGains(){
   kd_yaw_attitude.val = 0.0;
   fc_yaw_attitude.val = 50.0;
 
-  kp_altitude_position.val = 1.0;
+  kp_altitude_position.val = 0.5;
   ki_altitude_position.val = 0;
-  kd_altitude_position.val = -0.0001;
+  kd_altitude_position.val = 0.0;
   fc_altitude_position.val = 50;
 
-  kp_altitude_velocity.val = 65;
-  ki_altitude_velocity.val = 15;
-  kd_altitude_velocity.val = 0.0002;
+  kp_altitude_velocity.val = 45;
+  ki_altitude_velocity.val = 30;
+  kd_altitude_velocity.val = 0.1;
   fc_altitude_velocity.val = 50;
-  mul_altitude_velocity.val = 1.15;
+  mul_altitude_velocity.val = 1.0;
 
   kp_loiter_pos_x.val = 0.5;
   ki_loiter_pos_x.val = 0;
@@ -591,27 +587,27 @@ void LoadROM(){
     outFloatIndex++;
     switch (i){
     case 4:
-      accXScalePos = outFloat.val;
+      accXScale = outFloat.val;
       outFloatIndex = 0;
       break;
     case 8:
-      accYScalePos = outFloat.val;
+      accYScale = outFloat.val;
       outFloatIndex = 0;
       break;
     case 12:
-      accZScalePos = outFloat.val;
+      accZScale = outFloat.val;
       outFloatIndex = 0;
       break;  
     case 16:
-      accXScaleNeg = outFloat.val;
+      accXOffset = outFloat.val;
       outFloatIndex = 0;
       break;  
     case 20:
-      accYScaleNeg = outFloat.val;
+      accYOffset = outFloat.val;
       outFloatIndex = 0;
       break;  
     case 24:
-      accZScaleNeg = outFloat.val;
+      accZOffset = outFloat.val;
       outFloatIndex = 0;
       break;  
     default:
@@ -709,6 +705,8 @@ void LoadROM(){
 
 
 }
+
+
 
 
 

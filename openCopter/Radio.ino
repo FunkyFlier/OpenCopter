@@ -275,7 +275,7 @@ void TuningTransmitter(){//
 
 
   if (hsTX == true){//---
-
+    
     if (now.val - hsTXTimer >= hsMillis){//+++
       hsTXTimer = now.val;
       txSum = 0;
@@ -584,6 +584,7 @@ void OrderedSet(){
         (*floatPointerArray[cmdNum]).buffer[i] =  itemBuffer[i];
       }
       saveGainsFlag = true;
+      romWriteDelayTimer = millis();
 
     }
     break;

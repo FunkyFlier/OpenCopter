@@ -7,73 +7,80 @@
 #ifndef openIMUL_h
 #define openIMUL_h
 #include "AUXMATH.h"
+#include <Streaming.h>
 
 #include <Arduino.h>
 
 //#define DECLINATION 3.66f
+#define ToRad(x) ((x)*0.01745329252)  // *pi/180
+#define ToDeg(x) ((x)*57.2957795131)  // *180/pi
+
+#define FEEDBACK_LIMIT 0.2
+#define kpAcc 2.5
+#define kiAcc 0.0
+#define kpMag 2.50
+#define kiMag 0.0
 
 
+#define LAG_SIZE 50
+#define LAG_SIZE_BARO 25
+//#define DECLINATION ToRad(3.3)
+//#define COS_DEC cos(DECLINATION)
+//#define SIN_DEC sin(DECLINATION) 
 
-#define betaMag 0.04f
-#define betaAcc 0.04f
-
-
-#define vXY 2.0f
-#define vZ_Baro 2.5f
-#define vZ_Ping 1.0f
-
-#define w1XY 2.0f
-#define w2XY 1.0f
-#define w3XY 0.0001f
-
-
-#define w1Z 0.5f
-#define w2Z 0.15f
-#define w3Z 0.0001f
-
-#define LAG_SIZE 20
+//#define COS_DEC 1
+//#define SIN_DEC 0
 
 class openIMU{
 public:
   openIMU(float*, float*, float*, float*, float*, 
-  float*, float*, float*, float*, float*, 
-  float*, float*, float* , float*, float*, float*);
-  
+  float*, float*, float*, float*, float*, float*, float*,
+  float*, float*, float* , float*, float*, float*, float*);
+
   void AHRSupdate(void);
   void GetEuler(void);
   void GetPitch(void);
   void GetRoll(void);
   void GetYaw(void);
   void InitialQuat(void);
-  void BaroKalUpdate(void);
-  void PingKalUpdate(void);
-  void AccKalUpdate(void);
-  void GPSKalUpdate(void);
-  float GetGravOffset(void);
-  void UpdateLagIndex(void);
-  void pUpateZ(void);
-  void pUpateY(void);
-  void pUpateX(void);
+  void GetGravOffset(void);
+  void UpdateLagIndex(void);  
   void GetInertial(void);
-  void AHRSStart(void);
-  void AHRSEnd(void);
-  void IMUupdate(void);
-  
+  void Predict(void);
+  void CorrectGPS(void);
+  void CorrectAlt(void);
+  void GenerateRotationMatrix(void);
+
   float_u q0,q1,q2,q3;
   float_u pitch,roll,yaw;
-  float_u XEst,YEst,ZEst;
-  float_u velX,velY,velZ;
-  float accelBiasX,accelBiasY,accelBiasZ;
-  float_u inertialX,inertialY,inertialZ;
-  float inertialZ_Grav;
-  float gravityOffSet;
-  boolean feedBack;
-  float xError,yError,zError;
-  float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE];
-  uint8_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;  
+  float_u XEst,YEst,ZEst,ZEstUp;
+  float_u velX,velY,velZ,velZUp;
+  float_u accelBiasX,accelBiasY,accelBiasZ;
+  float accelBiasXEF,accelBiasYEF,accelBiasZEF;
+  float_u inertialX,inertialY,inertialZ,inertialZGrav;
+  float_u inertialXOffSet,inertialYOffSet,inertialZOffSet;
+  float_u inertialXBiased,inertialYBiased,inertialZBiased;
+  uint8_t feedBack;
+  float_u xPosError,yPosError,zPosError;
+  float_u xVelError,yVelError,zVelError;
+  float XEstHist[LAG_SIZE],YEstHist[LAG_SIZE],ZEstHist[LAG_SIZE_BARO];
+  float XVelHist[LAG_SIZE],YVelHist[LAG_SIZE],ZVelHist[LAG_SIZE_BARO];
+  int16_t currentEstIndex,lagIndex,currentEstIndex_z,lagIndex_z;  
   float_u rawPitch,rawRoll;
   float_u pitchOffset,rollOffset;
   float_u declination;
+  float_u magnitude,initialAccMagnitude,magnitudeDifference;
+
+  //boolean skipFeedBack;
+  //float FEEDBACK_LIMIT;
+  float DECLINATION,COS_DEC,SIN_DEC;
+  float kPosGPS,kVelGPS,kAccGPS,kPosBaro,kVelBaro,kAccBaro;
+  float R11,R12,R13,R21,R22,R23,R31,R32,R33;
+  float inertialSumX,inertialSumY,inertialSumZ,inertialAvgX,inertialAvgY,inertialAvgZ;
+  float_u lagEstForDebugVel,lagEstForDebugPos;
+  uint8_t lagAmount;
+  //uint8_t magFlag;
+  float_u biasedX,biasedY,biasedZ;
 private:
 
 
@@ -90,54 +97,28 @@ private:
   float *sax;//scaled accelerometer value
   float *say;
   float *saz;
-  float *XRaw,*YRaw,*ZRaw;
+  float *XPosGPS,*YPosGPS,*ZPosBaro;
+  float *XVelGPS,*YVelGPS,*ZVelBaro;
 
   float recipNorm;
-  float s0, s1, s2, s3;
-  float qDot1, qDot2, qDot3, qDot4;
-  float hx, hy;
-  float _2q0mx, _2q0my, _2q0mz, _2q1mx, _2bx, _2bz, _4bx, _4bz, _2q0, _2q1, _2q2, _2q3, _2q0q2, _2q2q3, q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;
-  float  _4q0, _4q1, _4q2 ,_8q1, _8q2;
-  float squareSum;
-  float magnitude;
+  float q0q0,q1q1,q2q2,q3q3,q0q1,q0q2,q0q3,q1q2,q1q3,q2q3;
+  float integralFBX,integralFBY,integralFBZ;
 
-  //Position and velocity vars
+  float kiDTAcc,kiDTMag,dtby2;
+  float bx,by,bz,wx,wy,wz,vx,vy,vz;
 
-  float p11X,p12X,p13X;
-  float p21X,p22X,p23X;
-  float p31X,p32X,p33X;
-
-  float p11Y,p12Y,p13Y;
-  float p21Y,p22Y,p23Y;
-  float p31Y,p32Y,p33Y;
-
-  float p11Z,p12Z,p13Z;
-  float p21Z,p22Z,p23Z;
-  float p31Z,p32Z,p33Z;
-
-  float p11X_,p12X_,p13X_;
-  float p21X_,p22X_,p23X_;
-  float p31X_,p32X_,p33X_;
-
-  float p11Y_,p12Y_,p13Y_;
-  float p21Y_,p22Y_,p23Y_;
-  float p31Y_,p32Y_,p33Y_;
-
-  float p11Z_,p12Z_,p13Z_;
-  float p21Z_,p22Z_,p23Z_;
-  float p31Z_,p32Z_,p33Z_;
-
-  float k1X,k2X,k3X;
-
-  float k1Y,k2Y,k3Y;
-
-  float k1Z,k2Z,k3Z;
-
-
+  float hx,hy,hz,exm,eym,ezm,exa,eya,eza;
+  float_u radPitch,radRoll,radYaw;
+  //float xOrtho[3],yOrtho[3],zOrtho[3];
+  //float xNorm[3],yNorm[3],zNorm[3];
+  //float normScale,rotError,rotError2;
 };
 
 
 #endif
+
+
+
 
 
 

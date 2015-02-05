@@ -1,6 +1,17 @@
 void CheckESCFlag(){
+
   if (EEPROM.read(428) == 0xAA){
-    MotorInit();
+    DDRE |= B00111000;
+    DDRH |= B00111000;
+
+
+    TCCR3A = (1<<WGM31)|(1<<COM3A1)|(1<<COM3B1)|(1<<COM3C1);  
+    TCCR3B = (1<<WGM33)|(1<<WGM32)|(1<<CS31);               
+    ICR3 = PERIOD;   
+
+    TCCR4A = (1<<WGM41)|(1<<COM4A1)|(1<<COM4B1)|(1<<COM4C1);
+    TCCR4B = (1<<WGM43)|(1<<WGM42)|(1<<CS41);
+    ICR4 = PERIOD;  
     Motor1WriteMicros(2000);//set the output compare value
     Motor2WriteMicros(2000);
     Motor3WriteMicros(2000);
@@ -41,7 +52,7 @@ void CheckESCFlag(){
 }
 
 void CalibrateESC(){
-  delay(500);//wait for new frame
+  delay(100);//wait for new frame
 
   while(newRC == false){
 
@@ -74,14 +85,14 @@ void CalibrateESC(){
     }
 
   }
-  
+
 }
 
 
 void MotorInit(){
   DDRE |= B00111000;
   DDRH |= B00111000;
-  DDRB |= B01100000;
+  //DDRB |= B01100000;
 
 
   TCCR3A = (1<<WGM31)|(1<<COM3A1)|(1<<COM3B1)|(1<<COM3C1);  
@@ -92,18 +103,44 @@ void MotorInit(){
   TCCR4B = (1<<WGM43)|(1<<WGM42)|(1<<CS41);
   ICR4 = PERIOD;  
 
-  TCCR1A = (1<<WGM11)|(1<<COM1A1)|(1<<COM1B1);
-  TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11);
-  ICR1 = PERIOD;
+  //TCCR1A = (1<<WGM11)|(1<<COM1A1)|(1<<COM1B1);
+  //TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11);
+  //ICR1 = PERIOD;
 
+  Motor1WriteMicros(1000);//set the output compare value
+  Motor2WriteMicros(1000);
+  Motor3WriteMicros(1000);
+  Motor4WriteMicros(1000);
+  Motor5WriteMicros(1000);
+  Motor6WriteMicros(1000);
 
 }
 
+
 void MotorHandler(){
+  /*    if (saveGainsFlag == true && (millis() - romWriteDelayTimer) > 2000){
+   j_ = 81;
+   for(uint16_t i = KP_PITCH_RATE_; i <= MAG_DEC_; i++){
+   EEPROM.write(j_++,(*floatPointerArray[i]).buffer[0]); 
+   EEPROM.write(j_++,(*floatPointerArray[i]).buffer[1]); 
+   EEPROM.write(j_++,(*floatPointerArray[i]).buffer[2]); 
+   EEPROM.write(j_++,(*floatPointerArray[i]).buffer[3]); 
+   watchDogFailSafeCounter = 0;
+   }
+   calibrationFlags = EEPROM.read(0x00);
+   calibrationFlags &= ~(1<<GAINS_FLAG);
+   EEPROM.write(0x00,calibrationFlags);
+   saveGainsFlag = false;
+   UpdateOffset();
+   imuTimer = micros();
+   baroTimer = millis();
+   _400HzTimer = imuTimer;
+   
+   }*/
   switch(motorState){
   case HOLD:
-  
-    if (saveGainsFlag == true){
+
+    if (saveGainsFlag == true && (millis() - romWriteDelayTimer) > 2000){
       j_ = 81;
       for(uint16_t i = KP_PITCH_RATE_; i <= MAG_DEC_; i++){
         EEPROM.write(j_++,(*floatPointerArray[i]).buffer[0]); 
@@ -116,30 +153,15 @@ void MotorHandler(){
       calibrationFlags &= ~(1<<GAINS_FLAG);
       EEPROM.write(0x00,calibrationFlags);
       saveGainsFlag = false;
+      imuTimer = micros();
+      baroTimer = millis();
+      _400HzTimer = imuTimer;
     }
-    pressureInitial = pressure.val;
+    //pressureInitial = pressure;
     initialYaw = imu.yaw.val;
     integrate = false;
     HHState = 0;
-    PitchAngle.reset();
-    RollAngle.reset();
-    YawAngle.reset();
 
-    PitchRate.reset();
-    RollRate.reset();
-    YawRate.reset();
-
-    AltHoldPosition.reset();
-    AltHoldVelocity.reset();
-
-    WayPointPosition.reset();
-    WayPointRate.reset();
-
-    LoiterXPosition.reset();
-    LoiterXVelocity.reset();
-
-    LoiterYPosition.reset();
-    LoiterYVelocity.reset();
     ZLoiterState = LOITERING;
     XYLoiterState = LOITERING;
     if (RCValue[THRO] > 1100){
@@ -157,8 +179,33 @@ void MotorHandler(){
       motorCommand4.val = 1000;
       break;
     }
+
     if (RCValue[RUDD] < 1300){
       motorState = TO;
+
+
+      PitchAngle.reset();
+      RollAngle.reset();
+      YawAngle.reset();
+
+      PitchRate.reset();
+      RollRate.reset();
+      YawRate.reset();
+
+      AltHoldPosition.reset();
+      AltHoldVelocity.reset();
+
+      WayPointPosition.reset();
+      WayPointRate.reset();
+
+      LoiterXPosition.reset();
+      LoiterXVelocity.reset();
+
+      LoiterYPosition.reset();
+      LoiterYVelocity.reset();
+      homeBaseXOffset = imu.XEst.val;
+      homeBaseYOffset = imu.YEst.val;
+      UpdateOffset();
     }
 
     motorCommand1.val = 1000;
@@ -173,13 +220,23 @@ void MotorHandler(){
     motorCommand3.val = 1125;
     motorCommand4.val = 1125;
     throttleCheckFlag = false;
-    
+    pressureInitial = pressure.val;
+    imu.ZEst.val = 0;
+	imu.ZEstUp.val = 0;
+    imu.velZ.val = 0;
+	imu.velZUp.val = 0;
+    prevBaro = 0;
+    baroZ.val = 0;
+    //baroTimer = millis();
+    initialYaw = imu.yaw.val;
+
     if (RCValue[RUDD] > 1700){
       motorState = HOLD;
     }
     if (flightMode == RTB){
       motorState = HOLD;
     }
+
     if (flightMode == RATE || flightMode == ATT){
       if (RCValue[THRO] > 1150 && RCValue[THRO] < 1350){
         motorState = FLIGHT;
@@ -230,10 +287,15 @@ void MotorHandler(){
         throttleCommand = 1550;
       }
     }
+
     motorCommand1.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentX.val + adjustmentY.val - adjustmentZ.val),1000,2000);
     motorCommand2.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentX.val + adjustmentY.val + adjustmentZ.val),1000,2000);
     motorCommand3.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentX.val - adjustmentY.val - adjustmentZ.val),1000,2000);
     motorCommand4.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentX.val - adjustmentY.val + adjustmentZ.val),1000,2000);
+    /*motorCommand1.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentY.val - adjustmentZ.val),1000,2000);
+     motorCommand2.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentX.val + adjustmentZ.val),1000,2000);
+     motorCommand3.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentY.val - adjustmentZ.val),1000,2000);
+     motorCommand4.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentX.val + adjustmentZ.val),1000,2000);*/
 
     break;
   case LANDING:
@@ -245,8 +307,8 @@ void MotorHandler(){
         throttleCheckFlag = false;
       }
     }
-    throttleCommand = 1450;
-    if ( (1450 + throttleAdjustment.val) < 1250){
+    throttleCommand = 1550;
+    if ( (1550 + throttleAdjustment.val) < 1250){
       motorCommand1.val = 1000;
       motorCommand2.val = 1000;
       motorCommand3.val = 1000;
@@ -262,7 +324,7 @@ void MotorHandler(){
       motorState = HOLD;
       break;
     }
-    if (imu.inertialZ.val > 5.0){
+    if (fabs(imu.inertialZ.val) > 5.0){
       motorCommand1.val = 1000;
       motorCommand2.val = 1000;
       motorCommand3.val = 1000;
@@ -270,13 +332,18 @@ void MotorHandler(){
       motorState = HOLD;
       break;
     }
+
     motorCommand1.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentX.val + adjustmentY.val - adjustmentZ.val),1000,2000);
     motorCommand2.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentX.val + adjustmentY.val + adjustmentZ.val),1000,2000);
     motorCommand3.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentX.val - adjustmentY.val - adjustmentZ.val),1000,2000);
     motorCommand4.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentX.val - adjustmentY.val + adjustmentZ.val),1000,2000);
-
+    /*    motorCommand1.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentY.val - adjustmentZ.val),1000,2000);
+     motorCommand2.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentX.val + adjustmentZ.val),1000,2000);
+     motorCommand3.val = constrain((throttleCommand + throttleAdjustment.val - adjustmentY.val - adjustmentZ.val),1000,2000);
+     motorCommand4.val = constrain((throttleCommand + throttleAdjustment.val + adjustmentX.val + adjustmentZ.val),1000,2000);*/
     break;
   }
+
   Motor1WriteMicros(motorCommand1.val);
   Motor2WriteMicros(motorCommand2.val);
   Motor3WriteMicros(motorCommand3.val);
@@ -284,35 +351,5 @@ void MotorHandler(){
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

@@ -30,7 +30,7 @@ public:
   float dError;
   float dErrorPrev;
 private:
-  
+
 
 };
 class ALT{
@@ -59,7 +59,7 @@ public:
   float dError;
   float dErrorPrev;
 private:
-  
+
 
 };
 class YAW{
@@ -95,4 +95,5 @@ private:
 
 
 #endif
+
 

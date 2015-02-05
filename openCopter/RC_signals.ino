@@ -2,27 +2,27 @@
 
 
 /*void SetFailSafeFlags(){//remove - for debugging purposes only
-  if (RCValue[AUX2] > 1800){
-    gpsFailSafe = false;
-    drFlag = false;
-    imu.XEst.val = rawX.val;
-    imu.YEst.val = rawY.val;
-    drPosX.val = rawX.val;
-    drPosY.val = rawY.val;
-    imu.velX.val = 0;
-    imu.velY.val = 0;
-    drVelX.val = 0;
-    drVelY.val = 0;
-
-    imu.ZEst.val = 0;
-
-    imu.velX.val = 0;
-    imu.velY.val = 0;
-    imu.velZ.val = 0;
-  }
-
-
-}*/
+ if (RCValue[AUX2] > 1800){
+ gpsFailSafe = false;
+ drFlag = false;
+ imu.XEst.val = rawX.val;
+ imu.YEst.val = rawY.val;
+ drPosX.val = rawX.val;
+ drPosY.val = rawY.val;
+ imu.velX.val = 0;
+ imu.velY.val = 0;
+ drVelX.val = 0;
+ drVelY.val = 0;
+ 
+ imu.ZEst.val = 0;
+ 
+ imu.velX.val = 0;
+ imu.velY.val = 0;
+ imu.velZ.val = 0;
+ }
+ 
+ 
+ }*/
 void GetSwitchPositions(){
   //value from gear switch
   if (RCValue[GEAR] < 1250){
@@ -69,7 +69,7 @@ void ModeSelect(){
         if (timeDiff > 5000){
 
           modeSelect = true;
-          trimMode = false;
+          trimMode = true;
           break;
         }
         if (RCValue[AILE] > 1800){
@@ -101,7 +101,7 @@ void ModeSelect(){
         }
         if (((int32_t)millis() - (int32_t)generalPurposeTimer) - (int32_t)timeDiff > 2500){
           modeSelect = true;
-          trimMode = true;
+          trimMode = false;
           break;
         }
         break;
@@ -155,10 +155,7 @@ void ProcessChannels(){
   RCValue[AILE] = (rawRCVal[AILE] - centerRCVal[AILE]) * RCScale[AILE] + 1500;
   RCValue[ELEV] = (rawRCVal[ELEV] - centerRCVal[ELEV]) * RCScale[ELEV] + 1500 ;
   RCValue[RUDD] = (rawRCVal[RUDD] - centerRCVal[RUDD]) * RCScale[RUDD] + 1500 ;
-  
-  Motor8WriteMicros(RCValue[AUX3]);
 
-  throOutput.val = RCValue[THRO];
 
   if (txFailSafe == true){
     if (motorState >= FLIGHT){
@@ -217,6 +214,26 @@ void ProcessChannels(){
 
   }
 
+  if (RCValue[AUX3] > 1750){
+    flightMode = RTB;
+    MapVar(&RCValue[AILE],&rollSetPointTX.val,1000,2000,-60,60);
+    MapVar(&RCValue[ELEV],&pitchSetPointTX.val,1000,2000,-60,60);
+    MapVar(&RCValue[RUDD],&yawInput,1000,2000,-300,300);
+    if (rollSetPointTX.val < 1 && rollSetPointTX.val > -1){
+      rollSetPointTX.val = 0;
+    }
+    if (pitchSetPointTX.val < 1 && pitchSetPointTX.val > -1){
+      pitchSetPointTX.val = 0;
+    }
+    if (yawInput < 5 && yawInput > -5){
+      yawInput = 0;
+    }
+    if (flightMode != previousFlightMode){
+      enterState = true;
+    }
+    return;
+
+  }
 
   if (trimMode == false){
 
@@ -465,6 +482,10 @@ void FeedLine(){
 
 }
 void SBusParser(){
+  while(RCSigPort.available() > 25){
+    RCSigPort.read();
+  }
+  //Serial<<RCSigPort.available()<<"\r\n";
   while(RCSigPort.available() > 0){
     if (millis() - frameTime > 8){
       readState = 0;
@@ -489,20 +510,18 @@ void SBusParser(){
         readState = 0;
         if (sBusData[0]==0x0f && sBusData[24] == 0x00){
           newRC = true;
-          rawRCVal[AILE] = (sBusData[1]|sBusData[2]<< 8) & 0x07FF ;
-          rawRCVal[ELEV] = (sBusData[2]>>3|sBusData[3]<<5) & 0x07FF;
-          rawRCVal[THRO] = (sBusData[3]>>6|sBusData[4]<<2|sBusData[5]<<10) & 0x07FF;
+          rawRCVal[THRO] = (sBusData[1]|sBusData[2]<< 8) & 0x07FF ;
+          rawRCVal[AILE] = (sBusData[2]>>3|sBusData[3]<<5) & 0x07FF;
+          rawRCVal[ELEV] = (sBusData[3]>>6|sBusData[4]<<2|sBusData[5]<<10) & 0x07FF;
           rawRCVal[RUDD] = (sBusData[5]>>1|sBusData[6]<<7) & 0x07FF;
           rawRCVal[GEAR] = (sBusData[6]>>4|sBusData[7]<<4) & 0x07FF;
           rawRCVal[AUX1] = (sBusData[7]>>7|sBusData[8]<<1|sBusData[9]<<9) & 0x07FF;
           rawRCVal[AUX2] = (sBusData[9]>>2|sBusData[10]<<6) & 0x07FF;
           rawRCVal[AUX3] = (sBusData[10]>>5|sBusData[11]<<3) & 0x07FF;
-          if (sBusData[23] & (1<<2)) {
-            failSafe = true;
-          }
           if (sBusData[23] & (1<<3)) {
             failSafe = true;
           }
+
         }
       }
       break;
@@ -541,7 +560,6 @@ void DSMXParser(){
 }
 
 void DetectRC(){
-  //Spektrum();
 
   readState = 0;
   SBus();
@@ -681,6 +699,7 @@ void Spektrum(){
   rcType = DSMX;
   detected = true;
 }
+
 
 
 

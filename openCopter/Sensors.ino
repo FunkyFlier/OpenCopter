@@ -1,79 +1,38 @@
-/*void SonarInit(){
-  DDRB |= (1<<PB5);
-  TCCR1A = (1<<WGM11)|(1<<COM1A1);
-  TCCR1B = (1<<WGM13)|(1<<WGM12)|(1<<CS11)|(1<<CS10);
-  ICR1 = PERIOD_TRIG;  
-  OCR1A = 2; 
-  TIMSK1 |= (1<<OCIE1A);
-
-  DDRB &= ~(1<<PB6);
-  PORTK |= (1<<PB6);
-  PCMSK0 |= 1<<PCINT6;
-  PCICR |= 1<<0;
-
-}
-
-ISR(TIMER1_COMPA_vect){
-  DDRB &= ~(1<<PB5);
-  //Port0<<"A\r\n";
-
-}
 
 
+void GetInitialQuat(){
+  uint8_t i = 0;
+  float inertialSumX,inertialSumY,inertialSumZ;
+  imu.InitialQuat();
 
-ISR(PCINT0_vect){
-  if (((PINB & 1<<PB6)>>PB6) == 1){
-    start = micros();
 
-  }
-  else{
-    width = (micros() - start);
-    //newPing = true;
-    //DDRB |= (1<<PB5);
-    if (width > 50){
-      pingDistCentimeters = width  * 0.017543859;
-      pingDistMeters = pingDistCentimeters * 0.01;
-      newPing = true;
-      if (width < 17100){
-        //if (width < 5700){
-        pingDistCentimeters = width  * 0.017543859;
-        pingDistMeters = pingDistCentimeters * 0.01;
-        newPing = true;
-      }
-      DDRB |= (1<<PB5);
-
-    }
-  }
-
-}*/
-
-void CalcGravityOffSet(){
+  imu.GenerateRotationMatrix();
   imuTimer = micros();
 
-  for (int i =0; i < 1000; i++){
 
-    while (micros() - imuTimer < 10000){
-    }
-    imuDT = (micros() - imuTimer) * 0.000001;
-    imuTimer = micros();
-    GetAcc();
-    GetMag();
-    GetGyro();
-    imu.AHRSupdate();
-  }
   imu.GetEuler();
-  gravSum = 0;
-  for (int i = 0; i < 50; i++){
+
+
+  imu.initialAccMagnitude.val = 0;
+  inertialSumZ = 0;
+  for(int i = 0; i < 200; i ++){
     GetAcc();
-    gravSum += imu.GetGravOffset();
+    imu.GetInertial();
+
+    inertialSumZ += imu.inertialZ.val;
     delayMicroseconds(2500);
   }
-  gravAvg = gravSum / 50.0;
-  imu.gravityOffSet = gravAvg;
+
+  imu.initialAccMagnitude.val = inertialSumZ / 200.0;
+
+  imu.accelBiasX.val = 0;
+  imu.accelBiasY.val = 0;
+  imu.accelBiasZ.val = 0;
+
+  imu.currentEstIndex = (uint8_t)kp_waypoint_velocity.val;
+  imu.lagIndex = 0;
 
 }
-
-
 void CalibrateSensors(){
 
   generalPurposeTimer = millis();
@@ -103,7 +62,7 @@ void CalibrateSensors(){
       magY.buffer[0] = I2c.receive();
       magY.val *= -1;
       magZ.val *= -1;
-
+      
       PollPressure();
       if (newBaro == true){
         newBaro = false;
@@ -272,7 +231,7 @@ void SendCalData(){
 }
 
 void StartUpAHRSRun(){
-  if ( micros() - imuTimer >= 16666){  
+  if ( micros() - imuTimer >= 13333){  
     imuDT = (micros() - imuTimer) * 0.000001;
     imuTimer = micros();
     GetAcc();
@@ -289,137 +248,106 @@ void StartUpAHRSRun(){
 
 
 void GPSStart(){
-  uint8_t gpsStartState;
-  unsigned long chars;
-  unsigned short goodSentences,csFailures;
+  uint8_t LEDState;
+  gps.init();
 
 
-  gpsPort.begin(115200);
-
-
-  //make sure that the data is gps data
-  GPSDetected = false;
   generalPurposeTimer = millis();
-  while ((millis() - generalPurposeTimer < 1000 && GPSDetected == false) ){
-    StartUpAHRSRun();
-    digitalWrite(13,HIGH);
-    digitalWrite(RED,LOW);
-    digitalWrite(YELLOW,HIGH);
-    digitalWrite(GREEN,LOW);
-    while(gpsPort.available() > 0){
-      inByte = gpsPort.read();
-      gpsUpdate = gps.encode(inByte);
-      if (inByte == '$'){//consider switching to validate that the reciver is recieving GPGGA
-        GPSDetected = true;
-      }
+  while ((millis() - generalPurposeTimer < 1000) && (gps.newData == false)){
+    gps.Monitor();
+    if (gps.newData == true){
+      GPSDetected = true;
     }
   }
+  //Serial<<"gps det: "<<GPSDetected<<"\r\n";
+  //to do add feed back with leds
+  if (GPSDetected == true){
+    gpsFailSafe = false;
+    while (gps.data.vars.gpsFix != 3){
 
-  if (GPSDetected == false){
-    return;
-  }
-  GPSDetected = false;
-
-  //wait for a good gps fix
-  while(GPSDetected == false){
-    StartUpAHRSRun();
-    while(gpsPort.available() > 0){
-      gpsUpdate = gps.encode(gpsPort.read());
-      gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
-      if (gpsFixAge > 500){
-        gpsStartState = 0;
-        gpsUpdate = false;
+      gps.Monitor();
+      if (millis() - generalPurposeTimer > 500){
+        generalPurposeTimer = millis();
+        LEDState++;
+        if (LEDState == 4){
+          LEDState = 0;
+        }
       }
-      switch (gpsStartState){
+      switch (LEDState){
       case 0:
-        digitalWrite(13,LOW);
-        digitalWrite(RED,HIGH);
-        digitalWrite(YELLOW,LOW);
-        digitalWrite(GREEN,LOW);
-        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
-        if (gpsUpdate == true){
-          gpsUpdate = false;
-          gpsStartState = 1;
-        }
-        break;
-      case 1:
-        digitalWrite(13,LOW);
-        digitalWrite(RED,LOW);
-        digitalWrite(YELLOW,HIGH);
-        digitalWrite(GREEN,LOW);
-        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
-        if (gpsUpdate == true){
-          gpsUpdate = false;
-          if (gps.hdop() < 200 && gps.satellites() >= 8){
-            gpsStartState = 2;
-            generalPurposeTimer = millis();
-          }
-        }
-        break;
-      case 2:
         digitalWrite(13,HIGH);
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,LOW);
-        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
-        if (gpsUpdate == true){
-          gpsUpdate = false;
-          if (gps.hdop() > 200 || gps.satellites() < 8){
-            gpsStartState = 1;
-          }
-        }
-        if (millis() - generalPurposeTimer > 15000){
-          gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
-          homeBase.lat.val = lattitude.val;
-          homeBase.lon.val = longitude.val;
-          gpsStartState = 3;
-          generalPurposeTimer = millis();
-        }
+        break;
+      case 1:
+        digitalWrite(13,LOW);
+        digitalWrite(RED,HIGH);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 2:
+        digitalWrite(13,LOW);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,HIGH);
+        digitalWrite(GREEN,LOW);
         break;
       case 3:
         digitalWrite(13,LOW);
         digitalWrite(RED,LOW);
         digitalWrite(YELLOW,LOW);
         digitalWrite(GREEN,HIGH);
-        Port0<<gps.hdop()<<","<<gps.satellites()<<"\r\n";
-        if (gpsUpdate == true){
-          gpsUpdate = false;
-          if (gps.hdop() > 200 || gps.satellites() < 8){
-            gpsStartState = 1;
-          }
-        }
-        if (millis() - generalPurposeTimer > 15000){
-          StartUpAHRSRun();
-          gps.get_position(&lattitude.val,&longitude.val,&gpsFixAge);
-          DistBearing(&homeBase.lat.val,&homeBase.lon.val,&lattitude.val,&longitude.val,&rawX.val,&rawY.val,&distToCraft,&headingToCraft);
-          if ( sqrt( sq(rawX.val) + sq(rawY.val)) <= 1.5 ){
-            homeBase.lat.val = lattitude.val;
-            homeBase.lon.val = longitude.val;
-            rawX.val = 0;
-            rawY.val = 0;
-            imu.XEst.val = 0;
-            imu.YEst.val = 0;
-            homeBaseXOffset = 0;
-            homeBaseYOffset = 0;
-            drPosX.val = 0;
-            drPosY.val = 0;
-            drVelX.val = 0;
-            drVelY.val = 0;
-            GPSDetected = true;
-          }
-          else{
-            gpsStartState = 1;
-          }
-        }
         break;
       }
-
+    }
+    while(gps.data.vars.hAcc > 500000){
+      gps.Monitor();
+      if (millis() - generalPurposeTimer > 500){
+        generalPurposeTimer = millis();
+        LEDState++;
+        if (LEDState == 4){
+          LEDState = 0;
+        }
+      }
+      switch (LEDState){
+      case 0:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 1:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,HIGH);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 2:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,HIGH);
+        digitalWrite(GREEN,LOW);
+        break;
+      case 3:
+        digitalWrite(13,HIGH);
+        digitalWrite(RED,LOW);
+        digitalWrite(YELLOW,LOW);
+        digitalWrite(GREEN,HIGH);
+        break;
+      }
     }
 
-  }
+    gps.newData = false;
+    while (gps.newData == false){
+      gps.Monitor();
+    }
+    homeBase.lat.val = gps.data.vars.lat;
+    homeBase.lon.val = gps.data.vars.lon;
+  }  
+
+
 
 }
-
 void GetAltitude(long *press,long *pressInit, float *alti){
   pressureRatio = (float) *press / (float) *pressInit;
   *alti = (1.0f - pow(pressureRatio, 0.190295f)) * 44330.0f;
@@ -575,6 +503,7 @@ void BaroInit(void){
   //lower pressure than this means positive altitude
   //higher pressure than this means negative altitude
   baroCount = 0;
+  baroSum = 0;
   while (baroCount < 10){//use a while instead of a for loop because the for loop runs too fast
     PollPressure();
     if (newBaro == true){
@@ -584,7 +513,10 @@ void BaroInit(void){
     }    
   }
   pressureInitial = baroSum / 10;   
+
+
   initialTemp.val = temperature;
+
   //use the line below for altitdue above sea level
   //pressureInitial = 101325;
 
@@ -593,15 +525,33 @@ void BaroInit(void){
 
 void MagInit(){
   //continous conversion 220Hz
-  I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRA_REG,(uint8_t)0x1C);
+  I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRA_REG,(uint8_t)0x18);
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_CRB_REG,(uint8_t)0x60);
   I2c.write((uint8_t)MAG_ADDRESS,(uint8_t)LSM303_MR_REG,(uint8_t)0x00);
+  I2c.read(MAG_ADDRESS,LSM303_OUT_X_H,6);
+  magX.buffer[1] = I2c.receive();//X
+  magX.buffer[0] = I2c.receive();
+  magZ.buffer[1] = I2c.receive();//Z
+  magZ.buffer[0] = I2c.receive();
+  magY.buffer[1] = I2c.receive();//Y
+  magY.buffer[0] = I2c.receive();
+  magY.val *= -1;
+  magZ.val *= -1;
+  shiftedMagX  = magX.val - magOffSetX;
+  shiftedMagY  = magY.val - magOffSetY;
+  shiftedMagZ  = magZ.val - magOffSetZ;
+  scaledMagX = magWInv00 * shiftedMagX + magWInv01 * shiftedMagY + magWInv02 * shiftedMagZ;
+  scaledMagY = magWInv10 * shiftedMagX + magWInv11 * shiftedMagY + magWInv12 * shiftedMagZ;
+  scaledMagZ = magWInv20 * shiftedMagX + magWInv21 * shiftedMagY + magWInv22 * shiftedMagZ;
+  calibMagX.val = scaledMagX;
+  calibMagY.val = scaledMagY;
+  calibMagZ.val = scaledMagZ;
   for (uint8_t i = 0; i < 100; i++){
     GetMag();
     delay(5);
   }
-}
 
+}
 void AccInit(){
 
   SPI.setDataMode(SPI_MODE3);
@@ -618,46 +568,36 @@ void AccInit(){
 
   AccSSLow();
   SPI.transfer(WRITE | SINGLE | DATA_FORMAT);
-  SPI.transfer(0x0B);//full resolution + / - 16g
+  SPI.transfer(0x08);//full resolution + / - 16g
   AccSSHigh();
 
   GetAcc();
 
-  if (accX.val > 0){
-    scaledAccX = accX.val * accXScalePos;
-  }
-  else{
-    scaledAccX = accX.val * accXScaleNeg;
-  }
-  if (accY.val > 0){
-    scaledAccY = accY.val  * accYScalePos;
-  }
-  else{
-    scaledAccY = accY.val  * accYScaleNeg;
-  }
-  if (accZ.val > 0){
-    scaledAccZ = accZ.val * accZScalePos;
-  }
-  else{
-    scaledAccZ = accZ.val * accZScaleNeg;
-  }
-  filtAccX.val = scaledAccX;
-  filtAccY.val = scaledAccY;
-  filtAccZ.val = scaledAccZ;  
-  for (uint8_t i = 0; i < 3 ; i++){
-    inBufferX[i] = filtAccX.val;
-    inBufferY[i] = filtAccY.val;
-    inBufferZ[i] = filtAccZ.val;
-    outBufferX[i] = filtAccX.val;
-    outBufferY[i] = filtAccY.val;
-    outBufferZ[i] = filtAccZ.val;
-  }
+  accY.val *= -1;
+  accZ.val *= -1;
+
+ shiftedAccX.val  = accX.val - accXOffset;
+  shiftedAccY.val  = accY.val - accYOffset;
+  shiftedAccZ.val  = accZ.val - accZOffset;
+  scaledAccX.val = shiftedAccX.val * accXScale;
+  scaledAccY.val = shiftedAccY.val * accYScale;
+  scaledAccZ.val = shiftedAccZ.val * accZScale;
+
+/*  shiftedAccX.val  = accX.val - 0;
+  shiftedAccY.val  = accY.val - 0;
+  shiftedAccZ.val  = accZ.val - 0;
+  scaledAccX.val = shiftedAccX.val * 0.03828125;
+  scaledAccY.val = shiftedAccY.val * 0.03828125;
+  scaledAccZ.val = shiftedAccZ.val * 0.03828125;*/
+
+
   for (uint16_t i = 0;i < 100; i++){
     GetAcc();
     delayMicroseconds(2500);
   }
 
 }
+
 
 void GyroInit(){
   SPI.setDataMode(SPI_MODE0);
@@ -743,20 +683,52 @@ void GetMag(){
   magY.val *= -1;
   magZ.val *= -1;
 
-  deltaTemp.val = temperature - calibTempMag.val;
-  magX.val -= deltaTemp.val * xSlopeMag.val;
-  magY.val -= deltaTemp.val * ySlopeMag.val;
-  magZ.val -= deltaTemp.val * zSlopeMag.val;
-
   shiftedMagX  = magX.val - magOffSetX;
   shiftedMagY  = magY.val - magOffSetY;
   shiftedMagZ  = magZ.val - magOffSetZ;
+  scaledMagX = magWInv00 * shiftedMagX + magWInv01 * shiftedMagY + magWInv02 * shiftedMagZ;
+  scaledMagY = magWInv10 * shiftedMagX + magWInv11 * shiftedMagY + magWInv12 * shiftedMagZ;
+  scaledMagZ = magWInv20 * shiftedMagX + magWInv21 * shiftedMagY + magWInv22 * shiftedMagZ;
 
-  calibMagX.val = magWInv00 * shiftedMagX + magWInv01 * shiftedMagY + magWInv02 * shiftedMagZ;
-  calibMagY.val = magWInv10 * shiftedMagX + magWInv11 * shiftedMagY + magWInv12 * shiftedMagZ;
-  calibMagZ.val = magWInv20 * shiftedMagX + magWInv21 * shiftedMagY + magWInv22 * shiftedMagZ;
+
+  calibMagX.val = scaledMagX;
+  calibMagY.val = scaledMagY;
+  calibMagZ.val = scaledMagZ;
+
+
+  magToFiltX = calibMagX.val;
+  magToFiltY = calibMagY.val;
+  magToFiltZ = calibMagZ.val;
 }
+void UpdateOffset(){
+  gyroOffsetX = 0;
+  gyroOffsetY = 0;
+  gyroOffsetZ = 0;
+  gyroSumX = 0;
+  gyroSumY = 0;
+  gyroSumZ = 0;
 
+  for (uint16_t j = 0; j < 150; j ++){
+    GyroSSLow();
+    SPI.transfer(L3G_OUT_X_L  | READ | MULTI);
+    gyroX.buffer[0] = SPI.transfer(0x00);
+    gyroX.buffer[1] = SPI.transfer(0x00);
+    gyroY.buffer[0] = SPI.transfer(0x00);
+    gyroY.buffer[1] = SPI.transfer(0x00);
+    gyroZ.buffer[0] = SPI.transfer(0x00);
+    gyroZ.buffer[1] = SPI.transfer(0x00);
+
+    GyroSSHigh();
+    gyroSumX += gyroX.val;
+    gyroSumY += (gyroY.val * -1);
+    gyroSumZ += (gyroZ.val * -1);
+
+    delay(3);
+  }
+  gyroOffsetX = gyroSumX / 150;
+  gyroOffsetY = gyroSumY / 150;
+  gyroOffsetZ = gyroSumZ / 150;
+}
 void GetGyro(){
 
   SPI.setDataMode(SPI_MODE0);
@@ -773,20 +745,21 @@ void GetGyro(){
   gyroY.val *= -1;
   gyroZ.val *= -1;
 
-  deltaTemp.val = temperature - initialTemp.val;
 
 
-  gyroX.val -= ( (deltaTemp.val * xSlopeGyro.val) + gyroOffsetX); 
-  gyroY.val -= ( (deltaTemp.val * ySlopeGyro.val) + gyroOffsetY);
-  gyroZ.val -= ( (deltaTemp.val * zSlopeGyro.val) + gyroOffsetZ);
+  gyroX.val -= gyroOffsetX; 
+  gyroY.val -= gyroOffsetY;
+  gyroZ.val -= gyroOffsetZ;
 
-  degreeGyroX.val = (gyroX.val) * 0.07;
-  degreeGyroY.val = (gyroY.val) * 0.07;
-  degreeGyroZ.val = (gyroZ.val) * 0.07;
+
+  degreeGyroX.val = gyroX.val * 0.07;
+  degreeGyroY.val = gyroY.val * 0.07;
+  degreeGyroZ.val = gyroZ.val * 0.07;
 
   radianGyroX = ToRad(degreeGyroX.val);
   radianGyroY = ToRad(degreeGyroY.val);
   radianGyroZ = ToRad(degreeGyroZ.val);
+
 
 
 }
@@ -805,96 +778,55 @@ void GetAcc(){
   accY.val *= -1;
   accZ.val *= -1;
 
-  deltaTemp.val = temperature - calibTempAcc.val;
-  accX.val -= (xAccOffset.val + (deltaTemp.val) * xSlopeAcc.val);
-  accY.val -= (yAccOffset.val + (deltaTemp.val) * ySlopeAcc.val);
-  accZ.val -= (deltaTemp.val) * zSlopeAcc.val;
 
-  if (accX.val > 0){
-    scaledAccX = accX.val * accXScalePos;
-  }
-  else{
-    scaledAccX = accX.val * accXScaleNeg;
-  }
-  if (accY.val > 0){
-    scaledAccY = accY.val * accYScalePos;
-  }
-  else{
-    scaledAccY = accY.val * accYScaleNeg;
-  }
-  if (accZ.val > 0){
-    scaledAccZ = accZ.val * accZScalePos;
-  }
-  else{
-    scaledAccZ = accZ.val * accZScaleNeg;
-  }
-  Filter(&scaledAccX,&scaledAccY,&scaledAccZ,&filtAccX.val,&filtAccY.val,&filtAccZ.val);
+  shiftedAccX.val  = accX.val - accXOffset;
+  shiftedAccY.val  = accY.val - accYOffset;
+  shiftedAccZ.val  = accZ.val - accZOffset;
+  scaledAccX.val = shiftedAccX.val * accXScale;
+  scaledAccY.val = shiftedAccY.val * accYScale;
+  scaledAccZ.val = shiftedAccZ.val * accZScale;
+
+/*  shiftedAccX.val  = accX.val - 0;
+  shiftedAccY.val  = accY.val - 0;
+  shiftedAccZ.val  = accZ.val - 0;
+  scaledAccX.val = shiftedAccX.val * 0.03828125;
+  scaledAccY.val = shiftedAccY.val * 0.03828125;
+  scaledAccZ.val = shiftedAccZ.val * 0.03828125;*/
+
+
+  filtAccX.val = filtAccX.val * 0.9 + scaledAccX.val * 0.1;
+  filtAccY.val = filtAccY.val * 0.9 + scaledAccY.val * 0.1;
+  filtAccZ.val = filtAccZ.val * 0.9 + scaledAccZ.val * 0.1;
+
+  accToFilterX = -1.0 * filtAccX.val;//if the value from the smoothing filter is sent it will not work when the algorithm normalizes the vector
+  accToFilterY = -1.0 * filtAccY.val;
+  accToFilterZ = -1.0 * filtAccZ.val;
 
 
 }
 
-void WaitForTempStab(){
-  boolean stabTemp = false;
-  boolean tog;
-  uint8_t tempState = 0;
-  while (stabTemp == false){
-    if (millis() - ledTimer >= 1000){
-      ledTimer = millis();
-      tog = ~tog;
-      digitalWrite(RED,tog);
-      digitalWrite(YELLOW,tog);
-      digitalWrite(GREEN,tog);
-      digitalWrite(13,tog);
-    }
-    PollPressure();
-    if (newBaro == true){
-      newBaro = false;
-      switch(tempState){
-      case 0://set final temperature
-        initialTemp.val  = temperature;
-        tempState = 1;
-        generalPurposeTimer = millis();
-        digitalWrite(RED,LOW);
 
-        break;
-      case 1://wait 
-        Port0<<(millis() - generalPurposeTimer)<<","<<initialTemp.val<<","<<temperature<<"\r\n";
-        if (abs(temperature - initialTemp.val ) > 20){
-          generalPurposeTimer = millis();//reset timer if temp has changed by more than a degree
-          initialTemp.val = temperature;
-        }
-        if (millis() - generalPurposeTimer > 60000){
-        //if (millis() - generalPurposeTimer > 1){
-          tempState = 2;
-        }
-        digitalWrite(YELLOW,LOW);
 
-        break;
-      case 2:
-        if (abs(temperature - initialTemp.val ) <= 20){
-          initialTemp.val  = temperature;
-          stabTemp = true;
-        }
-        else{
-          tempState = 0;
-        }
-        digitalWrite(GREEN,LOW);
-        break;
-      }
-    }
-  }
-  baroCount = 0;
-  baroSum = 0;
-  while (baroCount < 10){//use a while instead of a for loop because the for loop runs too fast
-    PollPressure();
-    if (newBaro == true){
-      newBaro = false;
-      baroCount++;
-      baroSum += pressure.val;
-    }    
-  }
-  pressureInitial = baroSum / 10;    
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
