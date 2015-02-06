@@ -483,7 +483,7 @@ void SetDefaultGains(){
   kd_cross_track.val = 0;
   fc_cross_track.val = 0;
 
-  imu.declination.val = 3.66;
+  imu.declination.val = 3.3;
   j = 81;
   for(uint16_t i = KP_PITCH_RATE_; i <= MAG_DEC_; i++){
     EEPROM.write(j++,(*floatPointerArray[i]).buffer[0]); 
