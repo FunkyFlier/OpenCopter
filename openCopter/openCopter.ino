@@ -154,7 +154,7 @@ enum CalibrationFlags {
 #define Motor5WriteMicros(x) OCR4B = x * 2//motor 1 is attached to pin7
 #define Motor6WriteMicros(x) OCR4C = x * 2//motor 2 is attached to pin8
 #define Motor7WriteMicros(x) OCR1A = x * 2//motor 3 is attached to pin11
-#define Motor8WriteMicros(x) OCR1B = x * 2//motor 4 is attached to pin12k,
+#define Motor8WriteMicros(x) OCR1B = x * 2//motor 4 is attached to pin12
 //radio control defines
 //RC defines
 enum RC_Types {
