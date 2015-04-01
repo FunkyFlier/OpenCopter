@@ -93,7 +93,7 @@ void ALT::calculate(){
   }
 
   dError = dErrorPrev - *fc * *dt * dErrorPrev + *kd * *fc * (error - prevError);
-  
+
 
   if (error > 0){
     *adjustment = *kp * error * *multiplier  + iError +  dError;
@@ -159,9 +159,9 @@ void YAW::calculate(){
   }
 
   dError = dErrorPrev - *fc * *dt * dErrorPrev + *kd * *fc * (error - prevError);
-  
- 
-  
+
+
+
   if (*integrate == true){
     iError += *ki * *dt * error;
   }
@@ -196,5 +196,6 @@ void YAW::reset(){
   prevActual = *actual;
   dErrorPrev = 0;
 }
+
 
 
