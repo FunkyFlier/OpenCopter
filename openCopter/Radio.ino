@@ -613,7 +613,12 @@ void WriteCalibrationDataToRom() {
     EEPROM.write(PKT_LOCAL_UN_L, temp);
     temp = localPacketNumberUn >> 8;
     EEPROM.write(PKT_LOCAL_UN_M, temp);
-
+    Motor1WriteMicros(0);//set the output compare value
+    Motor2WriteMicros(0);
+    Motor3WriteMicros(0);
+    Motor4WriteMicros(0);
+    Motor5WriteMicros(0);
+    Motor6WriteMicros(0);
     delay(500);
     asm volatile ("  jmp 0");
 

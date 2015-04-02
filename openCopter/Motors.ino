@@ -34,8 +34,9 @@ void CheckESCFlag(){
   newRC = false;
 
   if (EEPROM.read(ESC_CAL_FLAG) == 0xAA){
-    //Serial<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]<<","<<RCValue[RUDD]<<"\r\n";
+   
     while(RCValue[THRO] > 1100 || RCValue[AILE] > 1100 || RCValue[ELEV] > 1100 || RCValue[RUDD] > 1100){
+       //Serial<<RCValue[THRO]<<","<<RCValue[AILE]<<","<<RCValue[ELEV]<<","<<RCValue[RUDD]<<"\r\n";
       //Serial<<"1\r\n";
       if (newRC == true){
         newRC = false;

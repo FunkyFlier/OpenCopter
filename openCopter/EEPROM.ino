@@ -644,6 +644,7 @@ void LoadRC() {
         break;
     }
   }
+  //Serial<<rcData[0].reverse<<","<<rcData[1].reverse<<","<<rcData[2].reverse<<","<<rcData[3].reverse<<","<<rcData[4].reverse<<","<<rcData[5].reverse<<","<<rcData[6].reverse<<","<<rcData[7].reverse<<"\r\n";
   txLossRTB = EEPROM.read(TX_FS);
   //Serial << txLossRTB << " " << EEPROM.read(TX_FS) << "\r\n";
   if (txLossRTB > 1) {
